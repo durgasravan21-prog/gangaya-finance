@@ -15,18 +15,42 @@
   }
   function loginUI(msg) {
     return new Promise(res => {
-      const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><h1 style="margin:0 0 4px">📒 Gangaya Finance</h1><p class="m" style="margin:0 0 12px">Sign in to continue</p>' +
-        '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="current-password" placeholder="Password" required></div>' +
-        '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">Sign in</button></form>');
-      o.querySelector('#rt-m').textContent = msg || '';
-      o.querySelector('#rt-f').onsubmit = async ev => {
-        ev.preventDefault();
-        const b = o.querySelector('button'); b.disabled = true;
-        const { error } = await sb.auth.signInWithPassword({ email: o.querySelector('#rt-e').value.trim(), password: o.querySelector('#rt-p').value });
-        b.disabled = false;
-        if (error) { o.querySelector('#rt-m').textContent = 'Wrong email or password.'; return; }
-        res();
+      let isSignUp = false;
+      const render = () => {
+        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><h1 style="margin:0 0 4px">📒 Gangaya Finance</h1><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
+          '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
+          '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
+          '<p style="text-align:center;margin:12px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
+        o.querySelector('#rt-m').textContent = msg || '';
+        o.querySelector('#rt-t').onclick = ev => {
+          ev.preventDefault();
+          isSignUp = !isSignUp;
+          msg = '';
+          render();
+        };
+        o.querySelector('#rt-f').onsubmit = async ev => {
+          ev.preventDefault();
+          const b = o.querySelector('button'); b.disabled = true;
+          const emailVal = o.querySelector('#rt-e').value.trim();
+          const pwVal = o.querySelector('#rt-p').value;
+          if (isSignUp) {
+            const { data, error } = await sb.auth.signUp({ email: emailVal, password: pwVal });
+            b.disabled = false;
+            if (error) { o.querySelector('#rt-m').textContent = error.message; return; }
+            if (data && data.session) { res(); }
+            else {
+              o.querySelector('#rt-m').style.color = 'var(--a)';
+              o.querySelector('#rt-m').textContent = 'Account created! If confirmation was sent, check email, then Sign in.';
+            }
+          } else {
+            const { error } = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
+            b.disabled = false;
+            if (error) { o.querySelector('#rt-m').textContent = error.message || 'Wrong email or password.'; return; }
+            res();
+          }
+        };
       };
+      render();
     });
   }
   function err(e) {
