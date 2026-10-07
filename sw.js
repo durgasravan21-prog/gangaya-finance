@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker - enables offline caching and PWA install */
-const CACHE = 'gangaya-v2';
+/* Gangaya Finance Service Worker v3 - enables offline caching and PWA install */
+const CACHE = 'gangaya-v3';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -19,7 +19,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   // API calls and Supabase calls always go to network directly
-  if (u.pathname.startsWith('/api/') || u.hostname.includes('supabase')) return;
+  if (u.pathname.startsWith('/api/') || u.hostname.includes('supabase') || u.hostname.includes('google')) return;
 
   // For HTML pages and runtime.js: Network First (fetch fresh from server, fallback to cache when offline)
   if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname.endsWith('.html') || u.pathname.endsWith('.js')) {

@@ -53,7 +53,10 @@ create policy docs_delete_admin on public.docs for delete to authenticated
 -- and payment/loan records can never be edited (only the receipt "sent" flag may change).
 create or replace function public.docs_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare nm text;
+declare
+  nm text;
+  past_d text;
+  past_ts bigint;
 begin
   if tg_op = 'INSERT' then
     if new.collection = 'txns' then
@@ -65,11 +68,22 @@ begin
       if new.data->>'type' = 'pay' and coalesce(new.data->>'mode', '') not in ('cash','upi') then
         raise exception 'mode must be cash or upi'; end if;
       select coalesce(nullif(name, ''), role) into nm from public.profiles where id = auth.uid();
-      new.data := new.data || jsonb_build_object(
-        'ts',   (extract(epoch from clock_timestamp()) * 1000)::bigint,
-        'd',    to_char(clock_timestamp() at time zone 'Asia/Kolkata', 'YYYY-MM-DD'),
-        'by',   coalesce(nm, 'user'),
-        'sent', false);
+      past_d := new.data->>'d';
+      if public.my_role() = 'admin' and past_d ~ '^\d{4}-\d{2}-\d{2}$' then
+        past_ts := coalesce((new.data->>'ts')::bigint, (extract(epoch from (past_d || ' 12:00:00')::timestamp at time zone 'Asia/Kolkata') * 1000)::bigint);
+        new.data := new.data || jsonb_build_object(
+          'ts',   past_ts,
+          'd',    past_d,
+          'by',   coalesce(nm, 'admin'),
+          'sent', coalesce((new.data->>'sent')::boolean, true)
+        );
+      else
+        new.data := new.data || jsonb_build_object(
+          'ts',   (extract(epoch from clock_timestamp()) * 1000)::bigint,
+          'd',    to_char(clock_timestamp() at time zone 'Asia/Kolkata', 'YYYY-MM-DD'),
+          'by',   coalesce(nm, 'user'),
+          'sent', false);
+      end if;
     end if;
   elsif tg_op = 'DELETE' then
     if old.collection = 'members' and exists (select 1 from public.docs t where t.collection = 'txns' and t.data->>'mid' = old.id) then

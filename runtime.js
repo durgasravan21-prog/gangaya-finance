@@ -32,7 +32,7 @@
           ev.preventDefault();
           const b = o.querySelector('button'); b.disabled = true;
           const emailVal = o.querySelector('#rt-e').value.trim();
-          const pwVal = o.querySelector('#rt-p').value;
+          const pwVal = o.querySelector('#rt-p').value.trim();
           if (isSignUp) {
             const { data, error } = await sb.auth.signUp({ email: emailVal, password: pwVal });
             b.disabled = false;
