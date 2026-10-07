@@ -1,0 +1,32 @@
+{
+  "name": "Gangaya Finance",
+  "short_name": "Gangaya Finance",
+  "description": "గంగయ్య ఫైనాన్స్ - Collections, receipts, ledger & reports",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1f7a4d",
+  "theme_color": "#1f7a4d",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "te",
+  "categories": ["finance", "business"],
+  "icons": [
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

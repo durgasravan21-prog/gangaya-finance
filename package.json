@@ -1,0 +1,1 @@
+{ "name": "gangaya-finance", "version": "1.0.0", "private": true, "description": "Gangaya Finance - collections, receipts and ledger", "engines": { "node": ">=18" } }
