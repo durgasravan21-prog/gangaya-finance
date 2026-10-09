@@ -12,7 +12,7 @@
       ]
     },
     {
-      "source": "/(sw.js|index.html)",
+      "source": "/(sw.js|index.html|runtime.js)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]

@@ -1,9 +1,30 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Gangaya Finance</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<script>try{var t=localStorage.getItem('gf-theme');if(t=='light'||t=='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<meta name="theme-color" content="#16704a"><meta name="referrer" content="no-referrer">
+<meta name="description" content="Gangaya Finance - Collections, receipts, ledger & reports">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gangaya Finance">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-512.jpg">
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem('gangaya_theme')||localStorage.getItem('gf-theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    if(t=='light'||t=='dark'){
+      document.documentElement.setAttribute('data-theme',t);
+      var m=document.querySelector('meta[name="theme-color"]');
+      if(m)m.setAttribute('content',t=='dark'?'#0e1210':'#16704a');
+    }
+  }catch(e){}
+})();
+</script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;--bg:#f3f6f2;--c:#ffffff;--c2:#ebf0ea;--t:#16201a;--m:#56635b;--a:#16704a;--ai:#ffffff;--b:#d9e1d9;--r:#b3261e;--ok:#16704a;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(16,32,24,.06),0 6px 18px rgba(16,32,24,.07)}
 :root[data-theme=dark]{color-scheme:dark;--bg:#0e1210;--c:#171d1a;--c2:#202824;--t:#e8eee9;--m:#9aa8a0;--a:#4fcb8c;--ai:#06200f;--b:#2a342f;--r:#ff8f82;--ok:#62d89c;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(0,0,0,.45),0 8px 22px rgba(0,0,0,.35)}
+:root[data-theme=light]{color-scheme:light;--bg:#f3f6f2;--c:#ffffff;--c2:#ebf0ea;--t:#16201a;--m:#56635b;--a:#16704a;--ai:#ffffff;--b:#d9e1d9;--r:#b3261e;--ok:#16704a;--wa:#25d366;--wai:#05220e}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#0e1210;--c:#171d1a;--c2:#202824;--t:#e8eee9;--m:#9aa8a0;--a:#4fcb8c;--ai:#06200f;--b:#2a342f;--r:#ff8f82;--ok:#62d89c;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(0,0,0,.45),0 8px 22px rgba(0,0,0,.35)}}
 html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px);-webkit-text-size-adjust:100%}
 *{box-sizing:border-box}
@@ -11,6 +32,7 @@ body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,-apple
 main{max-width:760px;margin:0 auto;padding:0 14px 28px}
 h1{font-size:19px;margin:0;letter-spacing:.2px}h2{font-size:15px;margin:0 0 8px}
 .hd{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);margin:0 -14px 10px;padding:12px 14px 8px;border-bottom:1px solid var(--b)}
+input::placeholder,textarea::placeholder{color:var(--m);opacity:.75}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
 .tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.tabs::-webkit-scrollbar{display:none}.tabs button{white-space:nowrap;border-radius:999px}
 button,select,input{font:inherit;font-size:16px;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:10px;padding:9px 12px;min-height:42px;transition:background-color .15s,border-color .15s,transform .05s}
@@ -42,11 +64,13 @@ button,a.wa{white-space:nowrap}
 .toast{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:560px;margin:0 auto;background:#1f2723;color:#fff;border-radius:12px;padding:12px 14px;z-index:40;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
+<script src="/vendor/supabase.js"></script>
+<script src="/runtime.js?v=7"></script>
 <script>
 let thm='auto',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
 const $=s=>document.querySelector(s),
-esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
+esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 inr=n=>'₹'+Math.round(n).toLocaleString('en-IN'),
 today=()=>new Date().toLocaleDateString('en-CA'),
 addD=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toLocaleDateString('en-CA')},
@@ -176,9 +200,10 @@ function track(k){if(!owner)return;pnd=k;clearTimeout(pt);pt=setTimeout(()=>{if(
 function away(){if(pnd){const k=pnd;pnd=null;clearTimeout(pt);done(k)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});addEventListener('pagehide',away);addEventListener('blur',away);
 const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
-function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(r).getPropertyValue('--bg').trim()||'#16704a'}catch(e){}}
-function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm)}catch(e){}applyTheme();draw()}
-try{const v=localStorage.getItem('gf-theme');if(v=='light'||v=='dark')thm=v}catch(e){}
+function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');const isD=thm=='dark'||(thm=='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(m)m.setAttribute('content',isD?'#0e1210':'#16704a')}catch(e){}}
+function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm);localStorage.setItem('gangaya_theme',thm)}catch(e){}applyTheme();draw()}
+window.toggleTheme=cycleTheme;
+try{const v=localStorage.getItem('gangaya_theme')||localStorage.getItem('gf-theme');if(v=='light'||v=='dark'||v=='auto')thm=v}catch(e){}
 applyTheme();try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(thm=='auto')applyTheme()})}catch(e){}
 addEventListener('keydown',e=>{if(e.key=='Escape'){if(dlg){dlg=null;draw()}else if(vr){vr='';draw()}else if(sel){sel=null;draw()}}
 else if(e.key=='Enter'&&e.target&&e.target.tagName=='INPUT'&&e.target.type!='radio'){const id=e.target.id;if(id=='amt')save();else if(id=='pa')savePast();else if(/^x[gri]$/.test(id))saveLoan();else if(id=='nv')addV()}});
@@ -295,5 +320,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=5').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=7').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

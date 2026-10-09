@@ -17,10 +17,20 @@
     return new Promise(res => {
       let isSignUp = false;
       const render = () => {
-        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><h1 style="margin:0 0 4px">📒 Gangaya Finance</h1><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
+        const curTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('gangaya_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        const isDark = curTheme === 'dark';
+        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">📒 Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? '☀️ Light' : '🌙 Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
           '<p style="text-align:center;margin:12px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
+        o.querySelector('#rt-th').onclick = () => {
+          const next = isDark ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', next);
+          try { localStorage.setItem('gangaya_theme', next); } catch (_) {}
+          const m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', next === 'dark' ? '#121513' : '#1f7a4d');
+          render();
+        };
         o.querySelector('#rt-m').textContent = msg || '';
         o.querySelector('#rt-t').onclick = ev => {
           ev.preventDefault();

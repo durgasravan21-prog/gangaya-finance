@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v5 - enables offline caching and PWA install */
-const CACHE = 'gangaya-v5';
+/* Gangaya Finance Service Worker v7 - enables offline caching and PWA install */
+const CACHE = 'gangaya-v7';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/manifest.json'];
 
 self.addEventListener('install', e => {
