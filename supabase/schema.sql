@@ -53,10 +53,7 @@ create policy docs_delete_admin on public.docs for delete to authenticated
 -- and payment/loan records can never be edited (only the receipt "sent" flag may change).
 create or replace function public.docs_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare
-  nm text;
-  past_d text;
-  past_ts bigint;
+declare nm text; dd date;
 begin
   if tg_op = 'INSERT' then
     if new.collection = 'txns' then
@@ -68,17 +65,19 @@ begin
       if new.data->>'type' = 'pay' and coalesce(new.data->>'mode', '') not in ('cash','upi') then
         raise exception 'mode must be cash or upi'; end if;
       select coalesce(nullif(name, ''), role) into nm from public.profiles where id = auth.uid();
-      past_d := new.data->>'d';
-      if public.my_role() = 'admin' and past_d ~ '^\d{4}-\d{2}-\d{2}$' then
-        past_ts := coalesce((new.data->>'ts')::bigint, (extract(epoch from (past_d || ' 12:00:00')::timestamp at time zone 'Asia/Kolkata') * 1000)::bigint);
-        new.data := new.data || jsonb_build_object(
-          'ts',   past_ts,
-          'd',    past_d,
-          'by',   coalesce(nm, 'admin'),
-          'sent', coalesce((new.data->>'sent')::boolean, true)
-        );
+      if new.data->>'past' = 'true' then
+        -- History entered by the admin: the date is chosen by the admin, everything else is stamped by the server.
+        if public.my_role() <> 'admin' then raise exception 'only the admin can add past records'; end if;
+        if coalesce(new.data->>'d', '') !~ '^\d{4}-\d{2}-\d{2}$' then raise exception 'a date is required for a past record'; end if;
+        dd := (new.data->>'d')::date;
+        if dd > (clock_timestamp() at time zone 'Asia/Kolkata')::date then raise exception 'a past record cannot be dated in the future'; end if;
+        if dd < date '1990-01-01' then raise exception 'that date is too old'; end if;
+        new.data := (new.data - 'entered_at') || jsonb_build_object(
+          'ts', (extract(epoch from ((dd + case when new.data->>'type' = 'loan' then time '09:00' else time '12:00' end) at time zone 'Asia/Kolkata')) * 1000)::bigint,
+          'by', coalesce(nm, 'user'), 'sent', true, 'past', true,
+          'entered_at', (extract(epoch from clock_timestamp()) * 1000)::bigint);
       else
-        new.data := new.data || jsonb_build_object(
+        new.data := (new.data - 'past' - 'entered_at') || jsonb_build_object(
           'ts',   (extract(epoch from clock_timestamp()) * 1000)::bigint,
           'd',    to_char(clock_timestamp() at time zone 'Asia/Kolkata', 'YYYY-MM-DD'),
           'by',   coalesce(nm, 'user'),

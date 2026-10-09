@@ -73,10 +73,19 @@ npx vercel --prod
   The CSP allows inline scripts because the app uses inline click handlers; all data shown is HTML-escaped and validated.
 
 ## Please do
-- **Passwords:** use two different passwords of 12+ characters. The admin and collector accounts only stay separate if their passwords differ - with one shared password, whoever knows it can sign in as admin. Six-digit numbers can be guessed. Never put passwords or tokens in the code or in chat.
+- **Passwords:** use two different passwords of 12+ characters. The admin and collector accounts only stay separate if their passwords differ - with one shared password, whoever knows it can sign in as either.
 - Download the Excel from Reports regularly as your own backup, and check Supabase's current backup/pausing rules for the plan you use.
 - Never put the `service_role` key anywhere in this project.
 
 ## Not included
 - Data from the Claude-hosted version does not move across automatically (download its Excel first if you need it).
 - WhatsApp still needs one Send tap per chat. Fully automatic sending needs the WhatsApp Business Cloud API.
+
+## Past history (admin only)
+- **Members -> + Past** on a member's row: add an old *Loan given* or *Payment received* with its own date (the form stays open for the next one). **Add member -> Loan date** is for a borrower whose loan is old.
+- See them in the Ledger, in Reports -> "Past records", and in the father's dashboard (marked "past record"). They send no receipts or reminders, and like every record they can never be edited or deleted.
+- The server keeps the date the admin chose (never in the future), and stamps who entered it and when. After updating, run `supabase/schema.sql` once in the Supabase SQL Editor (safe to re-run).
+
+## Look and feel
+- Light, Dark or Auto (follows the phone): the button at the top right. Colours are variables at the top of the page; every text/background pair meets WCAG AA contrast in both themes.
+- Telugu names: `api/sample.js` uses Claude when `ANTHROPIC_API_KEY` is set (best spelling), otherwise Google Input Tools. The admin can see and edit each Telugu spelling in Members and Villages.
