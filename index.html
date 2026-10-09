@@ -220,11 +220,11 @@ function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i})})}
 function savePastRecord(){if(!owner||!sel)return;const m=M.find(x=>x.id==sel.id);if(!m)return;const d=$('#pd').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return toast('Select a valid date');
-const type=(document.querySelector('input[name=ptype]:checked')||{}).value,ts=new Date(d+'T12:00:00').getTime(),mid=m.id;sel=null;
+const type=(document.querySelector('input[name=ptype]:checked')||{}).value,mid=m.id;sel=null;
 if(type=='loan'){const g=num($('#pg').value),r=num($('#pr').value),i=num($('#pi').value);if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (>= loan)');
-once(async()=>{await db.collection('txns').add({mid,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d,ts,sent:true,by:who()});if(i>0&&(!m.inst||m.inst===0))await db.doc('members/'+mid).update({inst:i});toast('Past loan saved!')})}
+once(async()=>{await db.collection('txns').add({mid,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d,past:'true',sent:true,by:who()});if(i>0&&(!m.inst||m.inst===0))await db.doc('members/'+mid).update({inst:i});toast('Past loan saved!')})}
 else{const a=num($('#pa').value);if(!(a>0&&a<=1e7))return toast('Enter valid payment amount');const mode=(document.getElementById('pm')||{}).value=='upi'?'upi':'cash';
-once(async()=>{await db.collection('txns').add({mid,type:'pay',amt:a,mode,d,ts,sent:true,by:who()});toast('Past payment saved!')})}}
+once(async()=>{await db.collection('txns').add({mid,type:'pay',amt:a,mode,d,past:'true',sent:true,by:who()});toast('Past payment saved!')})}}
 function villages(){return `<div class="card"><h2>Add village</h2><div class="g"><input id="nv" placeholder="Village (English)" onblur="tl('nv','vt')"><input id="vt" placeholder="Telugu name" oninput="this.dataset.m=1"><select id="vd">${DE.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select></div>
 <p><button class="p" onclick="addV()">Save village</button></p></div>
 <div class="card sc"><h2>Villages &amp; collection day</h2><table><tr><th>Village</th><th>Day</th><th>Members</th></tr>${V.map((v,i)=>`<tr><td>${esc(nm(v))} <span class="m">${esc(sb(v))}</span></td><td><select onchange="setDay(${i},this.value)">${v.day==null?'<option>Set day</option>':''}${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${DE[j]}</option>`).join('')}</select></td><td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td></tr>`).join('')||'<tr><td colspan=3 class="m">No villages yet</td></tr>'}</table></div>`}
