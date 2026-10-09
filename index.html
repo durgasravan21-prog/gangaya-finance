@@ -65,18 +65,20 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=8"></script>
+<script src="/runtime.js?v=9"></script>
 <script>
-let thm='auto',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null;
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null;
+try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
+const isTe=()=>role=='f'?(lang=='te'):false;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
 const $=s=>document.querySelector(s),
 esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 inr=n=>'₹'+Math.round(n).toLocaleString('en-IN'),
 today=()=>new Date().toLocaleDateString('en-CA'),
 addD=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toLocaleDateString('en-CA')},
-fd=d=>{const x=new Date(d+'T00:00:00');return role=='f'?x.getDate()+' '+TM[x.getMonth()]:x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
+fd=d=>{const x=new Date(d+'T00:00:00');return isTe()?x.getDate()+' '+TM[x.getMonth()]:x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
 ph=p=>{p=String(p).replace(/\D/g,'');return p.length==10?'91'+p:p},
-nm=o=>role=='f'&&o.te?o.te:o.name,sb=o=>role=='f'&&o.te&&o.te!==o.name?o.name:'',tr=(e,t)=>role=='f'?t:e,
+nm=o=>isTe()&&o.te?o.te:o.name,sb=o=>isTe()&&o.te&&o.te!==o.name?o.name:(o.te&&o.te!==o.name?o.te:''),tr=(e,t)=>isTe()?t:e,
 vl=n=>{const v=V.find(x=>x.name==n);return v?nm(v):n};
 function st(m,u,d0){let g=0,p=0,last=m.created||today(),lp='';for(const t of T)if(t.mid==m.id&&(!u||t.ts<=u)){t.type=='loan'?g+=t.repay:p+=t.amt;if(t.d>last)last=t.d;if(t.type=='pay'&&t.d>lp)lp=t.d}
 const due=g-p,v=V.find(x=>x.name==m.village),td=d0||today();let next=null;
@@ -167,7 +169,7 @@ return `<div class="card"><h2>${tr('Records – one by one','రికార్�
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">⬇ Download Excel</button>':''}</div>
 <div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
-function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>role=='f'?DT[d]:DE[d];
+function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>isTe()?DT[d]:DE[d];
 if(!vil&&tv.length)vil=tv[0].name;
 const list=M.filter(m=>m.village==vil&&!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))),
 tp=id=>T.filter(x=>x.mid==id&&x.d==td&&x.type=='pay').sort((a,b)=>a.ts-b.ts),paid=id=>tp(id).reduce((s,x)=>s+x.amt,0),
@@ -199,6 +201,9 @@ let pnd=null,pt=0;
 function track(k){if(!owner)return;pnd=k;clearTimeout(pt);pt=setTimeout(()=>{if(pnd){pnd=null;toast('WhatsApp did not seem to open here. Use Copy, paste it in WhatsApp, then tap ✓ Sent.')}},3500)}
 function away(){if(pnd){const k=pnd;pnd=null;clearTimeout(pt);done(k)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});addEventListener('pagehide',away);addEventListener('blur',away);
+function toggleLang(){lang=(lang=='te')?'en':'te';try{localStorage.setItem('gangaya_lang',lang);localStorage.setItem('gf-lang',lang)}catch(e){}draw()}
+window.toggleLang=toggleLang;
+const langBtn=()=>role=='f'?`<button class="sm" onclick="toggleLang()" title="${isTe()?'Switch to English':'తెలుగులోకి మార్చండి'}">${isTe()?'🌐 English':'🌐 తెలుగు'}</button>`:'';
 const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
 function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');const isD=thm=='dark'||(thm=='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(m)m.setAttribute('content',isD?'#0e1210':'#16704a')}catch(e){}}
 function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm);localStorage.setItem('gangaya_theme',thm)}catch(e){}applyTheme();draw()}
@@ -310,9 +315,9 @@ function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).u
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function draw(){const app=$('#app');if(!db)return app.innerHTML='<p>Could not connect to the database. Check the internet connection and reload.</p>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
-const adm=owner&&role=='a',tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports']]:[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']];if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
+const adm=owner&&role=='a',tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports']]:(isTe()?[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab}[tab]();
-app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':'గంగయ్య ఫైనాన్స్'}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
+app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
@@ -320,5 +325,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=8').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=9').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
