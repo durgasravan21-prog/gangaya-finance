@@ -65,9 +65,9 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=9"></script>
+<script src="/runtime.js?v=10"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null;
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='';
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
 const isTe=()=>role=='f'?(lang=='te'):false;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
@@ -85,7 +85,7 @@ const due=g-p,v=V.find(x=>x.name==m.village),td=d0||today();let next=null;
 if(due>0){if(m.freq==1)next=lp>=td?addD(td,1):td;else if(v&&v.day!=null){let c=td;while(new Date(c+'T00:00:00').getDay()!=v.day)c=addD(c,1);if(lp>=addD(c,-6))c=addD(c,7);next=c}else next=addD(last,m.freq||7)}
 return{g,p,due,next}}
 function rep(){const td=today(),w=addD(td,-6),r={t:{c:0,u:0},w:{c:0,u:0},v:{}};
-for(const t of T){if(t.type!='pay')continue;const m=M.find(x=>x.id==t.mid),v=m?m.village:'?';
+for(const t of T){if(t.type!='pay')continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;const v=m.village||'?';
 for(const[k,ok]of[['t',t.d==td],['w',t.d>=w]]){if(!ok)continue;r[k].c+=t.amt;if(t.mode=='upi')r[k].u+=t.amt;(r.v[v]??={t:0,w:0})[k]+=t.amt}}return r}
 const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','ఫిబ్రవరి','మార్చి','ఏప్రిల్','మే','జూన్','జూలై','ఆగస్టు','సెప్టెంబర్','అక్టోబర్','నవంబర్','డిసెంబర్'],fdt=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+TM[x.getMonth()]+' '+x.getFullYear()},
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
@@ -144,16 +144,16 @@ function loanBlocks(m,L){return `<div style="margin-top:10px">${L.map(l=>{const 
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(l.given)} → ${tr('Return','తిరిగి')} ${inr(l.repay)} · ${inr(l.inst)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')} ${vb(l.t)}</div>
 <div class="m">${tr('Paid','చెల్లించినది')} ${inr(l.paid)} (${l.pays.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(l.due,0))}</div>
 ${l.pays.map(x=>`<div class="rec"><div class="m">${fd(x.t.d)}, ${tm(x.t)} · ${x.t.mode=='upi'?'UPI':tr('Cash','నగదు')}</div><div class="acts" style="flex-shrink:0"><b class="ok">${inr(x.a)}</b>${vb(x.t)}</div></div>`).join('')||`<div class="m">${tr('No payments yet','ఇంకా చెల్లింపులు లేవు')}</div>`}</div>`}).join('')||`<p class="m">${tr('No loans','అప్పులు లేవు')}</p>`}</div>`}
-function ledgerTab(){const q=lq.trim().toLowerCase(),ms=M.filter(m=>(!lv||m.village==lv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
+function ledgerTab(){const q=lq.trim().toLowerCase(),ms=M.filter(m=>!m.archived&&(!lv||m.village==lv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
 rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length})),
 S=rows.reduce((a,{L,pc})=>{a.n+=L.length;a.c+=pc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,g:0,r:0,p:0});
 return `<div class="card"><div class="g"><input id="lq" value="${esc(lq)}" placeholder="${tr('Search name','పేరు వెతకండి')}" oninput="lq=this.value;draw()"><select id="lvs" onchange="lv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==lv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0 0">${rows.length} ${tr('borrowers','రుణగ్రహీతలు')} · ${tr('Loans taken','తీసుకున్న అప్పులు')} <b>${S.n}</b> · ${tr('Payments','చెల్లింపులు')} <b>${S.c}</b><br>${tr('Given','ఇచ్చినది')} ${inr(S.g)} · ${tr('To return','తిరిగి')} ${inr(S.r)} · ${tr('Paid','చెల్లించినది')} ${inr(S.p)} · ${tr('Due','బాకీ')} <b>${inr(Math.max(S.r-S.p,0))}</b></p></div>`
 +(rows.map(({m,L,pc})=>{const g=L.reduce((a,l)=>a+l.given,0),r=L.reduce((a,l)=>a+l.repay,0),p=L.reduce((a,l)=>a+l.paid,0),d=r-p,open=lgv==m.id;
-return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}${m.archived?' · Archived':''}</span>
+return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}</span>
 <div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div></div>
-<div class="acts">${m.archived&&role=='a'?`<button onclick="restoreM('${m.id}')">Restore</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
+<div class="acts"><button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
 function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),R=(k,v)=>`<tr><td class="m">${k}</td><td><b>${v}</b></td></tr>`;
@@ -162,7 +162,7 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.45);di
 <table style="margin:8px 0">${R(tr('Type','రకం'),t.type=='pay'?tr('Payment','చెల్లింపు'):tr('New loan','కొత్త అప్పు'))}${R(tr('Amount','మొత్తం'),inr(t.amt))}${t.type=='pay'?R(tr('Mode','విధానం'),t.mode=='upi'?'UPI':tr('Cash','నగదు')):R(tr('To return','తిరిగి'),inr(t.repay)+' · '+inr(t.inst||m.inst||0)+'/'+(m.freq==1?tr('day','రోజు'):tr('week','వారం')))}${R(tr('Date','తేదీ'),fd(t.d)+', '+tm(t))+(t.past&&t.ent?R(tr('Entered on','నమోదు తేదీ'),fd(new Date(t.ent).toLocaleDateString('en-CA'))):'')}${R(tr('Applied to','వర్తించినది'),on||'-')}${R(tr('Balance after','తరువాత బాకీ'),inr(Math.max(b.due,0)))}${role=='a'?R('Receipt',t.sent?'Sent':'Waiting')+R('Recorded by',esc(t.by||'-')):''}</table>
 ${role=='a'?`<pre style="white-space:pre-wrap;font:inherit;background:var(--bg);border-radius:8px;padding:10px;margin:0 0 10px">${esc(msg(t))}</pre><a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">WhatsApp</a>`:''}</div></div>`}
 function recs(){const td=today(),from={t:td,'7':addD(td,-6),m:td.slice(0,8)+'01',a:''}[fp]||'';
-return T.filter(t=>{if(from&&t.d<from)return false;if(fp=='p'&&!t.past)return false;const m=M.find(x=>x.id==t.mid);return m&&(!fv||m.village==fv)}).sort((a,b)=>b.ts-a.ts)}
+return T.filter(t=>{if(from&&t.d<from)return false;if(fp=='p'&&!t.past)return false;const m=M.find(x=>x.id==t.mid);return m&&!m.archived&&(!fv||m.village==fv)}).sort((a,b)=>b.ts-a.ts)}
 function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce((a,t)=>a+t.amt,0),up=pay.filter(t=>t.mode=='upi').reduce((a,t)=>a+t.amt,0);
 return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ'],['p','Past records','పాత రికార్డులు']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
@@ -191,7 +191,7 @@ if(a>due)return ask(tr('This is more than the balance due ','ఇది బాక
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
 rmsg=(m,s)=>`నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి గుర్తు చేస్తున్నాము:\nమీ వాయిదా ${inr(m.inst||0)} ${fdt(s.next)} న చెల్లించాలి.\nమిగిలిన బాకీ: ${inr(s.due)}\nధన్యవాదాలు 🙏\n${BIZ}`;
 function qitems(h){const o=[],td=today();
-for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m)continue;
+for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
 o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
 if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
 if(dl>2||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:'Reminder · due '+(dl<=0?'today':'in '+dl+(dl==1?' day':' days')),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
@@ -204,7 +204,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});ad
 function toggleLang(){lang=(lang=='te')?'en':'te';try{localStorage.setItem('gangaya_lang',lang);localStorage.setItem('gf-lang',lang)}catch(e){}draw()}
 window.toggleLang=toggleLang;
 const langBtn=()=>role=='f'?`<button class="sm" onclick="toggleLang()" title="${isTe()?'Switch to English':'తెలుగులోకి మార్చండి'}">${isTe()?'🌐 English':'🌐 తెలుగు'}</button>`:'';
-const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
+const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊',ar:'📦'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
 function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');const isD=thm=='dark'||(thm=='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(m)m.setAttribute('content',isD?'#0e1210':'#16704a')}catch(e){}}
 function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm);localStorage.setItem('gangaya_theme',thm)}catch(e){}applyTheme();draw()}
 window.toggleTheme=cycleTheme;
@@ -225,8 +225,8 @@ async function dlMsgs(){if(!owner)return;const d=await claude.use('downloads');i
 await sv(d,'gangaya-messages-'+today()+'.xlsx',xlsx([{name:'Messages',rows:Q.map(i=>({Phone:ph(i.m.phone),Name:i.m.te||i.m.name,Village:i.m.village,Type:i.tag,Date:i.d,Message:i.text,Link:wa(i)}))}]))}
 async function dl(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
 const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:t.by||''}}),
-ms=M.filter(m=>!fv||m.village==fv),
-mm=ms.map(m=>{const s=st(m);return{Member:m.name,Village:m.village,Phone:m.phone,Loan_given:T.filter(t=>t.mid==m.id&&t.type=='loan').reduce((a,t)=>a+t.amt,0),Total_to_return:s.g,Paid:s.p,Due:s.due,Installment:m.inst||0,Frequency:m.freq==1?'Daily':'Weekly',Next_due:s.next||'',Status:m.archived?'Archived':'Active'}}),
+ms=M.filter(m=>!m.archived&&(!fv||m.village==fv)),
+mm=ms.map(m=>{const s=st(m);return{Member:m.name,Village:m.village,Phone:m.phone,Loan_given:T.filter(t=>t.mid==m.id&&t.type=='loan').reduce((a,t)=>a+t.amt,0),Total_to_return:s.g,Paid:s.p,Due:s.due,Installment:m.inst||0,Frequency:m.freq==1?'Daily':'Weekly',Next_due:s.next||'',Status:'Active'}}),
 ll=ms.flatMap(m=>ledger(m).map(l=>({Member:m.name,Village:m.village,Loan_no:l.n,Date:l.t.d,Given:l.given,To_return:l.repay,Installment:l.inst,Paid:l.paid,Due:l.due,Status:l.due<=0?'Closed':'Open',Payments:l.pays.length})));
 await sv(d,'gangaya-finance-'+today()+'.xlsx',xlsx([{name:'Receipts',rows:tx},{name:'Members',rows:mm},{name:'Loans',rows:ll}]))}
 async function tl(a,b){const e=$('#'+a),t=$('#'+b),v=e.value.trim();if(!v||t.dataset.m)return;if(/[\u0C00-\u0C7F]/.test(v)){t.value=v;return}
@@ -250,8 +250,44 @@ if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast
 const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(()=>db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq}))}
 function delM(id){if(!owner)return;const m=M.find(x=>x.id==id),n=T.filter(t=>t.mid==id).length;if(!m)return;
 if(!n)return ask('Delete '+m.name+'? This member has no records.','Delete',()=>w(()=>db.doc('members/'+id).delete()));
-ask(m.name+' has '+n+' record(s). Records can never be deleted, so '+m.name+' will be archived: hidden from Collect, Members and reminders, while every record stays in Ledger, Reports and Excel.','Archive',()=>w(()=>db.doc('members/'+id).update({archived:true}))) }
-function restoreM(id){if(owner)w(()=>db.doc('members/'+id).update({archived:false}))}
+ask(m.name+' has '+n+' record(s). Move '+m.name+' and all their records to the Archived section? (They will be completely isolated from active Collect, Ledger, and Reports).','Archive',()=>w(async()=>{await db.doc('members/'+id).update({archived:true});toast(m.name+' moved to Archived')}))}
+function restoreM(id){if(!owner)return;const m=M.find(x=>x.id==id);ask('Restore '+(m?m.name:'this member')+' back to active? They and their records will reappear in active Ledger and Collect.','Restore',()=>w(async()=>{await db.doc('members/'+id).update({archived:false});toast((m?m.name:'Member')+' restored to active')}))}
+function archivedTab(){
+const q=arq.trim().toLowerCase(),
+ms=M.filter(m=>m.archived&&(!arv||m.village==arv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
+rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length,tc:T.filter(t=>t.mid==m.id).length})),
+S=rows.reduce((a,{L,pc,tc})=>{a.n+=L.length;a.c+=pc;a.t+=tc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,t:0,g:0,r:0,p:0});
+return `<div class="card">
+<div class="row"><h2 style="margin:0">📦 ${tr('Archived Khatas & Records','ఆర్కైవ్ చేసిన ఖాతాలు & రికార్డులు')}</h2>${role=='a'&&rows.length?`<button class="sm" onclick="dlArchived()">⬇ Download Excel</button>`:''}</div>
+<p class="m" style="margin:6px 0 10px">${tr('These accounts and their records are completely isolated here and excluded from active collections, ledger, receipts and reports. You can review full history or restore them to active at any time.','ఈ ఖాతాలు మరియు వాటి రికార్డులు ఇక్కడ భద్రపరచబడ్డాయి. యాక్టివ్ ఖాతాలు, వసూళ్లు మరియు రసీదులలో కలపబడవు.')}</p>
+<div class="g">
+<input id="arq" value="${esc(arq)}" placeholder="${tr('Search archived name…','ఆర్కైవ్ చేసిన పేరు వెతకండి…')}" oninput="arq=this.value;draw()">
+<select id="arvs" onchange="arv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==arv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select>
+</div>
+<p class="m" style="margin:8px 0 0">${rows.length} ${tr('archived accounts','ఆర్కైవ్ చేసిన ఖాతాలు')} · ${tr('Loans','అప్పులు')} <b>${S.n}</b> · ${tr('Payments','చెల్లింపులు')} <b>${S.c}</b> · ${tr('Records','రికార్డులు')} <b>${S.t}</b><br>${tr('Given','ఇచ్చినది')} ${inr(S.g)} · ${tr('To return','తిరిగి')} ${inr(S.r)} · ${tr('Paid','చెల్లించినది')} ${inr(S.p)} · ${tr('Due','బాకీ')} <b>${inr(Math.max(S.r-S.p,0))}</b></p>
+</div>`
++(rows.map(({m,L,pc,tc})=>{
+const g=L.reduce((a,l)=>a+l.given,0),r=L.reduce((a,l)=>a+l.repay,0),p=L.reduce((a,l)=>a+l.paid,0),d=r-p,open=arv_id==m.id;
+return `<div class="card">
+<div class="row">
+<div>
+<b>${esc(nm(m))}</b> <span class="chip">Archived</span> <span class="m">${esc(sb(m))} ${esc(vl(m.village))} · 📞 ${esc(m.phone||'-')}</span>
+<div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b> · ${tr('Total records','మొత్తం రికార్డులు')}: <b>${tc}</b></div>
+<div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div>
+</div>
+<div class="acts">
+${role=='a'?`<button class="p sm" onclick="restoreM('${m.id}')">↩ ${tr('Restore','పునరుద్ధరించు')}</button>`:''}
+<button class="sm" onclick="arv_id=arv_id=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide Records','దాచు'):tr('View Records','రికార్డులు చూడు')}</button>
+</div>
+</div>
+${open?loanBlocks(m,L):''}
+</div>`}).join('')||`<div class="empty">📦 ${tr('No archived accounts found','ఆర్కైవ్ చేసిన ఖాతాలు లేవు')}</div>`)}
+async function dlArchived(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
+const ms=M.filter(m=>m.archived&&(!arv||m.village==arv)),mids=new Set(ms.map(m=>m.id)),
+tx=T.filter(t=>mids.has(t.mid)).sort((a,b)=>a.ts-b.ts).map(t=>{const m=ms.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Status:'Archived'}}),
+mm=ms.map(m=>{const s=st(m);return{Member:m.name,Village:m.village,Phone:m.phone,Loan_given:T.filter(t=>t.mid==m.id&&t.type=='loan').reduce((a,t)=>a+t.amt,0),Total_to_return:s.g,Paid:s.p,Due:s.due,Installment:m.inst||0,Frequency:m.freq==1?'Daily':'Weekly',Status:'Archived'}}),
+ll=ms.flatMap(m=>ledger(m).map(l=>({Member:m.name,Village:m.village,Loan_no:l.n,Date:l.t.d,Given:l.given,To_return:l.repay,Installment:l.inst,Paid:l.paid,Due:l.due,Status:l.due<=0?'Closed':'Open',Payments:l.pays.length})));
+await sv(d,'gangaya-archived-'+today()+'.xlsx',xlsx([{name:'Archived_Receipts',rows:tx},{name:'Archived_Members',rows:mm},{name:'Archived_Loans',rows:ll}]))}
 function savePast(){if(!owner||!sel)return;if(pkind=='many')return savePastMany();const m=M.find(x=>x.id==sel.id);if(!m)return;const k=$('#pk').value=='pay'?'pay':'loan',d=$('#pd').value,a=num($('#pa').value);
 if(!DRE.test(d)||d>today()||d<'1990-01-01')return toast('Pick the date of the old record (not in the future)');
 if(!(a>0&&a<=1e8))return toast('Enter the amount');
@@ -315,8 +351,8 @@ function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).u
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function draw(){const app=$('#app');if(!db)return app.innerHTML='<p>Could not connect to the database. Check the internet connection and reload.</p>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
-const adm=owner&&role=='a',tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports']]:(isTe()?[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
-const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab}[tab]();
+const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
+const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab}[tab]();
 app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
@@ -325,5 +361,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=9').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=10').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
