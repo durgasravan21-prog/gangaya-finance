@@ -1,53 +1,56 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Gangaya Finance</title>
-<meta name="theme-color" content="#1f7a4d"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Gangaya Finance - Collections, receipts, ledger & reports">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Gangaya Finance">
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon-512.jpg">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>try{var t=localStorage.getItem('gf-theme');if(t=='light'||t=='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f4;--c:#fff;--t:#1d2320;--m:#6b756f;--a:#1f7a4d;--b:#e2e6e0;--r:#c0392b}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121513;--c:#1c211e;--t:#e8ece9;--m:#98a39c;--a:#4fc78a;--b:#2b332e;--r:#ff7a6b}}
-:root[data-theme=dark]{--bg:#121513;--c:#1c211e;--t:#e8ece9;--m:#98a39c;--a:#4fc78a;--b:#2b332e;--r:#ff7a6b}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t);font:15px/1.45 system-ui,-apple-system,"Segoe UI","Noto Sans Telugu",Roboto,sans-serif}
-main{max-width:720px;margin:0 auto;padding:14px}
-h1{font-size:19px;margin:0}h2{font-size:15px;margin:0 0 8px}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;--bg:#f3f6f2;--c:#ffffff;--c2:#ebf0ea;--t:#16201a;--m:#56635b;--a:#16704a;--ai:#ffffff;--b:#d9e1d9;--r:#b3261e;--ok:#16704a;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(16,32,24,.06),0 6px 18px rgba(16,32,24,.07)}
+:root[data-theme=dark]{color-scheme:dark;--bg:#0e1210;--c:#171d1a;--c2:#202824;--t:#e8eee9;--m:#9aa8a0;--a:#4fcb8c;--ai:#06200f;--b:#2a342f;--r:#ff8f82;--ok:#62d89c;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(0,0,0,.45),0 8px 22px rgba(0,0,0,.35)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#0e1210;--c:#171d1a;--c2:#202824;--t:#e8eee9;--m:#9aa8a0;--a:#4fcb8c;--ai:#06200f;--b:#2a342f;--r:#ff8f82;--ok:#62d89c;--wa:#25d366;--wai:#05220e;--sh:0 1px 2px rgba(0,0,0,.45),0 8px 22px rgba(0,0,0,.35)}}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 120px);-webkit-text-size-adjust:100%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--t);font:15px/1.5 system-ui,-apple-system,"Segoe UI","Noto Sans Telugu","Nirmala UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;transition:background-color .2s,color .2s}
+main{max-width:760px;margin:0 auto;padding:0 14px 28px}
+h1{font-size:19px;margin:0;letter-spacing:.2px}h2{font-size:15px;margin:0 0 8px}
+.hd{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);margin:0 -14px 10px;padding:12px 14px 8px;border-bottom:1px solid var(--b)}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
-.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}.tabs button{white-space:nowrap}
-button,select,input{font:inherit;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:8px;padding:8px 11px}
-button{cursor:pointer}button.p,.tabs button.on{background:var(--a);color:#fff;border-color:var(--a)}
-.card{background:var(--c);border:1px solid var(--b);border-radius:12px;padding:12px;margin-bottom:10px}
+.tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.tabs::-webkit-scrollbar{display:none}.tabs button{white-space:nowrap;border-radius:999px}
+button,select,input{font:inherit;font-size:16px;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:10px;padding:9px 12px;min-height:42px;transition:background-color .15s,border-color .15s,transform .05s}
+button{cursor:pointer;font-weight:600}button:hover{background:var(--c2)}button:active{transform:scale(.98)}
+button.p,.tabs button.on{background:var(--a);color:var(--ai);border-color:var(--a)}button.p:hover,.tabs button.on:hover{background:var(--a);filter:brightness(1.08)}
+button.sm{padding:4px 11px;font-size:13px;min-height:32px}button.d{color:var(--r);border-color:var(--r);background:transparent}
+button.ic{padding:4px 10px;min-height:36px;font-size:17px;line-height:1}
+button:disabled{opacity:.5;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+input::placeholder{color:var(--m);opacity:.85}
+.card{background:var(--c);border:1px solid var(--b);border-radius:14px;padding:13px;margin-bottom:10px;box-shadow:var(--sh)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-.m{color:var(--m);font-size:13px}.ok{color:var(--a);font-weight:600}
+.m{color:var(--m);font-size:13px}.ok{color:var(--ok);font-weight:600}
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-.g input,.g select{width:100%}.stat b{display:block;font-size:20px}
+.g input,.g select{width:100%}.stat b{display:block;font-size:22px}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-table{width:100%;border-collapse:collapse}td,th{padding:6px 4px;border-bottom:1px solid var(--b);text-align:left}th{font-size:12px;color:var(--m)}
-a.wa{display:inline-block;background:#25d366;color:#fff;text-decoration:none;border-radius:8px;padding:8px 11px;font-weight:600}
+table{width:100%;border-collapse:collapse}td,th{padding:7px 4px;border-bottom:1px solid var(--b);text-align:left;vertical-align:top}th{font-size:12px;color:var(--m);font-weight:600}
+a.wa{display:inline-block;background:var(--wa);color:var(--wai);text-decoration:none;border-radius:10px;padding:9px 13px;font-weight:700}
 .sc{overflow-x:auto}
 .row>div{min-width:0;word-break:break-word}
 .acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.opt{display:flex;align-items:center;gap:6px;border:1px solid var(--b);border-radius:8px;padding:8px 11px}
-input[type=radio]{width:auto!important;padding:0;margin:0}
-button,a.wa{white-space:nowrap}button:disabled{opacity:.5}button.d{color:var(--r);border-color:var(--r)}button.sm{padding:3px 9px;font-size:13px}
+.opt{display:flex;align-items:center;gap:6px;border:1px solid var(--b);border-radius:10px;padding:8px 12px;cursor:pointer}
+input[type=radio]{width:auto!important;min-height:0;padding:0;margin:0;accent-color:var(--a)}
+button,a.wa{white-space:nowrap}
 .rec{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--b)}.rec:last-child{border:0}.rec>b{white-space:nowrap}
-.toast{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:560px;margin:0 auto;background:#222;color:#fff;border-radius:10px;padding:12px;z-index:40;font-size:14px}
+.chip{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--c2);color:var(--m);border:1px solid var(--b)}.chip.good{color:var(--ok);border-color:currentColor;background:transparent}
+.bar{height:6px;border-radius:999px;background:var(--c2);margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--a);border-radius:inherit;transition:width .3s}
+.empty{text-align:center;color:var(--m);padding:22px 0}
+.toast{position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));max-width:560px;margin:0 auto;background:#1f2723;color:#fff;border-radius:12px;padding:12px 14px;z-index:40;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
-<script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=4"></script>
 <script>
-let db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false;
+let thm='auto',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
 const $=s=>document.querySelector(s),
-esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
+esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
 inr=n=>'₹'+Math.round(n).toLocaleString('en-IN'),
 today=()=>new Date().toLocaleDateString('en-CA'),
 addD=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toLocaleDateString('en-CA')},
-fd=d=>new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'}),
+fd=d=>{const x=new Date(d+'T00:00:00');return role=='f'?x.getDate()+' '+TM[x.getMonth()]:x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
 ph=p=>{p=String(p).replace(/\D/g,'');return p.length==10?'91'+p:p},
 nm=o=>role=='f'&&o.te?o.te:o.name,sb=o=>role=='f'&&o.te&&o.te!==o.name?o.name:'',tr=(e,t)=>role=='f'?t:e,
 vl=n=>{const v=V.find(x=>x.name==n);return v?nm(v):n};
@@ -58,10 +61,11 @@ return{g,p,due,next}}
 function rep(){const td=today(),w=addD(td,-6),r={t:{c:0,u:0},w:{c:0,u:0},v:{}};
 for(const t of T){if(t.type!='pay')continue;const m=M.find(x=>x.id==t.mid),v=m?m.village:'?';
 for(const[k,ok]of[['t',t.d==td],['w',t.d>=w]]){if(!ok)continue;r[k].c+=t.amt;if(t.mode=='upi')r[k].u+=t.amt;(r.v[v]??={t:0,w:0})[k]+=t.amt}}return r}
-const BIZ='గంగయ్య ఫైనాన్స్',fdt=d=>new Date(d+'T00:00:00').toLocaleDateString('te-IN',{day:'numeric',month:'short',year:'numeric'}),
+const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','ఫిబ్రవరి','మార్చి','ఏప్రిల్','మే','జూన్','జూలై','ఆగస్టు','సెప్టెంబర్','అక్టోబర్','నవంబర్','డిసెంబర్'],fdt=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+TM[x.getMonth()]+' '+x.getFullYear()},
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
+const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
-return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${closed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది ✅\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు 🙏':'\nధన్యవాదాలు 🙏'}\n${BIZ}`}
+return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది ✅\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు 🙏':'\nధన్యవాదాలు 🙏'}\n${BIZ}`}
 async function w(fn){try{await fn()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 function go(t){tab=t;sel=null;rv='';draw()}
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
@@ -70,23 +74,23 @@ return `<div class="g">${c(r.t,tr('Today','ఈ రోజు'))}${c(r.w,tr('Last 
 <div class="card sc"><h2>${tr('Village-wise','ఊరి వారీగా')}</h2><table><tr><th>${tr('Village','ఊరు')}</th><th>${tr('Today','ఈ రోజు')}</th><th>${tr('7 days','7 రోజులు')}</th></tr>${Object.entries(r.v).map(([k,v])=>`<tr><td>${esc(vl(k))}</td><td>${inr(v.t)}</td><td>${inr(v.w)}</td></tr>`).join('')||'<tr><td colspan=3 class="m">'+tr('No collections yet','ఇంకా వసూలు లేదు')+'</td></tr>'}</table></div>`+recList()}
 function pick(i){vil=V[i].name;sel=null;rv='';draw()}
 function lastRec(m){const l=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts)[0];if(!l)return '';
-return `<div class="${l.d==today()?'ok':'m'}" style="font-size:13px">${tr('Last','చివరి')}: ${inr(l.amt)} · ${l.type=='pay'?(l.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${fd(l.d)}, ${ft(l.ts)} <button class="sm" onclick="vr='${l.id}';draw()">${tr('View','చూడండి')}</button></div>`}
+return `<div class="${l.d==today()?'ok':'m'}" style="font-size:13px">${tr('Last','చివరి')}: ${inr(l.amt)} · ${l.type=='pay'?(l.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${fd(l.d)}, ${tm(l)} <button class="sm" onclick="vr='${l.id}';draw()">${tr('View','చూడండి')}</button></div>`}
 function memRecs(m){const r=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts),s=st(m);
-return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${ft(t.ts)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
+return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
 function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div class="row"><h2>${esc(nm(m))}</h2><button onclick="rv='';draw()">Close</button></div>${memRecs(m)}</div>`:''}
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
 who=()=>str((me&&(me.name||me.id))||(role=='a'?'admin':'collector'),40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
-cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)}));
+cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)}));
 function toast(m){tmsg=String(m);clearTimeout(tt);tt=setTimeout(()=>{tmsg='';draw()},5000);draw()}
 function ask(m,ok,fn){dlg={m,ok,fn};draw()}
 function dlgOk(){const f=dlg&&dlg.fn;dlg=null;draw();if(f)f()}
-function dlgHtml(){return(dlg?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button><button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button></div></div></div>`:'')+(tmsg?`<div class="toast">${esc(tmsg)}</div>`:'')}
+function dlgHtml(){return(dlg?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button><button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button></div></div></div>`:'')+(tmsg?`<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>`:'')}
 async function once(fn){if(busy)return;busy=true;const to=setTimeout(()=>{busy=false},15000);try{await w(fn)}finally{clearTimeout(to);busy=false}}
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})(),
 crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0},enc=new TextEncoder(),
-xe=x=>String(x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+xe=x=>String(x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c])),
 XH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',RN='http://schemas.openxmlformats.org/package/2006/relationships',OD='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 function col(j){let x='';j++;while(j>0){const m=(j-1)%26;x=String.fromCharCode(65+m)+x;j=Math.floor((j-1)/26)}return x}
 function sheetXml(rows){const k=Object.keys(rows[0]||{Info:1}),all=[Object.fromEntries(k.map(x=>[x,x])),...rows];
@@ -108,12 +112,12 @@ if(t.type=='loan')L.push({n:L.length+1,t,given:t.amt,repay:t.repay,inst:t.inst||
 else{let r=t.amt;for(const l of L){if(r<=0)break;const room=l.repay-l.paid;if(room<=0)continue;const a=Math.min(r,room);l.paid+=a;l.pays.push({t,a});r-=a}
 if(r>0&&L.length){const l=L[L.length-1];l.paid+=r;l.pays.push({t,a:r})}}}
 for(const l of L)l.due=l.repay-l.paid;return L}
-function closed(m,t){if(t.type!='pay')return false;const o=ledger(m,t.ts-1);return ledger(m,t.ts).some((l,i)=>l.due<=0&&o[i]&&o[i].due>0)}
+function loanClosed(m,t){if(t.type!='pay')return false;const o=ledger(m,t.ts-1);return ledger(m,t.ts).some((l,i)=>l.due<=0&&o[i]&&o[i].due>0)}
 function vb(t){return `<button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button>`}
-function loanBlocks(m,L){return `<div style="margin-top:10px">${L.map(l=>{const cl=l.due<=0;return `<div style="border-top:1px solid var(--b);padding:8px 0"><div class="row"><b>${tr('Loan','అప్పు')} ${l.n} · ${fd(l.t.d)}</b><span class="${cl?'ok':'m'}">${cl?tr('Closed ✓','పూర్తి ✓'):tr('Open','కొనసాగుతోంది')}</span></div>
+function loanBlocks(m,L){return `<div style="margin-top:10px">${L.map(l=>{const cl=l.due<=0;return `<div style="border-top:1px solid var(--b);padding:8px 0"><div class="row"><b>${tr('Loan','అప్పు')} ${l.n} · ${fd(l.t.d)}</b><span class="chip ${cl?'good':''}">${cl?tr('Closed ✓','పూర్తి ✓'):tr('Open','కొనసాగుతోంది')}</span></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(l.given)} → ${tr('Return','తిరిగి')} ${inr(l.repay)} · ${inr(l.inst)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')} ${vb(l.t)}</div>
 <div class="m">${tr('Paid','చెల్లించినది')} ${inr(l.paid)} (${l.pays.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(l.due,0))}</div>
-${l.pays.map(x=>`<div class="rec"><div class="m">${fd(x.t.d)}, ${ft(x.t.ts)} · ${x.t.mode=='upi'?'UPI':tr('Cash','నగదు')}</div><div class="acts" style="flex-shrink:0"><b class="ok">${inr(x.a)}</b>${vb(x.t)}</div></div>`).join('')||`<div class="m">${tr('No payments yet','ఇంకా చెల్లింపులు లేవు')}</div>`}</div>`}).join('')||`<p class="m">${tr('No loans','అప్పులు లేవు')}</p>`}</div>`}
+${l.pays.map(x=>`<div class="rec"><div class="m">${fd(x.t.d)}, ${tm(x.t)} · ${x.t.mode=='upi'?'UPI':tr('Cash','నగదు')}</div><div class="acts" style="flex-shrink:0"><b class="ok">${inr(x.a)}</b>${vb(x.t)}</div></div>`).join('')||`<div class="m">${tr('No payments yet','ఇంకా చెల్లింపులు లేవు')}</div>`}</div>`}).join('')||`<p class="m">${tr('No loans','అప్పులు లేవు')}</p>`}</div>`}
 function ledgerTab(){const q=lq.trim().toLowerCase(),ms=M.filter(m=>(!lv||m.village==lv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
 rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length})),
 S=rows.reduce((a,{L,pc})=>{a.n+=L.length;a.c+=pc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,g:0,r:0,p:0});
@@ -127,17 +131,17 @@ return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class
 function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),R=(k,v)=>`<tr><td class="m">${k}</td><td><b>${v}</b></td></tr>`;
-return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9" onclick="if(event.target.id=='ov'){vr='';draw()}"><div class="card" style="width:100%;max-width:720px;max-height:85vh;overflow:auto;margin:0;border-radius:16px 16px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))">
+return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9" onclick="if(event.target.id=='ov'){vr='';draw()}"><div class="card" role="dialog" aria-modal="true" style="width:100%;max-width:720px;max-height:85vh;overflow:auto;margin:0;border-radius:16px 16px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))">
 <div class="row"><h2 style="margin:0">${esc(nm(m))} <span class="m">${esc(vl(m.village))}</span></h2><button onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button></div>
-<table style="margin:8px 0">${R(tr('Type','రకం'),t.type=='pay'?tr('Payment','చెల్లింపు'):tr('New loan','కొత్త అప్పు'))}${R(tr('Amount','మొత్తం'),inr(t.amt))}${t.type=='pay'?R(tr('Mode','విధానం'),t.mode=='upi'?'UPI':tr('Cash','నగదు')):R(tr('To return','తిరిగి'),inr(t.repay)+' · '+inr(t.inst||m.inst||0)+'/'+(m.freq==1?tr('day','రోజు'):tr('week','వారం')))}${R(tr('Date','తేదీ'),fd(t.d)+', '+ft(t.ts))}${R(tr('Applied to','వర్తించినది'),on||'-')}${R(tr('Balance after','తరువాత బాకీ'),inr(Math.max(b.due,0)))}${role=='a'?R('Receipt',t.sent?'Sent':'Waiting')+R('Recorded by',esc(t.by||'-')):''}</table>
+<table style="margin:8px 0">${R(tr('Type','రకం'),t.type=='pay'?tr('Payment','చెల్లింపు'):tr('New loan','కొత్త అప్పు'))}${R(tr('Amount','మొత్తం'),inr(t.amt))}${t.type=='pay'?R(tr('Mode','విధానం'),t.mode=='upi'?'UPI':tr('Cash','నగదు')):R(tr('To return','తిరిగి'),inr(t.repay)+' · '+inr(t.inst||m.inst||0)+'/'+(m.freq==1?tr('day','రోజు'):tr('week','వారం')))}${R(tr('Date','తేదీ'),fd(t.d)+', '+tm(t))+(t.past&&t.ent?R(tr('Entered on','నమోదు తేదీ'),fd(new Date(t.ent).toLocaleDateString('en-CA'))):'')}${R(tr('Applied to','వర్తించినది'),on||'-')}${R(tr('Balance after','తరువాత బాకీ'),inr(Math.max(b.due,0)))}${role=='a'?R('Receipt',t.sent?'Sent':'Waiting')+R('Recorded by',esc(t.by||'-')):''}</table>
 ${role=='a'?`<pre style="white-space:pre-wrap;font:inherit;background:var(--bg);border-radius:8px;padding:10px;margin:0 0 10px">${esc(msg(t))}</pre><a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">WhatsApp</a>`:''}</div></div>`}
 function recs(){const td=today(),from={t:td,'7':addD(td,-6),m:td.slice(0,8)+'01',a:''}[fp]||'';
-return T.filter(t=>{if(from&&t.d<from)return false;const m=M.find(x=>x.id==t.mid);return m&&(!fv||m.village==fv)}).sort((a,b)=>b.ts-a.ts)}
+return T.filter(t=>{if(from&&t.d<from)return false;if(fp=='p'&&!t.past)return false;const m=M.find(x=>x.id==t.mid);return m&&(!fv||m.village==fv)}).sort((a,b)=>b.ts-a.ts)}
 function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce((a,t)=>a+t.amt,0),up=pay.filter(t=>t.mode=='upi').reduce((a,t)=>a+t.amt,0);
-return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
+return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ'],['p','Past records','పాత రికార్డులు']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">⬇ Download Excel</button>':''}</div>
-<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${ft(t.ts)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
+<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
 function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>role=='f'?DT[d]:DE[d];
 if(!vil&&tv.length)vil=tv[0].name;
@@ -145,23 +149,24 @@ const list=M.filter(m=>m.village==vil&&!m.archived).sort((a,b)=>nm(a).localeComp
 tp=id=>T.filter(x=>x.mid==id&&x.d==td&&x.type=='pay').sort((a,b)=>a.ts-b.ts),paid=id=>tp(id).reduce((s,x)=>s+x.amt,0),
 got=list.reduce((s,m)=>s+paid(m.id),0),n=list.filter(m=>paid(m.id)).length;
 let f='';if(sel){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>${esc(nm(m))}</h2><div class="g"><input id="amt" type="number" inputmode="numeric" placeholder="${tr('Amount','మొత్తం')}" value="${m.inst||''}"></div>
-<div class="acts" style="margin:8px 0"><label class="opt"><input type="radio" name="md" value="cash" checked>${tr('Cash','నగదు')}</label><label class="opt"><input type="radio" name="md" value="upi">UPI</label></div>
+<div class="acts" style="margin:8px 0"><label class="opt"><input type="radio" name="md" value="cash" ${pmode=='upi'?'':'checked'} onchange="pmode='cash'">${tr('Cash','నగదు')}</label><label class="opt"><input type="radio" name="md" value="upi" ${pmode=='upi'?'checked':''} onchange="pmode='upi'">UPI</label></div>
 <div class="acts"><button class="p" onclick="save()">${tr('Done ✓','అయింది ✓')}</button><button onclick="sel=null;draw()">${tr('Cancel','వద్దు')}</button></div></div>`}
 return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="chips">${tv.map(v=>`<button class="${v.name==vil?'p':''}" onclick="pick(${V.indexOf(v)})">${esc(nm(v))}</button>`).join('')||`<span class="m">${tr('No village scheduled today','ఈ రోజు ఏ ఊరూ లేదు')}</span>`}</div>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
-<span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div></div>${f}
-${list.map(m=>{const s=st(m),p=paid(m.id);return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span><div class="m">${tr('Due','బాకీ')} ${inr(s.due)} · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div>
-<div class="acts"><button class="p" onclick="sel={id:'${m.id}'};draw()">${tr('Collect','వసూలు')}</button><button onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`}
+<span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
+${list.map(m=>{const s=st(m);return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span><div class="m">${tr('Due','బాకీ')} ${inr(s.due)} · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div>
+<div class="acts"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button><button onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}
+}
 function save(){if(!sel)return;const a=num($('#amt').value);if(!(a>0&&a<=1e7))return toast(tr('Enter amount','మొత్తం రాయండి'));const m=M.find(x=>x.id==sel.id);if(!m)return;
-const mode=(document.querySelector('input[name=md]:checked')||{}).value=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
+const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
 go2=()=>{const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};sel=null;once(()=>db.collection('txns').add(t))};
 if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);go2()}
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
 rmsg=(m,s)=>`నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి గుర్తు చేస్తున్నాము:\nమీ వాయిదా ${inr(m.inst||0)} ${fdt(s.next)} న చెల్లించాలి.\nమిగిలిన బాకీ: ${inr(s.due)}\nధన్యవాదాలు 🙏\n${BIZ}`;
 function qitems(h){const o=[],td=today();
-for(const t of T){if(!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m)continue;
-o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${closed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
+for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m)continue;
+o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
 if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
 if(dl>2||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:'Reminder · due '+(dl<=0?'today':'in '+dl+(dl==1?' day':' days')),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
 return o}
@@ -170,72 +175,119 @@ let pnd=null,pt=0;
 function track(k){if(!owner)return;pnd=k;clearTimeout(pt);pt=setTimeout(()=>{if(pnd){pnd=null;toast('WhatsApp did not seem to open here. Use Copy, paste it in WhatsApp, then tap ✓ Sent.')}},3500)}
 function away(){if(pnd){const k=pnd;pnd=null;clearTimeout(pt);done(k)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});addEventListener('pagehide',away);addEventListener('blur',away);
+const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
+function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');if(m)m.content=getComputedStyle(r).getPropertyValue('--bg').trim()||'#16704a'}catch(e){}}
+function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm)}catch(e){}applyTheme();draw()}
+try{const v=localStorage.getItem('gf-theme');if(v=='light'||v=='dark')thm=v}catch(e){}
+applyTheme();try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(thm=='auto')applyTheme()})}catch(e){}
+addEventListener('keydown',e=>{if(e.key=='Escape'){if(dlg){dlg=null;draw()}else if(vr){vr='';draw()}else if(sel){sel=null;draw()}}
+else if(e.key=='Enter'&&e.target&&e.target.tagName=='INPUT'&&e.target.type!='radio'){const id=e.target.id;if(id=='amt')save();else if(id=='pa')savePast();else if(/^x[gri]$/.test(id))saveLoan();else if(id=='nv')addV()}});
 function sendNext(){if(!owner||pnd)return;const i=Q[qi]||Q[0];if(!i)return;const a=document.createElement('a');a.href=wa(i);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);track(i.k);a.click();a.remove()}
 function sentNow(k){if(owner)done(k)}
 function copyMsg(k){const i=Q.find(x=>x.k==k);if(!i)return;(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(i.text):Promise.reject()).then(()=>toast('Message copied. Paste it in the WhatsApp chat of '+i.m.phone)).catch(()=>ask(i.text,'OK',()=>{}))}
 function receipts(){const q=qitems(hist).sort((a,b)=>hist?b.ts-a.ts:a.d.localeCompare(b.d)||a.ts-b.ts).slice(0,hist?40:500);if(!hist)Q=q;if(qi>=q.length)qi=0;const nx=!hist&&q[qi];
 return `<div class="card"><div class="row"><b>${hist?'Sent (latest 40)':q.length+' waiting'}</b><div class="acts">${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>⬇ Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?'Show waiting':'Show sent'}</button></div></div>
 ${hist?'':'<p class="m" style="margin:6px 0 0">One receipt per payment or loan, plus reminders for dues in the next 2 days. Tap the green bar at the bottom: WhatsApp opens with the message ready, press Send there, come back and tap again. If WhatsApp does not open, use Copy, paste it in WhatsApp, then tap ✓ Sent. The Messages file works with bulk-sending tools.</p>'}</div>`
-+(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm" onclick="vr='${i.k.slice(1)}';draw()">View</button>`:''}</div></div></div>`).join('')||'<p class="m">Nothing here.</p>')
++(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm" onclick="vr='${i.k.slice(1)}';draw()">View</button>`:''}</div></div></div>`).join('')||'<div class="empty">🗂️ Nothing here</div>')
 +(nx?`<div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0"><button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendNext()">Send all · next: ${esc(nm(nx.m))} (${q.length} left)</button><button style="padding:14px" onclick="qi++;draw()">Skip</button></div>`:'')}
 async function sv(d,fn,data){try{await d.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')toast('Could not download: '+((e&&(e.message||e.code))||'error'))}}
 async function dlMsgs(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
 await sv(d,'gangaya-messages-'+today()+'.xlsx',xlsx([{name:'Messages',rows:Q.map(i=>({Phone:ph(i.m.phone),Name:i.m.te||i.m.name,Village:i.m.village,Type:i.tag,Date:i.d,Message:i.text,Link:wa(i)}))}]))}
 async function dl(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
-const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:ft(t.ts),Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:t.by||''}}),
+const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:t.by||''}}),
 ms=M.filter(m=>!fv||m.village==fv),
 mm=ms.map(m=>{const s=st(m);return{Member:m.name,Village:m.village,Phone:m.phone,Loan_given:T.filter(t=>t.mid==m.id&&t.type=='loan').reduce((a,t)=>a+t.amt,0),Total_to_return:s.g,Paid:s.p,Due:s.due,Installment:m.inst||0,Frequency:m.freq==1?'Daily':'Weekly',Next_due:s.next||'',Status:m.archived?'Archived':'Active'}}),
 ll=ms.flatMap(m=>ledger(m).map(l=>({Member:m.name,Village:m.village,Loan_no:l.n,Date:l.t.d,Given:l.given,To_return:l.repay,Installment:l.inst,Paid:l.paid,Due:l.due,Status:l.due<=0?'Closed':'Open',Payments:l.pays.length})));
 await sv(d,'gangaya-finance-'+today()+'.xlsx',xlsx([{name:'Receipts',rows:tx},{name:'Members',rows:mm},{name:'Loans',rows:ll}]))}
 async function tl(a,b){const e=$('#'+a),t=$('#'+b),v=e.value.trim();if(!v||t.dataset.m)return;if(/[\u0C00-\u0C7F]/.test(v)){t.value=v;return}
-t.placeholder='…';try{const s=await claude.use('sample');if(!s)return;const r=await s.json('Transliterate this Indian person or village name from English letters into Telugu script. Reply only with JSON {"te":"<telugu>"}. Name: '+v,{modelTier:'quick'});t.value=/[\u0C00-\u0C7F]/.test(r&&r.te)?str(r.te,60):''}catch(e){if(!tlw){tlw=true;toast('Telugu name could not be filled automatically. Type it in the Telugu box.')}}finally{t.placeholder='Telugu name'}}
+t.placeholder='…';try{const s=await claude.use('sample');if(!s)return;const r=await s.json('Write this Indian person or village name in Telugu script the way a Telugu speaker would spell it (phonetic transliteration, never a translation). Keep every word and the order. Examples: Ravi=రవి, Sravan=శ్రావణ్, Srinivas=శ్రీనివాస్, Lakshmi=లక్ష్మి, Venkata=వెంకట, Krishna=కృష్ణ, Sridevi=శ్రీదేవి, Challagolla=చల్లగొల్ల, Gudivada=గుడివాడ, Vijayawada=విజయవాడ, Pamarru=పామర్రు. Reply only with JSON {"te":"<telugu>"}. Name: '+v,{modelTier:'standard'});t.value=/[\u0C00-\u0C7F]/.test(r&&r.te)?str(r.te,60):''}catch(e){if(!tlw){tlw=true;toast('Telugu name could not be filled automatically. Type it in the Telugu box.')}}finally{t.placeholder='Telugu name'}}
 function members(){let f='';if(sel&&sel.k=='edit'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>Edit · ${esc(m.name)}</h2><div class="g"><input id="en" value="${esc(m.name)}" placeholder="Name (English)" onblur="if(this.value!==this.defaultValue)tl('en','et')"><input id="et" value="${esc(m.te||'')}" placeholder="Telugu name" oninput="this.dataset.m=1"><input id="ep" value="${esc(m.phone)}" inputmode="tel" placeholder="WhatsApp number"><select id="ev">${V.map(v=>`<option value="${esc(v.name)}" ${v.name==m.village?'selected':''}>${esc(nm(v))}</option>`).join('')}</select>
 <input id="ei" type="number" value="${m.inst||''}" placeholder="Installment ₹"><select id="ef"><option value="7" ${m.freq!=1?'selected':''}>Weekly</option><option value="1" ${m.freq==1?'selected':''}>Daily</option></select></div>
-<p class="acts"><button class="p" onclick="saveEdit()">Save changes</button><button onclick="sel=null;draw()">Cancel</button></p></div>`}else if(sel&&sel.k=='loan'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>New loan · ${esc(nm(m))}</h2><div class="g"><input id="xg" type="number" placeholder="Loan given ₹"><input id="xr" type="number" placeholder="Total to return ₹"><input id="xi" type="number" placeholder="Installment ₹"></div>
-<p><button class="p" onclick="saveLoan()">Save loan</button> <button onclick="sel=null;draw()">Cancel</button></p></div>`}else if(sel&&sel.k=='past'){const m=M.find(x=>x.id==sel.id);f=`<div class="card" style="border:2px solid var(--a)"><h2>📜 Add Past Record · ${esc(nm(m))}</h2><p class="m" style="margin:0 0 10px">గత రికార్డు: Enter past loan or past payment from previous dates or years. Visible in both Admin &amp; Father dashboards.</p>
-<div class="acts" style="margin-bottom:8px"><label class="opt"><input type="radio" name="ptype" value="loan" checked onchange="document.getElementById('p-l-box').style.display='block';document.getElementById('p-p-box').style.display='none'"> Past Loan (గత అప్పు)</label><label class="opt"><input type="radio" name="ptype" value="pay" onchange="document.getElementById('p-l-box').style.display='none';document.getElementById('p-p-box').style.display='block'"> Past Payment (గత చెల్లింపు)</label></div>
-<div class="g" style="margin-bottom:8px"><div style="grid-column:1/-1"><span class="m">Record Date (తేదీ):</span><br><input id="pd" type="date" value="${today()}" max="${today()}" style="margin-top:4px"></div></div>
-<div id="p-l-box"><div class="g"><input id="pg" type="number" placeholder="Loan given ₹"><input id="pr" type="number" placeholder="Total to return ₹"><input id="pi" type="number" placeholder="Installment ₹"></div></div>
-<div id="p-p-box" style="display:none"><div class="g"><input id="pa" type="number" placeholder="Paid amount ₹"><select id="pm"><option value="cash">Cash (నగదు)</option><option value="upi">UPI</option></select></div></div>
-<p class="acts" style="margin-top:10px"><button class="p" onclick="savePastRecord()">Save Past Record</button><button onclick="sel=null;draw()">Cancel</button></p></div>`}
-return `${f}${rvCard()}<div class="card"><h2>Add member</h2><div class="g"><input id="n" placeholder="Name (English)" onblur="tl('n','nt')"><input id="nt" placeholder="Telugu name" oninput="this.dataset.m=1"><input id="p" placeholder="WhatsApp number" inputmode="tel"><select id="v">${V.map(v=>`<option value="${esc(v.name)}">${esc(nm(v))}</option>`).join('')}</select>
-<input id="lg" type="number" placeholder="Loan given ₹"><input id="lr" type="number" placeholder="Total to return ₹"><input id="i" type="number" placeholder="Installment ₹"><select id="f"><option value="7">Weekly</option><option value="1">Daily</option></select></div>
-<p><button class="p" onclick="addM()">Save member</button></p></div>
-<div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}</td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="sm" style="border-color:var(--a);color:var(--a);font-weight:600" onclick="sel={id:'${m.id}',k:'past'};draw();scrollTo(0,0)">📜 + Past</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
+<p class="acts"><button class="p" onclick="saveEdit()">Save changes</button><button onclick="sel=null;draw()">Cancel</button></p></div>`}else if(sel&&sel.k=='past'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>Past record · ${esc(nm(m))}</h2><p class="m" style="margin:0 0 8px">For old history. No receipt or reminder is sent. It cannot be deleted later, so check the date and amount.</p>
+<div class="g"><select id="pk" onchange="pkind=this.value;draw()"><option value="loan" ${pkind=='loan'?'selected':''}>Loan given</option><option value="pay" ${pkind=='pay'?'selected':''}>Payment received</option><option value="many" ${pkind=='many'?'selected':''}>Several payments (a list)</option></select>
+${pkind=='many'?'':`<input id="pd" type="date" min="1990-01-01" max="${today()}" value="${esc(pdate)}" title="Date of the record"><input id="pa" type="number" inputmode="numeric" placeholder="Amount ₹">`}
+${pkind=='many'?'':pkind=='loan'?'<input id="pr" type="number" placeholder="Total to return ₹"><input id="pi" type="number" placeholder="Installment ₹">':'<select id="pm"><option value="cash">Cash</option><option value="upi">UPI</option></select>'}</div>${pkind=='many'?histSection():''}
+<p class="acts"><button class="p" onclick="savePast()">Save record</button><button onclick="sel=null;draw()">Close</button></p></div>`}else if(sel&&sel.k=='loan'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>New loan · ${esc(nm(m))}</h2><div class="g"><input id="xg" type="number" placeholder="Loan given ₹"><input id="xr" type="number" placeholder="Total to return ₹"><input id="xi" type="number" placeholder="Installment ₹"></div>
+<p><button class="p" onclick="saveLoan()">Save loan</button> <button onclick="sel=null;draw()">Cancel</button></p></div>`}
+return `${impBanner()}${f}${rvCard()}<div class="card"><h2>Add member</h2><div class="g"><input id="n" placeholder="Name (English)" onblur="tl('n','nt')"><input id="nt" placeholder="Telugu name" oninput="this.dataset.m=1"><input id="p" placeholder="WhatsApp number" inputmode="tel"><select id="v">${V.map(v=>`<option value="${esc(v.name)}">${esc(nm(v))}</option>`).join('')}</select>
+<input id="lg" type="number" placeholder="Loan given ₹"><input id="lr" type="number" placeholder="Total to return ₹"><label class="m">Loan date (blank = today)<input id="ld" type="date" min="1990-01-01" max="${today()}"></label><input id="i" type="number" placeholder="Installment ₹"><select id="f"><option value="7">Weekly</option><option value="1">Daily</option></select></div>
+<label class="opt" style="margin-top:10px"><input type="checkbox" ${exb?'checked':''} onchange="exb=this.checked;draw()"> Existing borrower: already has a running loan and has paid some instalments</label>${exb?histSection():''}
+<p><button class="p" onclick="addM()">${exb?'Save member with history':'Save member'}</button></p></div>
+<div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}<div class="m">${esc(m.te||'— no Telugu name —')}</div></td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
 const cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8,clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
 function saveEdit(){if(!owner||!sel)return;const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value),v=$('#ev').value,i=num($('#ei').value);
 if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');if(!amtOk(i))return toast('Check the installment');
 const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(()=>db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq}))}
 function delM(id){if(!owner)return;const m=M.find(x=>x.id==id),n=T.filter(t=>t.mid==id).length;if(!m)return;
 if(!n)return ask('Delete '+m.name+'? This member has no records.','Delete',()=>w(()=>db.doc('members/'+id).delete()));
-ask(m.name+' has '+n+' record(s). Records can never be deleted, so '+m.name+' will be archived: hidden from Collect, Members and reminders, while every record stays in Ledger, Reports and Excel.','Archive',()=>w(()=>db.doc('members/'+id).update({archived:true})))}
+ask(m.name+' has '+n+' record(s). Records can never be deleted, so '+m.name+' will be archived: hidden from Collect, Members and reminders, while every record stays in Ledger, Reports and Excel.','Archive',()=>w(()=>db.doc('members/'+id).update({archived:true}))) }
 function restoreM(id){if(owner)w(()=>db.doc('members/'+id).update({archived:false}))}
-function addM(){if(!owner)return;const n=$('#n').value.trim().slice(0,60),p=cleanPh($('#p').value),v=$('#v').value,g=num($('#lg').value),r=num($('#lr').value),i=num($('#i').value);
+function savePast(){if(!owner||!sel)return;if(pkind=='many')return savePastMany();const m=M.find(x=>x.id==sel.id);if(!m)return;const k=$('#pk').value=='pay'?'pay':'loan',d=$('#pd').value,a=num($('#pa').value);
+if(!DRE.test(d)||d>today()||d<'1990-01-01')return toast('Pick the date of the old record (not in the future)');
+if(!(a>0&&a<=1e8))return toast('Enter the amount');
+const t={mid:m.id,type:k,amt:a,d,ts:pts(d,k),sent:true,past:true,by:who(),entered_at:Date.now()};
+if(k=='loan'){const r=num($('#pr').value),i=num($('#pi').value);if(!(r>=a)||!amtOk(i))return toast('Total to return must be at least the loan given');t.repay=r;t.inst=i}
+else t.mode=$('#pm').value=='upi'?'upi':'cash';
+pdate=d;pkind=k;const go2=()=>once(async()=>{await db.collection('txns').add(t);clr(['pa','pr','pi']);toast('Saved: '+(k=='pay'?'payment ':'loan ')+inr(a)+' on '+fd(d))});
+if(k=='pay'){const due=Math.max(st(m,t.ts,d).due,0);if(a>due)return ask('This payment is more than the balance due on that date ('+inr(due)+'). Save anyway?','Save',go2)}
+go2()}
+const HRT=(t)=>`${tr('payments','చెల్లింపులు')}`;
+function hsumText(){const t=hp.reduce((a,r)=>a+(num(r.a)||0),0);return hp.length+' payment(s) · total '+inr(t)}
+function hsum(){const e=$('#hs');if(e)e.textContent=hsumText()}
+function histSection(){return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:10px"><h2>Payments already received</h2>
+<p class="m" style="margin:0 0 8px">${sel&&sel.k=='past'?'Add the payments from your father\'s book.':'The loan fields above (given, total to return, instalment, loan date) are the ORIGINAL loan. Add what he has paid so far.'} Add them one by one, or generate regular instalments and then fix the ones that differ.</p>
+<div class="g"><input id="gc" type="number" inputmode="numeric" placeholder="How many instalments"><input id="ga" type="number" inputmode="numeric" placeholder="Amount each ₹"><label class="m">First payment date<input id="gd" type="date" min="1990-01-01" max="${today()}"></label><select id="gf"><option value="7">Every week</option><option value="1">Every day</option></select></div>
+<p class="acts" style="margin:8px 0"><button onclick="genRows()">Generate rows</button><button onclick="hp.push({d:'',a:'',m:'cash'});draw()">+ Add one</button>${hp.length?'<button class="d" onclick="hp=[];draw()">Clear all</button>':''}</p>
+${hp.map((r,i)=>`<div class="acts" style="margin-bottom:6px"><input type="date" value="${esc(r.d)}" min="1990-01-01" max="${today()}" onchange="hp[${i}].d=this.value" style="flex:1 1 140px" aria-label="Payment ${i+1} date"><input type="number" inputmode="numeric" placeholder="₹" value="${esc(r.a)}" oninput="hp[${i}].a=this.value;hsum()" style="flex:1 1 90px" aria-label="Payment ${i+1} amount"><select onchange="hp[${i}].m=this.value" aria-label="Payment ${i+1} mode"><option value="cash" ${r.m=='cash'?'selected':''}>Cash</option><option value="upi" ${r.m=='upi'?'selected':''}>UPI</option></select><button class="sm d" onclick="hp.splice(${i},1);draw()" aria-label="Remove payment ${i+1}">✕</button></div>`).join('')}
+<p class="m" id="hs" style="margin:6px 0 0">${hsumText()}</p></div>`}
+function genRows(){const c=Math.floor(num($('#gc').value)),ia=$('#i')?num($('#i').value):((M.find(x=>sel&&x.id==sel.id)||{}).inst||0),a=num($('#ga').value)||ia,d0=$('#gd').value,step=$('#gf').value=='1'?1:7;
+if(!(c>=1&&c<=400))return toast('Enter how many instalments (1 to 400)');if(!(a>0))return toast('Enter the amount of each instalment');if(!DRE.test(d0)||d0>today()||d0<'1990-01-01')return toast('Pick the date of the first payment (not in the future)');
+let d=d0;const rows=[];for(let k=0;k<c;k++){if(d>today())break;rows.push({d,a:String(a),m:'cash'});d=addD(d,step)}
+hp=hp.concat(rows).sort((x,y)=>x.d.localeCompare(y.d));draw();if(rows.length<c)toast('Only '+rows.length+' of '+c+' instalments fall on or before today, so I added those.')}
+function impBanner(){if(!imp)return '';const n=imp.ops.length,p=Math.round(imp.k*100/n);return `<div class="card" style="border-color:var(--a)"><b>${busy?'Saving ':'Unfinished: '}${esc(imp.name)}</b><div class="m">${imp.k} of ${n} records saved${busy?' …':''}</div><div class="bar"><i style="width:${p}%"></i></div>${busy?'':`<p class="acts" style="margin:8px 0 0"><button class="p" onclick="runImport()">Continue saving</button><button onclick="imp=null;draw()">Stop here</button></p><p class="m" style="margin:6px 0 0">Nothing is saved twice. Records already saved cannot be deleted; you can add the rest later with "+ Past".</p>`}</div>`}
+function saveExisting(m,g,r,i,ld){if(!(g>0))return toast('Enter the loan amount (the original loan)');if(!(r>=g))return toast('Total to return must be at least the loan given');
+if(!DRE.test(ld)||ld>today()||ld<'1990-01-01')return toast('Enter the date the loan was given (not in the future)');
+const rows=hp.filter(x=>x.d||x.a);for(const[k,x]of rows.entries()){if(!DRE.test(x.d)||x.d>today()||x.d<ld)return toast('Payment '+(k+1)+': pick a date between the loan date and today');if(!(num(x.a)>0&&num(x.a)<=1e8))return toast('Payment '+(k+1)+': enter the amount')}
+const tot=rows.reduce((s,x)=>s+num(x.a),0),pays=rows.map(x=>({d:x.d,amt:num(x.a),mode:x.m=='upi'?'upi':'cash'})).sort((a,b)=>a.d.localeCompare(b.d));
+const go=()=>{const ts=Date.now(),base={sent:true,past:true,by:who(),entered_at:ts};
+imp={ops:[{k:'m',data:m},{k:'t',data:{...base,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:ld,ts:pts(ld,'loan')}},...pays.map(p=>({k:'t',data:{...base,type:'pay',amt:p.amt,mode:p.mode,d:p.d,ts:pts(p.d,'pay')}}))],k:0,mid:null,name:m.name,atomic:!!(db&&db.atomic)};runImport()};
+if(tot>r)return ask('The payments add up to '+inr(tot)+', which is more than the total to return ('+inr(r)+'). Save anyway?','Save',go);go()}
+function savePastMany(){if(!owner||!sel)return;const m=M.find(x=>x.id==sel.id);if(!m)return;const rows=hp.filter(x=>x.d||x.a);if(!rows.length)return toast('Add at least one payment');
+const first=T.filter(t=>t.mid==m.id&&t.type=='loan').map(t=>t.d).sort()[0]||'1990-01-01';
+for(const[k,x]of rows.entries()){if(!DRE.test(x.d)||x.d>today()||x.d<first)return toast('Payment '+(k+1)+': pick a date between the loan date ('+fd(first)+') and today');if(!(num(x.a)>0&&num(x.a)<=1e8))return toast('Payment '+(k+1)+': enter the amount')}
+const tot=rows.reduce((s,x)=>s+num(x.a),0),due=Math.max(st(m).due,0),dup=rows.filter(x=>T.some(t=>t.mid==m.id&&t.type=='pay'&&t.d==x.d&&t.amt==num(x.a))).length;
+const go=()=>{const base={sent:true,past:true,by:who(),entered_at:Date.now()};imp={ops:rows.map(x=>({k:'t',data:{...base,type:'pay',amt:num(x.a),mode:x.m=='upi'?'upi':'cash',d:x.d,ts:pts(x.d,'pay')}})).sort((a,b)=>a.data.d.localeCompare(b.data.d)),k:0,mid:m.id,name:nm(m),atomic:false};runImport()};
+const warn=[];if(dup)warn.push(dup+' of these look already recorded (same date and amount)');if(tot>due)warn.push('they add up to '+inr(tot)+' but the balance due is '+inr(due));
+if(warn.length)return ask(warn.join(', and ')+'. Save anyway?','Save',go);go()}
+async function runImport(){if(!imp||busy||!owner)return;busy=true;draw();const I=imp;
+try{
+if(I.atomic&&I.k==0&&I.ops[0].k=='m'){try{I.mid=await db.atomic(I.ops[0].data,I.ops.slice(1).map(o=>o.data));I.k=I.ops.length}catch(e){if(/add_member_history|PGRST202|find the function/i.test((e&&e.message)||'')){I.atomic=false}else throw e}}
+for(;I.k<I.ops.length;I.k++){const o=I.ops[I.k];if(o.k=='m'){const d=await db.collection('members').add(o.data);I.mid=d.id}else await db.collection('txns').add({...o.data,mid:I.mid});if(I.k%5==0)draw()}
+const n=I.ops.filter(o=>o.k=='t'&&o.data.type=='pay').length;imp=null;hp=[];exb=false;clr(['n','nt','p','lg','lr','i','ld','gc','ga','gd','pa','pr','pi']);toast('Saved '+I.name+(I.ops[0].k=='m'?': loan + ':': ')+n+' payment(s)')
+}catch(e){const c=e&&e.code;toast((c=='not_granted'||c=='revoked'?'You do not have permission to do this. ':'Stopped: '+((e&&(e.message||e.code))||'error')+'. ')+'Saved '+I.k+' of '+I.ops.length+'. Tap "Continue saving" to resume; nothing will be saved twice.')}
+finally{busy=false;draw()}}
+function addM(){if(!owner)return;const n=$('#n').value.trim().slice(0,60),p=cleanPh($('#p').value),v=$('#v').value,g=num($('#lg').value),r=num($('#lr').value),i=num($('#i').value),ld=$('#ld').value,pastL=g>0&&DRE.test(ld)&&ld<today()&&ld>='1990-01-01';
 if(!n||!v)return toast('Name and village are required (add a village first)');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');
-if(!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Check the amounts');if(g>0&&r<g)return toast('Total to return must be at least the loan given');
+if(!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Check the amounts');if(g>0&&r<g)return toast('Total to return must be at least the loan given');if(ld&&(!DRE.test(ld)||ld>today()||ld<'1990-01-01'))return toast('Check the loan date (not in the future)');
 if(M.some(x=>x.phone==p&&x.name.toLowerCase()==n.toLowerCase()))return toast(n+' is already added with this number');
-const m={name:n,te:$('#nt').value.trim().slice(0,60),phone:p,village:v,inst:i,freq:+$('#f').value==1?1:7,created:today()};
-once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add({mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});clr(['n','nt','p','lg','lr','i'])})}
+const m={name:n,te:$('#nt').value.trim().slice(0,60),phone:p,village:v,inst:i,freq:+$('#f').value==1?1:7,created:pastL?ld:today()};
+if(exb)return saveExisting(m,g,r,i,ld);
+once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});clr(['n','nt','p','lg','lr','i','ld'])})}
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i})})}
-function savePastRecord(){if(!owner||!sel)return;const m=M.find(x=>x.id==sel.id);if(!m)return;const d=$('#pd').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return toast('Select a valid date');
-const type=(document.querySelector('input[name=ptype]:checked')||{}).value,mid=m.id;sel=null;
-if(type=='loan'){const g=num($('#pg').value),r=num($('#pr').value),i=num($('#pi').value);if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (>= loan)');
-once(async()=>{await db.collection('txns').add({mid,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d,past:'true',sent:true,by:who()});if(i>0&&(!m.inst||m.inst===0))await db.doc('members/'+mid).update({inst:i});toast('Past loan saved!')})}
-else{const a=num($('#pa').value);if(!(a>0&&a<=1e7))return toast('Enter valid payment amount');const mode=(document.getElementById('pm')||{}).value=='upi'?'upi':'cash';
-once(async()=>{await db.collection('txns').add({mid,type:'pay',amt:a,mode,d,past:'true',sent:true,by:who()});toast('Past payment saved!')})}}
 function villages(){return `<div class="card"><h2>Add village</h2><div class="g"><input id="nv" placeholder="Village (English)" onblur="tl('nv','vt')"><input id="vt" placeholder="Telugu name" oninput="this.dataset.m=1"><select id="vd">${DE.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select></div>
 <p><button class="p" onclick="addV()">Save village</button></p></div>
-<div class="card sc"><h2>Villages &amp; collection day</h2><table><tr><th>Village</th><th>Day</th><th>Members</th></tr>${V.map((v,i)=>`<tr><td>${esc(nm(v))} <span class="m">${esc(sb(v))}</span></td><td><select onchange="setDay(${i},this.value)">${v.day==null?'<option>Set day</option>':''}${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${DE[j]}</option>`).join('')}</select></td><td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td></tr>`).join('')||'<tr><td colspan=3 class="m">No villages yet</td></tr>'}</table></div>`}
+<div class="card sc"><h2>Villages &amp; collection day</h2><table><tr><th>Village</th><th>Day</th><th>Members</th></tr>${V.map((v,i)=>`<tr><td>${esc(nm(v))}<input value="${esc(v.te||'')}" placeholder="Telugu name" onchange="setVTe(${i},this.value)" style="width:100%;margin-top:4px"></td><td><select onchange="setDay(${i},this.value)">${v.day==null?'<option>Set day</option>':''}${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${DE[j]}</option>`).join('')}</select></td><td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td></tr>`).join('')||'<tr><td colspan=3 class="m">No villages yet</td></tr>'}</table></div>`}
 function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n)return toast('Enter the village name');if(V.some(v=>v.name.toLowerCase()==n.toLowerCase()))return toast('This village already exists');
 once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});clr(['nv','vt'])})}
+function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function draw(){const app=$('#app');if(!db)return app.innerHTML='<p>Could not connect to the database. Check the internet connection and reload.</p>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports']]:[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']];if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab}[tab]();
-app.innerHTML=`<div class="top"><h1>📒 ${adm?'Gangaya Finance':'గంగయ్య ఫైనాన్స్'}</h1><div class="acts">${owner?`<button onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs">${tabs.map(([k,l])=>`<button class="${k==tab?'on':''}" onclick="go('${k}')">${l}</button>`).join('')}</div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
+app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':'గంగయ్య ఫైనాన్స్'}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
@@ -243,5 +295,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=4').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=5').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
