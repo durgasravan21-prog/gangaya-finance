@@ -57,7 +57,7 @@ module.exports = async (req, res) => {
     const user = await u.json();
     const p = await fetch(U + '/rest/v1/profiles?select=role&id=eq.' + encodeURIComponent(user.id), { headers: { apikey: K, Authorization: 'Bearer ' + tok } });
     const rows = await p.json();
-    if (!Array.isArray(rows) || !rows[0] || rows[0].role !== 'admin') return res.status(403).json({ error: 'forbidden' });
+    if (!Array.isArray(rows) || !rows[0] || !['admin', 'collector'].includes(rows[0].role)) return res.status(403).json({ error: 'forbidden' });
     let te = A ? await transliterateClaude(name, A) : null;
     if (!te) te = await transliterateGoogle(name);
     if (!te) return res.status(502).json({ error: 'no transliteration' });

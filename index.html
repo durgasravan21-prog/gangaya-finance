@@ -65,7 +65,7 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=10"></script>
+<script src="/runtime.js?v=11"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='';
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
@@ -92,7 +92,7 @@ ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',
 const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
 return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది ✅\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు 🙏':'\nధన్యవాదాలు 🙏'}\n${BIZ}`}
-async function w(fn){try{await fn()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
+async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 function go(t){tab=t;sel=null;rv='';draw()}
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
 function stats(){const r=rep(),c=(x,l)=>`<div class="card stat"><span class="m">${l}</span><b>${inr(x.c)}</b><span class="m">UPI ${inr(x.u)} · ${tr('Cash','నగదు')} ${inr(x.c-x.u)}</span></div>`;
@@ -113,7 +113,7 @@ function toast(m){tmsg=String(m);clearTimeout(tt);tt=setTimeout(()=>{tmsg='';dra
 function ask(m,ok,fn){dlg={m,ok,fn};draw()}
 function dlgOk(){const f=dlg&&dlg.fn;dlg=null;draw();if(f)f()}
 function dlgHtml(){return(dlg?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button><button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button></div></div></div>`:'')+(tmsg?`<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>`:'')}
-async function once(fn){if(busy)return;busy=true;const to=setTimeout(()=>{busy=false},15000);try{await w(fn)}finally{clearTimeout(to);busy=false}}
+async function once(fn){if(busy)return;busy=true;const to=setTimeout(()=>{busy=false},15000);try{await w(fn)}finally{clearTimeout(to);busy=false;draw()}}
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})(),
 crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0},enc=new TextEncoder(),
 xe=x=>String(x).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g,'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c])),
@@ -361,5 +361,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=10').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=11').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

@@ -79,36 +79,109 @@
     }
     return out;
   }
+  const stores = new Map();
+  function getStore(c) {
+    let s = stores.get(c);
+    if (!s) {
+      s = {
+        map: new Map(),
+        subs: new Set(),
+        loaded: false,
+        emit() {
+          const snapshot = {
+            size: s.map.size,
+            docs: [...s.map].map(([id, d]) => ({ id, exists: true, data: () => JSON.parse(JSON.stringify(d)) }))
+          };
+          for (const next of s.subs) {
+            try { next(snapshot); } catch (e) { console.error(e); }
+          }
+        },
+        async load() {
+          try {
+            const rows = await allRows(c);
+            s.map = new Map(rows.map(r => [r.id, r.data]));
+            s.loaded = true;
+            s.emit();
+          } catch (e) {
+            console.error('load error for ' + c, e);
+          }
+        }
+      };
+      stores.set(c, s);
+
+      let t = 0;
+      const ch = sb.channel('docs-' + c + '-' + Math.random().toString(36).slice(2))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'collection=eq.' + c }, p => {
+          if (p.eventType === 'DELETE') {
+            const delId = (p.old && p.old.id) || (p.new && p.new.id);
+            if (delId) { s.map.delete(delId); s.emit(); }
+          } else if (p.new && p.new.id && p.new.data) {
+            s.map.set(p.new.id, p.new.data);
+            s.emit();
+          }
+        })
+        .subscribe(st => {
+          if (st === 'SUBSCRIBED') s.load();
+          else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') { clearTimeout(t); t = setTimeout(() => s.load(), 5000); }
+        });
+    }
+    return s;
+  }
+
   function colRef(c) {
+    const s = getStore(c);
     return {
       async add(d) {
         const id = crypto.randomUUID();
-        const { error } = await sb.from('docs').insert({ collection: c, id, data: d });
+        const { data, error } = await sb.from('docs').insert({ collection: c, id, data: d }).select('id,data').maybeSingle();
         if (error) throw err(error);
+        s.map.set(id, (data && data.data) || d);
+        s.emit();
         return { id };
       },
       onSnapshot(next, fail) {
-        let map = new Map(), on = true, t = 0;
-        const emit = () => { if (on) next({ size: map.size, docs: [...map].map(([id, d]) => ({ id, exists: true, data: () => JSON.parse(JSON.stringify(d)) })) }); };
-        const load = async () => { try { map = new Map((await allRows(c)).map(r => [r.id, r.data])); emit(); } catch (e) { if (on && fail) fail(e); } };
-        load();
-        const ch = sb.channel('docs-' + c + '-' + Math.random().toString(36).slice(2))
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'collection=eq.' + c }, p => {
-            if (p.eventType === 'DELETE') { if (p.old && p.old.collection && p.old.collection !== c) return; map.delete(p.old.id); }
-            else map.set(p.new.id, p.new.data);
-            emit();
-          })
-          .subscribe(s => { if (s === 'SUBSCRIBED') load(); else if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT') { clearTimeout(t); t = setTimeout(load, 5000); } });
-        return () => { on = false; sb.removeChannel(ch); };
+        s.subs.add(next);
+        let on = true;
+        if (s.loaded) {
+          next({
+            size: s.map.size,
+            docs: [...s.map].map(([id, d]) => ({ id, exists: true, data: () => JSON.parse(JSON.stringify(d)) }))
+          });
+        } else {
+          s.load().catch(e => { if (on && fail) fail(e); });
+        }
+        return () => { on = false; s.subs.delete(next); };
       }
     };
   }
   function docRef(path) {
     const [c, id] = String(path).split('/');
+    const s = getStore(c);
     return {
-      async update(patch) { const { data, error } = await sb.rpc('doc_update', { c, i: id, patch }); if (error) throw err(error); if (!data) throw denied(); },
-      async set(d) { const { error } = await sb.from('docs').upsert({ collection: c, id, data: d }); if (error) throw err(error); },
-      async delete() { const { data, error } = await sb.from('docs').delete().eq('collection', c).eq('id', id).select('id'); if (error) throw err(error); if (!data || !data.length) throw denied(); }
+      async update(patch) {
+        const { data, error } = await sb.rpc('doc_update', { c, i: id, patch });
+        if (error) throw err(error);
+        if (!data) throw denied();
+        if (s.map.has(id)) {
+          s.map.set(id, { ...s.map.get(id), ...patch });
+          s.emit();
+        } else {
+          s.load();
+        }
+      },
+      async set(d) {
+        const { error } = await sb.from('docs').upsert({ collection: c, id, data: d });
+        if (error) throw err(error);
+        s.map.set(id, d);
+        s.emit();
+      },
+      async delete() {
+        const { data, error } = await sb.from('docs').delete().eq('collection', c).eq('id', id).select('id');
+        if (error) throw err(error);
+        if (!data || !data.length) throw denied();
+        s.map.delete(id);
+        s.emit();
+      }
     };
   }
   const downloads = {
@@ -125,10 +198,42 @@
     async json(prompt) {
       const m = /Name:\s*(.{1,60})$/.exec(String(prompt));
       if (!m) throw new Error('bad request');
-      const { data } = await sb.auth.getSession();
-      const r = await fetch('/api/sample', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token }, body: JSON.stringify({ name: m[1].trim() }) });
-      if (!r.ok) throw new Error('sample unavailable');
-      return r.json();
+      const name = m[1].trim();
+      try {
+        const { data } = await sb.auth.getSession();
+        if (data && data.session && data.session.access_token) {
+          const r = await fetch('/api/sample', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.session.access_token },
+            body: JSON.stringify({ name })
+          });
+          if (r.ok) {
+            const j = await r.json();
+            if (j && j.te) return j;
+          }
+        }
+      } catch (_) {}
+      // Fallback: Google Input Tools directly from client
+      try {
+        const parts = name.split(/\s+/);
+        const results = [];
+        for (const p of parts) {
+          if (!p) continue;
+          if (/[\u0C00-\u0C7F]/.test(p)) { results.push(p); continue; }
+          const res = await fetch('https://inputtools.google.com/request?text=' + encodeURIComponent(p) + '&itc=te-t-i0-und&num=1');
+          if (res.ok) {
+            const d = await res.json();
+            if (d && d[0] === 'SUCCESS' && d[1] && d[1][0] && d[1][0][1] && d[1][0][1][0]) {
+              results.push(d[1][0][1][0]);
+              continue;
+            }
+          }
+          results.push(p);
+        }
+        const te = results.join(' ');
+        if (/[\u0C00-\u0C7F]/.test(te)) return { te };
+      } catch (_) {}
+      throw new Error('transliteration unavailable');
     }
   };
   const caps = {
