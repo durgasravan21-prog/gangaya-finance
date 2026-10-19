@@ -65,10 +65,11 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=14"></script>
+<script src="/runtime.js?v=15"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0;
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='';
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
+try{const savedRmLang=localStorage.getItem('gangaya_rmlang')||localStorage.getItem('gf-rmlang');if(savedRmLang=='en'||savedRmLang=='te')rmLang=savedRmLang}catch(e){}
 const isTe=()=>role=='f'?(lang=='te'):false;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
 const $=s=>document.querySelector(s),
@@ -347,14 +348,36 @@ const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
 go2=()=>{const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};sel=null;once(()=>db.collection('txns').add(t))};
 if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);go2()}
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
-rmsg=(m,s)=>{
-  const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):0;
-  const isOd=dl<0;
-  return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి గుర్తు చేస్తున్నాము:\n`+
-    (isOd?`మీ వాయిదా ${inr(m.inst||0)} చెల్లింపు తేదీ (${fdt(s.next)}) దాటిపోయింది (${Math.abs(dl)} రోజులు ఆలస్యం).\n`:`మీ వాయిదా ${inr(m.inst||0)} ${fdt(s.next)} న చెల్లించాలి.\n`)+
-    `మిగిలిన బాకీ: ${inr(s.due)}\n`+
-    (isOd?`దయచేసి వెంటనే చెల్లించగలరు.\n`:`దయచేసి సమయానికి చెల్లించగలరు.\n`)+
-    `ధన్యవాదాలు 🙏\n${BIZ}`;
+fde=d=>{const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
+rmsg=(m,s,l)=>{
+  const isEn=(l==='en'||(!l&&rmLang==='en'));
+  const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
+  const isOd=dl!==null&&dl<0,isTd=dl===0,instAmt=m.inst||0,dueAmt=Math.max(s.due,0);
+  if(isEn){
+    const biz='Gangaya Finance';
+    let sched='';
+    if(s.next){
+      if(isOd)sched=`Your instalment of ${inr(instAmt)} due on ${fde(s.next)} is overdue by ${Math.abs(dl)} day${Math.abs(dl)==1?'':'s'}.\n`;
+      else if(isTd)sched=`Your instalment of ${inr(instAmt)} is due today (${fde(s.next)}).\n`;
+      else sched=`Your instalment of ${inr(instAmt)} is due on ${fde(s.next)}.\n`;
+    }else if(instAmt>0){
+      sched=`Your regular instalment is ${inr(instAmt)}.\n`;
+    }
+    const urg=isOd?'Please pay the overdue instalment as soon as possible.\n':'Please ensure payment is made on time.\n';
+    return `Hello ${m.name},\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`Thank you 🙏\n${biz}`;
+  }else{
+    const biz='గంగయ్య ఫైనాన్స్',mname=m.te||m.name;
+    let sched='';
+    if(s.next){
+      if(isOd)sched=`మీ వాయిదా ${inr(instAmt)} చెల్లింపు తేదీ (${fdt(s.next)}) దాటిపోయింది (${Math.abs(dl)} రోజులు ఆలస్యం).\n`;
+      else if(isTd)sched=`మీ వాయిదా ${inr(instAmt)} ఈ రోజే (${fdt(s.next)}) చెల్లించాలి.\n`;
+      else sched=`మీ వాయిదా ${inr(instAmt)} ${fdt(s.next)} న చెల్లించాలి.\n`;
+    }else if(instAmt>0){
+      sched=`మీ వాయిదా: ${inr(instAmt)}\n`;
+    }
+    const urg=isOd?'దయచేసి వెంటనే చెల్లించగలరు.\n':'దయచేసి సమయానికి చెల్లించగలరు.\n';
+    return `నమస్కారం ${mname} గారు,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`ధన్యవాదాలు 🙏\n${biz}`;
+  }
 };
 function qitems(h){const o=[],td=today();
 for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
@@ -362,35 +385,37 @@ o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · $
 if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next||s.due<=0)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
 if(dl>2||dl<-60||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('⚠️ Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
 return o}
-function getRemList(){
+function getRemList(allMembers){
   const td=today(),list=[];
   for(const m of M){
     if(m.archived)continue;
-    const s=st(m);if(!s.next||s.due<=0)continue;
-    const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5);
-    if(dl>2||dl<-60)continue;
-    list.push({m,s,dl,isOd:dl<0,isTd:dl===0,isUp:dl>0});
+    const s=st(m);
+    if(!allMembers&&s.due<=0)continue;
+    const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
+    const isOd=dl!==null&&dl<0,isTd=dl===0,isUp=dl!==null&&dl>0&&dl<=2;
+    list.push({m,s,dl:dl===null?9999:dl,isOd,isTd,isUp});
   }
   return list.sort((a,b)=>a.dl-b.dl);
 }
-function sendRemind(mid){
+function sendRemind(mid,langOpt){
   const m=M.find(x=>x.id==mid);if(!m)return;
-  const s=st(m);if(s.due<=0)return toast(tr('This member has cleared their loan!','ఈ సభ్యుడికి ఎలాంటి బాకీ లేదు!'));
-  if(!s.next)s.next=today();
-  const text=rmsg(m,s);
+  const s=st(m),lang=langOpt||rmLang||'te',text=rmsg(m,s,lang);
   const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
   const id=m.id+'_'+today();
   const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
-  try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now()});RM.add(id)}catch(_){}
-  toast(tr('WhatsApp reminder opened for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ తెరవబడింది ✓'));
+  try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),lang});RM.add(id)}catch(_){}
+  toast(tr('WhatsApp reminder opened ('+(lang=='en'?'English':'Telugu')+') for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ ('+(lang=='en'?'ఇంగ్లీష్':'తెలుగు')+') తెరవబడింది ✓'));
   draw();
 }
-function copyRemMsg(mid){
+function copyRemMsg(mid,langOpt){
   const m=M.find(x=>x.id==mid);if(!m)return;
-  const s=st(m),text=rmsg(m,s);
+  const s=st(m),lang=langOpt||rmLang||'te',text=rmsg(m,s,lang);
   (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(text):Promise.reject())
-    .then(()=>toast(tr('Reminder message copied ✓','రిమైండర్ మెసేజ్ కాపీ అయింది ✓')))
+    .then(()=>toast(tr('Reminder message ('+(lang=='en'?'English':'Telugu')+') copied ✓','రిమైండర్ మెసేజ్ ('+(lang=='en'?'ఇంగ్లీష్':'తెలుగు')+') కాపీ అయింది ✓')))
     .catch(()=>ask(text,'OK',()=>{}));
+}
+function setRmLang(l){
+  rmLang=l;try{localStorage.setItem('gangaya_rmlang',l);localStorage.setItem('gf-rmlang',l)}catch(_){}draw();
 }
 async function dlReminders(){
   const d=await claude.use('downloads');if(!d)return toast(tr('Download not available','డౌన్‌లోడ్ అందుబాటులో లేదు'));
@@ -401,22 +426,142 @@ async function dlReminders(){
     Village:r.m.village,
     Installment:r.m.inst||0,
     Total_Due:r.s.due,
-    Due_Date:r.s.next,
-    Status:r.isOd?('Overdue by '+Math.abs(r.dl)+' days'):(r.isTd?'Due Today':('Due in '+r.dl+' days')),
+    Due_Date:r.s.next||'N/A',
+    Status:r.isOd?('Overdue by '+Math.abs(r.dl)+' days'):(r.isTd?'Due Today':(r.isUp?('Due in '+r.dl+' days'):'Active Due')),
     Reminded_Today:RM.has(r.m.id+'_'+today())?'Yes':'No',
-    WhatsApp_Link:`https://wa.me/${ph(r.m.phone)}?text=${encodeURIComponent(rmsg(r.m,r.s))}`
+    WhatsApp_Telugu:`https://wa.me/${ph(r.m.phone)}?text=${encodeURIComponent(rmsg(r.m,r.s,'te'))}`,
+    WhatsApp_English:`https://wa.me/${ph(r.m.phone)}?text=${encodeURIComponent(rmsg(r.m,r.s,'en'))}`
   }));
   await sv(d,'gangaya-reminders-'+today()+'.xlsx',xlsx([{name:'Reminders',rows}]));
 }
+function getRemTemplate(m,s,tpl,l){
+  const isEn=(l==='en'),biz=isEn?'Gangaya Finance':'గంగయ్య ఫైనాన్స్',name=isEn?m.name:(m.te||m.name),inst=inr(m.inst||0),due=inr(Math.max(s.due,0)),nextDate=s.next?(isEn?fde(s.next):fdt(s.next)):'';
+  const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
+  if(tpl==='od'){
+    if(isEn)return `Hello ${name},\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (due was '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease clear the overdue amount immediately.\nThank you 🙏\n${biz}`;
+    return `నమస్కారం ${name} గారు,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన వాయిదాను వెంటనే చెల్లించగలరు.\nధన్యవాదాలు 🙏\n${biz}`;
+  }
+  if(tpl==='bal'){
+    if(isEn)return `Hello ${name},\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to clear your balance.\nThank you 🙏\n${biz}`;
+    return `నమస్కారం ${name} గారు,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్లియర్ చేయగలరు.\nధన్యవాదాలు 🙏\n${biz}`;
+  }
+  if(tpl==='gen'){
+    if(isEn)return `Hello ${name},\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease feel free to contact us for any assistance.\nThank you 🙏\n${biz}`;
+    return `నమస్కారం ${name} గారు,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nసమయానికి చెల్లించగలరని ఆశిస్తున్నాము.\nధన్యవాదాలు 🙏\n${biz}`;
+  }
+  return rmsg(m,s,l);
+}
+function openManualRem(mid,lang){
+  mremDlg=true;mremLang=lang||rmLang||'te';mremTpl='std';
+  const active=M.filter(m=>!m.archived);
+  if(mid)mremMid=mid;
+  else if(!mremMid||!active.some(m=>m.id==mremMid)){
+    const withDue=active.find(m=>st(m).due>0);
+    mremMid=withDue?withDue.id:(active[0]?active[0].id:'');
+  }
+  const m=M.find(x=>x.id==mremMid);
+  mremTxt=m?getRemTemplate(m,st(m),mremTpl,mremLang):'';
+  draw();
+}
+function closeManualRem(){mremDlg=false;draw()}
+function onManualRemClientChange(id){
+  mremMid=id;const m=M.find(x=>x.id==mremMid);
+  if(m)mremTxt=getRemTemplate(m,st(m),mremTpl,mremLang);
+  draw();
+}
+function onManualRemLangChange(l){
+  mremLang=l;const m=M.find(x=>x.id==mremMid);
+  if(m)mremTxt=getRemTemplate(m,st(m),mremTpl,mremLang);
+  draw();
+}
+function onManualRemTplChange(tpl){
+  mremTpl=tpl;const m=M.find(x=>x.id==mremMid);
+  if(m)mremTxt=getRemTemplate(m,st(m),mremTpl,mremLang);
+  draw();
+}
+function sendManualRemNow(){
+  const m=M.find(x=>x.id==mremMid);if(!m)return toast(tr('Select a client first','ముందు క్లయింట్‌ని ఎంచుకోండి'));
+  const text=($('#mremtxt')?$('#mremtxt').value:mremTxt).trim();
+  if(!text)return toast(tr('Enter a reminder message','రిమైండర్ మెసేజ్ రాయండి'));
+  const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
+  const id=m.id+'_'+today();
+  const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+  try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),manual:true,lang:mremLang});RM.add(id)}catch(_){}
+  toast(tr('WhatsApp reminder opened for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ తెరవబడింది ✓'));
+  closeManualRem();
+}
+function copyManualRemTxt(){
+  const text=($('#mremtxt')?$('#mremtxt').value:mremTxt).trim();if(!text)return;
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(text):Promise.reject())
+    .then(()=>toast(tr('Reminder message copied ✓','రిమైండర్ మెసేజ్ కాపీ అయింది ✓')))
+    .catch(()=>ask(text,'OK',()=>{}));
+}
+function manualRemModal(){
+  if(!mremDlg)return '';
+  const active=M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b)));
+  const curM=M.find(x=>x.id==mremMid)||active[0];
+  const curS=curM?st(curM):{due:0,next:null};
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:45;padding:16px;overflow:auto" onclick="if(event.target===this)closeManualRem()">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)">
+      <div class="row" style="margin-bottom:8px">
+        <h2 style="margin:0">✍️ ${tr('Send Manual Reminder','మాన్యువల్ రిమైండర్ పంపండి')}</h2>
+        <button class="sm" onclick="closeManualRem()">✕</button>
+      </div>
+      <p class="m" style="margin:0 0 10px">${tr('Select any client and send a reminder in Telugu or English without day restrictions.','తేదీలతో సంబంధం లేకుండా ఏ క్లయింట్‌కైనా నేరుగా తెలుగు లేదా ఇంగ్లీష్‌లో రిమైండర్ పంపండి.')}</p>
+      <div class="g" style="margin-bottom:10px">
+        <label class="m">${tr('Select Client / Borrower','క్లయింట్ / సభ్యుడిని ఎంచుకోండి')}
+          <select id="mremmid" onchange="onManualRemClientChange(this.value)">
+            ${active.map(m=>{const s=st(m);return `<option value="${m.id}" ${m.id==mremMid?'selected':''}>${esc(nm(m))} (${esc(vl(m.village))}) — ${s.due>0?(tr('Due: ','బాకీ: ')+inr(s.due)):tr('Cleared','బాకీ లేదు')}</option>`}).join('')}
+          </select>
+        </label>
+      </div>
+      ${curM?`<div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:13px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+        <span>📱 <b>${esc(curM.phone||'-')}</b></span>
+        <span>🏘️ <b>${esc(vl(curM.village))}</b></span>
+        <span>💰 ${tr('Due: ','బాకీ: ')}<b>${inr(curS.due)}</b></span>
+        <span>📅 ${tr('Inst: ','వాయిదా: ')}<b>${inr(curM.inst||0)}</b></span>
+        ${curS.next?`<span>⏰ ${tr('Date: ','తేదీ: ')}<b>${fd(curS.next)}</b></span>`:''}
+      </div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <span class="m" style="font-weight:600">${tr('Message Language:','మెసేజ్ భాష:')}</span>
+        <div class="chips" style="margin:0">
+          <button type="button" class="${mremLang=='te'?'p':''}" onclick="onManualRemLangChange('te')">🌐 తెలుగు</button>
+          <button type="button" class="${mremLang=='en'?'p':''}" onclick="onManualRemLangChange('en')">🌐 English</button>
+        </div>
+      </div>
+      <label class="m" style="margin-bottom:4px;display:block">${tr('Quick Templates:','త్వరిత టెంప్లేట్లు:')}</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <button type="button" class="sm ${mremTpl=='std'?'p':''}" onclick="onManualRemTplChange('std')">📋 ${tr('Instalment','వాయిదా')}</button>
+        <button type="button" class="sm ${mremTpl=='od'?'p':''}" onclick="onManualRemTplChange('od')">⚠️ ${tr('Overdue','ఆలస్యం')}</button>
+        <button type="button" class="sm ${mremTpl=='bal'?'p':''}" onclick="onManualRemTplChange('bal')">💰 ${tr('Total Due','మొత్తం బాకీ')}</button>
+        <button type="button" class="sm ${mremTpl=='gen'?'p':''}" onclick="onManualRemTplChange('gen')">🤝 ${tr('Friendly','సాధారణ')}</button>
+      </div>
+      <label class="m" style="display:block;margin-bottom:4px">${tr('Message Text (editable):','మెసేజ్ టెక్స్ట్ (మార్చుకోవచ్చు):')}
+        <textarea id="mremtxt" rows="6" style="width:100%;font-size:14px;padding:8px;border-radius:6px;border:1px solid var(--b);background:var(--card);color:var(--t);resize:vertical" oninput="mremTxt=this.value">${esc(mremTxt)}</textarea>
+      </label>
+      <div class="acts" style="margin-top:12px;justify-content:space-between">
+        <button type="button" class="sm" onclick="copyManualRemTxt()">📋 ${tr('Copy','కాపీ')}</button>
+        <div style="display:flex;gap:8px">
+          <button type="button" onclick="closeManualRem()">${tr('Cancel','రద్దు')}</button>
+          <button type="button" class="p" onclick="sendManualRemNow()">📱 ${tr('Send WhatsApp','వాట్సాప్‌లో పంపండి')}</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 function remindersTab(){
-  const all=getRemList();
-  const odCount=all.filter(r=>r.isOd).length,tdCount=all.filter(r=>r.isTd).length,upCount=all.filter(r=>r.isUp).length;
-  const odAmt=all.filter(r=>r.isOd).reduce((sum,r)=>sum+(r.m.inst||0),0);
-  const tdAmt=all.filter(r=>r.isTd).reduce((sum,r)=>sum+(r.m.inst||0),0);
+  const all=getRemList(rmf=='any');
+  const withDues=all.filter(r=>r.s.due>0);
+  const allDueCount=withDues.length;
+  const odCount=withDues.filter(r=>r.isOd).length,tdCount=withDues.filter(r=>r.isTd).length,upCount=withDues.filter(r=>r.isUp).length;
+  const odAmt=withDues.filter(r=>r.isOd).reduce((sum,r)=>sum+(r.m.inst||0),0);
+  const tdAmt=withDues.filter(r=>r.isTd).reduce((sum,r)=>sum+(r.m.inst||0),0);
+  const totDueAmt=withDues.reduce((sum,r)=>sum+r.s.due,0);
   const filtered=all.filter(r=>{
     if(rmf=='od'&&!r.isOd)return false;
     if(rmf=='td'&&!r.isTd)return false;
     if(rmf=='up'&&!r.isUp)return false;
+    if(rmf=='all'&&r.s.due<=0)return false;
     if(rmv&&r.m.village!=rmv)return false;
     if(rmq){
       const q=rmq.toLowerCase(),n=(r.m.name||'').toLowerCase(),te=(r.m.te||'').toLowerCase(),p=(r.m.phone||'');
@@ -437,28 +582,39 @@ function remindersTab(){
         <b style="color:#f59e0b">${tdCount} ${tr('members','మంది')}</b>
         <span class="m">${tr('Instalments: ','వాయిదాలు: ')}${inr(tdAmt)}</span>
       </div>
-      <div class="card stat" style="border-left:4px solid var(--p);cursor:pointer" onclick="rmf='up';draw()">
-        <span class="m">${tr('Due in Next 2 Days','రాబోయే 2 రోజుల్లో')}</span>
-        <b>${upCount} ${tr('members','మంది')}</b>
-        <span class="m">${tr('Click to filter','ఫిల్టర్ చేయడానికి నొక్కండి')}</span>
+      <div class="card stat" style="border-left:4px solid var(--p);cursor:pointer" onclick="rmf='all';draw()">
+        <span class="m">${tr('All Active Dues','మొత్తం బాకీదారులు')}</span>
+        <b>${allDueCount} ${tr('members','మంది')}</b>
+        <span class="m">${tr('Total Due: ','మొత్తం బాకీ: ')}${inr(totDueAmt)}</span>
       </div>
     </div>
     <div class="card">
-      <div class="row">
+      <div class="row" style="flex-wrap:wrap;gap:8px">
         <h2>⏰ ${tr('Payment Reminders','చెల్లింపు రిమైండర్లు')} (${filtered.length})</h2>
         <div class="acts">
+          <button class="p" onclick="openManualRem()">✍️ ${tr('Manual Reminder','మాన్యువల్ రిమైండర్')}</button>
           <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>⬇ ${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
         </div>
       </div>
-      <p class="m" style="margin:4px 0 10px">${tr('Send payment reminders on WhatsApp before or on the due date. Overdue members are prioritized in red.','గడువు తేదీకి ముందు లేదా గడువు రోజే వాట్సాప్ ద్వారా గుర్తు చేయండి. గడువు దాటిన వారు ఎరుపు రంగులో కనిపిస్తారు.')}</p>
+      <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp in Telugu or English. Send manually to any client or filter by schedule.','వాట్సాప్ ద్వారా తెలుగు లేదా ఇంగ్లీష్‌లో రిమైండర్లు పంపండి. ఏ క్లయింట్‌కైనా తేదీలతో సంబంధం లేకుండా నేరుగా పంపవచ్చు.')}</p>
+      
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;padding:8px 12px;background:var(--s);border-radius:8px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:13px;font-weight:600">${tr('Reminder Message Language:','రిమైండర్ మెసేజ్ భాష:')}</span>
+        <div class="chips" style="margin:0">
+          <button class="${rmLang=='te'?'p':''}" onclick="setRmLang('te')">🌐 తెలుగు (Telugu)</button>
+          <button class="${rmLang=='en'?'p':''}" onclick="setRmLang('en')">🌐 English</button>
+        </div>
+      </div>
+
       <div class="chips" style="margin-bottom:10px">
-        <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All','అన్నీ')} (${all.length})</button>
+        <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All Active Dues','అందరూ బాకీదారులు')} (${allDueCount})</button>
         <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">⚠️ ${tr('Overdue','ఆలస్యం')} (${odCount})</button>
         <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">⏰ ${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
-        <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">📅 ${tr('Upcoming (2d)','రాబోయేవి')} (${upCount})</button>
+        <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">📅 ${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
+        <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">👥 ${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
       </div>
       <div class="g">
-        <input type="search" placeholder="${tr('Search borrower name / phone...','సభ్యుడి పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="rmq=this.value;draw()">
+        <input type="search" placeholder="${tr('Search client name / phone...','క్లయింట్ పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="rmq=this.value;draw()">
         <select onchange="rmv=this.value;draw()">
           <option value="">${tr('All villages','అన్ని ఊర్లు')}</option>
           ${V.map(v=>`<option value="${esc(v.name)}" ${v.name==rmv?'selected':''}>${esc(nm(v))}</option>`).join('')}
@@ -471,7 +627,9 @@ function remindersTab(){
         ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">⚠️ ${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
         :(r.isTd
           ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">⏰ ${tr('Due Today','ఈ రోజే గడువు')}</span>`
-          :`<span class="chip" style="font-size:12px">📅 ${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`);
+          :(r.isUp
+            ?`<span class="chip" style="font-size:12px">📅 ${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
+            :(r.s.due>0?`<span class="chip" style="font-size:12px">💰 ${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
       return `
         <div class="card">
           <div class="row">
@@ -483,22 +641,24 @@ function remindersTab(){
                 ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:600">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
               </div>
               <div class="m" style="margin-top:4px">
-                ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}${inr(r.s.due)} · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}
+                ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}<b>${inr(r.s.due)}</b>${r.s.next?` · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}`:''}
               </div>
             </div>
             <div class="acts" style="flex-shrink:0">
-              <button class="p sm" onclick="sendRemind('${r.m.id}')">📱 ${tr('WhatsApp','వాట్సాప్')}</button>
+              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp in English':'వాట్సాప్‌లో తెలుగులో పంపు'}">📱 ${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
+              <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'🌐 తెలుగు':'🌐 EN'}</button>
+              <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">✍️ ${tr('Edit','ఎడిట్')}</button>
               <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
               <button class="sm" onclick="rv='${r.m.id}';draw()">${tr('Account','ఖాతా')}</button>
             </div>
           </div>
         </div>
       `;
-    }).join('')||`<div class="card empty"><p class="m">${tr('No reminders matching filters 🎉','రిమైండర్లు ఏమీ లేవు 🎉')}</p></div>`}
+    }).join('')||`<div class="card empty"><p class="m">${tr('No clients matching filters 🎉','రిమైండర్లు ఏమీ లేవు 🎉')}</p></div>`}
     ${nextRem?`
       <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0">
         <button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendRemind('${nextRem.m.id}')">
-          🚀 ${tr('Send Reminder · next: ','తదుపరి రిమైండర్: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
+          🚀 ${tr('Send Reminder ('+(rmLang=='en'?'English':'తెలుగు')+') · next: ','రిమైండర్ పంపు ('+(rmLang=='en'?'ఇంగ్లీష్':'తెలుగు')+') · తదుపరి: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
         </button>
         <button style="padding:14px" onclick="rmi=(rmi+1)%filtered.length;draw()">${tr('Skip','దాటవేయి')}</button>
       </div>
@@ -662,7 +822,7 @@ function draw(){const app=$('#app');if(!db)return app.innerHTML='<div class="car
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remCount=getRemList().length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['rm','రిమైండర్లు ('+remCount+')'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
-app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:20px;padding:4px 10px;font-weight:600">📢 ${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}${notifPanel()}${fatherNoteModal()}`;
+app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:20px;padding:4px 10px;font-weight:600">📢 ${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}${notifPanel()}${fatherNoteModal()}${manualRemModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
@@ -671,5 +831,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=14').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=15').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
