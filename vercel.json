@@ -23,5 +23,6 @@
       "path": "/api/keepalive",
       "schedule": "0 0 */2 * *"
     }
-  ]
+  ],
+  "regions": ["bom1"]
 }
