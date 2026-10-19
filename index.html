@@ -65,9 +65,9 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=15"></script>
+<script src="/runtime.js?v=16"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='';
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
 try{const savedRmLang=localStorage.getItem('gangaya_rmlang')||localStorage.getItem('gf-rmlang');if(savedRmLang=='en'||savedRmLang=='te')rmLang=savedRmLang}catch(e){}
 const isTe=()=>role=='f'?(lang=='te'):false;
@@ -349,10 +349,12 @@ go2=()=>{const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:fa
 if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);go2()}
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
 fde=d=>{const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
+SCANNER_URL=()=>((typeof location!=='undefined'&&location.origin)?location.origin+'/scanner.png':'https://gangaya-finance.vercel.app/scanner.png'),
 rmsg=(m,s,l)=>{
   const isEn=(l==='en'||(!l&&rmLang==='en'));
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
   const isOd=dl!==null&&dl<0,isTd=dl===0,instAmt=m.inst||0,dueAmt=Math.max(s.due,0);
+  const scanLink=SCANNER_URL();
   if(isEn){
     const biz='Gangaya Finance';
     let sched='';
@@ -363,10 +365,10 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`Your regular instalment is ${inr(instAmt)}.\n`;
     }
-    const urg=isOd?'Please pay the overdue instalment as soon as possible.\n':'Please ensure payment is made on time.\n';
-    return `Hello ${m.name},\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`Thank you 🙏\n${biz}`;
+    const urg=isOd?'Please repay your overdue instalment immediately using the QR scanner below:\n':'Please repay your instalment on time using the QR scanner below:\n';
+    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nThank you 🙏\n${biz}`;
   }else{
-    const biz='గంగయ్య ఫైనాన్స్',mname=m.te||m.name;
+    const biz='గంగయ్య ఫైనాన్స్';
     let sched='';
     if(s.next){
       if(isOd)sched=`మీ వాయిదా ${inr(instAmt)} చెల్లింపు తేదీ (${fdt(s.next)}) దాటిపోయింది (${Math.abs(dl)} రోజులు ఆలస్యం).\n`;
@@ -375,8 +377,8 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`మీ వాయిదా: ${inr(instAmt)}\n`;
     }
-    const urg=isOd?'దయచేసి వెంటనే చెల్లించగలరు.\n':'దయచేసి సమయానికి చెల్లించగలరు.\n';
-    return `నమస్కారం ${mname} గారు,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`ధన్యవాదాలు 🙏\n${biz}`;
+    const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును క్రింది QR స్కానర్ ద్వారా పూర్తి చేయగలరు:\n';
+    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
   }
 };
 function qitems(h){const o=[],td=today();
@@ -397,14 +399,37 @@ function getRemList(allMembers){
   }
   return list.sort((a,b)=>a.dl-b.dl);
 }
-function sendRemind(mid,langOpt){
+async function sendRemind(mid,langOpt){
   const m=M.find(x=>x.id==mid);if(!m)return;
   const s=st(m),lang=langOpt||rmLang||'te',text=rmsg(m,s,lang);
-  const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
   const id=m.id+'_'+today();
-  const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
   try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),lang});RM.add(id)}catch(_){}
-  toast(tr('WhatsApp reminder opened ('+(lang=='en'?'English':'Telugu')+') for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ ('+(lang=='en'?'ఇంగ్లీష్':'తెలుగు')+') తెరవబడింది ✓'));
+  let shared=false;
+  if(navigator.canShare){
+    try{
+      const resp=await fetch('/scanner.png');
+      const blob=await resp.blob();
+      const file=new File([blob],'branch-qr-scanner.png',{type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({title:'Payment Reminder',text,files:[file]});
+        shared=true;
+        toast(tr('Reminder & QR Scanner shared ✓','రిమైండర్ & QR స్కానర్ షేర్ చేయబడింది ✓'));
+      }
+    }catch(_){}
+  }
+  if(!shared){
+    try{
+      const resp=await fetch('/scanner.png');
+      const blob=await resp.blob();
+      if(navigator.clipboard&&window.ClipboardItem){
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+        toast(tr('QR Scanner photo copied! Paste (Ctrl+V / Long-press Paste) in chat.','QR స్కానర్ ఫోటో కాపీ అయింది! చాట్‌లో పేస్ట్ చేయండి.'));
+      }
+    }catch(_){}
+    const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
+    const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+    toast(tr('WhatsApp reminder opened ('+(lang=='en'?'English':'Telugu')+') for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ ('+(lang=='en'?'ఇంగ్లీష్':'తెలుగు')+') తెరవబడింది ✓'));
+  }
   draw();
 }
 function copyRemMsg(mid,langOpt){
@@ -435,21 +460,59 @@ async function dlReminders(){
   await sv(d,'gangaya-reminders-'+today()+'.xlsx',xlsx([{name:'Reminders',rows}]));
 }
 function getRemTemplate(m,s,tpl,l){
-  const isEn=(l==='en'),biz=isEn?'Gangaya Finance':'గంగయ్య ఫైనాన్స్',name=isEn?m.name:(m.te||m.name),inst=inr(m.inst||0),due=inr(Math.max(s.due,0)),nextDate=s.next?(isEn?fde(s.next):fdt(s.next)):'';
+  const isEn=(l==='en'),biz=isEn?'Gangaya Finance':'గంగయ్య ఫైనాన్స్',inst=inr(m.inst||0),due=inr(Math.max(s.due,0)),nextDate=s.next?(isEn?fde(s.next):fdt(s.next)):'';
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
+  const scanLink=SCANNER_URL();
   if(tpl==='od'){
-    if(isEn)return `Hello ${name},\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (due was '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease clear the overdue amount immediately.\nThank you 🙏\n${biz}`;
-    return `నమస్కారం ${name} గారు,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన వాయిదాను వెంటనే చెల్లించగలరు.\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (was due on '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease repay your overdue instalment immediately using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
   }
   if(tpl==='bal'){
-    if(isEn)return `Hello ${name},\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to clear your balance.\nThank you 🙏\n${biz}`;
-    return `నమస్కారం ${name} గారు,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్లియర్ చేయగలరు.\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to repay your balance using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్రింది QR స్కానర్ ద్వారా చెల్లించి పూర్తి చేయగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
   }
   if(tpl==='gen'){
-    if(isEn)return `Hello ${name},\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease feel free to contact us for any assistance.\nThank you 🙏\n${biz}`;
-    return `నమస్కారం ${name} గారు,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nసమయానికి చెల్లించగలరని ఆశిస్తున్నాము.\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease repay your instalment using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nదయచేసి క్రింది QR స్కానర్ ద్వారా మీ వాయిదాను చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
   }
   return rmsg(m,s,l);
+}
+function openScannerDlg(){scannerDlg=true;draw()}
+function closeScannerDlg(){scannerDlg=false;draw()}
+async function copyScannerImg(){
+  try{
+    const r=await fetch('/scanner.png');
+    const b=await r.blob();
+    await navigator.clipboard.write([new ClipboardItem({'image/png':b})]);
+    toast(tr('Scanner image copied to clipboard ✓','స్కానర్ ఫోటో కాపీ అయింది ✓'));
+  }catch(e){
+    toast(tr('Could not copy image. Use Download button.','చిత్రాన్ని కాపీ చేయలేకపోయాము. డౌన్‌లోడ్ బటన్ ఉపయోగించండి.'));
+  }
+}
+function downloadScannerImg(){
+  const a=document.createElement('a');a.href='/scanner.png';a.download='branch-small-finance-bank-scanner.png';
+  document.body.appendChild(a);a.click();a.remove();
+  toast(tr('Scanner downloading…','స్కానర్ డౌన్‌లోడ్ అవుతోంది…'));
+}
+function scannerModal(){
+  if(!scannerDlg)return '';
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:440px;width:100%;margin:auto;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div class="row" style="margin-bottom:8px">
+        <h2 style="margin:0">🏦 BRANCH small finance bank</h2>
+        <button class="sm" onclick="closeScannerDlg()">✕</button>
+      </div>
+      <p class="m" style="margin:0 0 10px">${tr('Repayment QR Scanner (without personal name / UPI ID)','చెల్లింపుల కోసం అధికారిక QR స్కానర్')}</p>
+      <div style="background:#f5f5f5;padding:10px;border-radius:12px;margin-bottom:12px">
+        <img src="/scanner.png" alt="BRANCH small finance bank QR Scanner" style="max-width:100%;height:auto;max-height:60vh;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;margin:auto">
+      </div>
+      <div class="acts" style="justify-content:center;gap:8px;flex-wrap:wrap">
+        <button class="p" onclick="copyScannerImg()">📋 ${tr('Copy Scanner','స్కానర్ కాపీ')}</button>
+        <button onclick="downloadScannerImg()">⬇ ${tr('Download Scanner','డౌన్‌లోడ్')}</button>
+        <button onclick="closeScannerDlg()">${tr('Close','మూసివేయి')}</button>
+      </div>
+    </div>
+  </div>`;
 }
 function openManualRem(mid,lang){
   mremDlg=true;mremLang=lang||rmLang||'te';mremTpl='std';
@@ -479,15 +542,38 @@ function onManualRemTplChange(tpl){
   if(m)mremTxt=getRemTemplate(m,st(m),mremTpl,mremLang);
   draw();
 }
-function sendManualRemNow(){
+async function sendManualRemNow(){
   const m=M.find(x=>x.id==mremMid);if(!m)return toast(tr('Select a client first','ముందు క్లయింట్‌ని ఎంచుకోండి'));
   const text=($('#mremtxt')?$('#mremtxt').value:mremTxt).trim();
   if(!text)return toast(tr('Enter a reminder message','రిమైండర్ మెసేజ్ రాయండి'));
-  const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
   const id=m.id+'_'+today();
-  const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
   try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),manual:true,lang:mremLang});RM.add(id)}catch(_){}
-  toast(tr('WhatsApp reminder opened for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ తెరవబడింది ✓'));
+  let shared=false;
+  if(navigator.canShare){
+    try{
+      const resp=await fetch('/scanner.png');
+      const blob=await resp.blob();
+      const file=new File([blob],'branch-qr-scanner.png',{type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({title:'Payment Reminder',text,files:[file]});
+        shared=true;
+        toast(tr('Reminder & QR Scanner shared ✓','రిమైండర్ & QR స్కానర్ షేర్ చేయబడింది ✓'));
+      }
+    }catch(_){}
+  }
+  if(!shared){
+    try{
+      const resp=await fetch('/scanner.png');
+      const blob=await resp.blob();
+      if(navigator.clipboard&&window.ClipboardItem){
+        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
+        toast(tr('QR Scanner photo copied! Paste (Ctrl+V / Long-press Paste) in chat.','QR స్కానర్ ఫోటో కాపీ అయింది! చాట్‌లో పేస్ట్ చేయండి.'));
+      }
+    }catch(_){}
+    const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
+    const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+    toast(tr('WhatsApp reminder opened for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ తెరవబడింది ✓'));
+  }
   closeManualRem();
 }
 function copyManualRemTxt(){
@@ -507,7 +593,17 @@ function manualRemModal(){
         <h2 style="margin:0">✍️ ${tr('Send Manual Reminder','మాన్యువల్ రిమైండర్ పంపండి')}</h2>
         <button class="sm" onclick="closeManualRem()">✕</button>
       </div>
-      <p class="m" style="margin:0 0 10px">${tr('Select any client and send a reminder in Telugu or English without day restrictions.','తేదీలతో సంబంధం లేకుండా ఏ క్లయింట్‌కైనా నేరుగా తెలుగు లేదా ఇంగ్లీష్‌లో రిమైండర్ పంపండి.')}</p>
+      <p class="m" style="margin:0 0 10px">${tr('Select any client and send a reminder in Telugu or English with QR scanner without personal name/UPI ID.','వ్యక్తిగత పేరు మరియు UPI ID లేకుండా QR స్కానర్‌తో రిమైండర్ పంపండి.')}</p>
+      
+      <div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <img src="/scanner.png" alt="Scanner" style="width:48px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--b);cursor:pointer;flex-shrink:0" onclick="openScannerDlg()" title="${tr('Click to enlarge','పూర్తి స్కానర్ చూడండి')}">
+        <div style="flex:1">
+          <b style="font-size:13px">🏦 BRANCH small finance bank</b>
+          <div class="m" style="font-size:12px">${tr('QR Scanner attached (no personal name & no UPI ID)','వ్యక్తిగత పేరు & UPI ID లేని స్కానర్ జతచేయబడింది')}</div>
+        </div>
+        <button type="button" class="sm" onclick="openScannerDlg()">👁️ ${tr('View','చూడండి')}</button>
+      </div>
+
       <div class="g" style="margin-bottom:10px">
         <label class="m">${tr('Select Client / Borrower','క్లయింట్ / సభ్యుడిని ఎంచుకోండి')}
           <select id="mremmid" onchange="onManualRemClientChange(this.value)">
@@ -543,7 +639,7 @@ function manualRemModal(){
         <button type="button" class="sm" onclick="copyManualRemTxt()">📋 ${tr('Copy','కాపీ')}</button>
         <div style="display:flex;gap:8px">
           <button type="button" onclick="closeManualRem()">${tr('Cancel','రద్దు')}</button>
-          <button type="button" class="p" onclick="sendManualRemNow()">📱 ${tr('Send WhatsApp','వాట్సాప్‌లో పంపండి')}</button>
+          <button type="button" class="p" onclick="sendManualRemNow()">📱 ${tr('Send WhatsApp + Scanner','వాట్సాప్ + స్కానర్')}</button>
         </div>
       </div>
     </div>
@@ -592,11 +688,12 @@ function remindersTab(){
       <div class="row" style="flex-wrap:wrap;gap:8px">
         <h2>⏰ ${tr('Payment Reminders','చెల్లింపు రిమైండర్లు')} (${filtered.length})</h2>
         <div class="acts">
+          <button onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">🏦 ${tr('QR Scanner','QR స్కానర్')}</button>
           <button class="p" onclick="openManualRem()">✍️ ${tr('Manual Reminder','మాన్యువల్ రిమైండర్')}</button>
           <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>⬇ ${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
         </div>
       </div>
-      <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp in Telugu or English. Send manually to any client or filter by schedule.','వాట్సాప్ ద్వారా తెలుగు లేదా ఇంగ్లీష్‌లో రిమైండర్లు పంపండి. ఏ క్లయింట్‌కైనా తేదీలతో సంబంధం లేకుండా నేరుగా పంపవచ్చు.')}</p>
+      <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp with official QR scanner (without personal name & UPI ID).','అధికారిక QR స్కానర్‌తో వాట్సాప్ ద్వారా రిమైండర్లు పంపండి (వ్యక్తిగత పేరు మరియు UPI ID లేకుండా).')}</p>
       
       <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;padding:8px 12px;background:var(--s);border-radius:8px;flex-wrap:wrap;gap:8px">
         <span style="font-size:13px;font-weight:600">${tr('Reminder Message Language:','రిమైండర్ మెసేజ్ భాష:')}</span>
@@ -645,8 +742,9 @@ function remindersTab(){
               </div>
             </div>
             <div class="acts" style="flex-shrink:0">
-              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp in English':'వాట్సాప్‌లో తెలుగులో పంపు'}">📱 ${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
+              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">📱 ${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
               <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'🌐 తెలుగు':'🌐 EN'}</button>
+              <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">📸</button>
               <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">✍️ ${tr('Edit','ఎడిట్')}</button>
               <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
               <button class="sm" onclick="rv='${r.m.id}';draw()">${tr('Account','ఖాతా')}</button>
@@ -822,7 +920,7 @@ function draw(){const app=$('#app');if(!db)return app.innerHTML='<div class="car
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remCount=getRemList().length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['rm','రిమైండర్లు ('+remCount+')'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
-app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:20px;padding:4px 10px;font-weight:600">📢 ${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}${notifPanel()}${fatherNoteModal()}${manualRemModal()}`;
+app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:20px;padding:4px 10px;font-weight:600">📢 ${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}${notifPanel()}${fatherNoteModal()}${manualRemModal()}${scannerModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
@@ -831,5 +929,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=15').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=16').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
