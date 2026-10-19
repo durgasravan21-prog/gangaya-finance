@@ -43,7 +43,10 @@ create policy docs_read on public.docs for select to authenticated
 create policy docs_insert_admin on public.docs for insert to authenticated
   with check (public.my_role() = 'admin');
 create policy docs_insert_collector on public.docs for insert to authenticated
-  with check (public.my_role() = 'collector' and collection in ('txns','notifs'));
+  with check (public.my_role() = 'collector' and collection in ('txns','notifs','rem'));
+create policy docs_update_collector on public.docs for update to authenticated
+  using (public.my_role() = 'collector' and collection = 'rem')
+  with check (public.my_role() = 'collector' and collection = 'rem');
 create policy docs_update_admin on public.docs for update to authenticated
   using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
 create policy docs_delete_admin on public.docs for delete to authenticated

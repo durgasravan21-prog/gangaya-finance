@@ -65,9 +65,9 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=13"></script>
+<script src="/runtime.js?v=14"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null;
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0;
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
 const isTe=()=>role=='f'?(lang=='te'):false;
 const DE=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],DT=['ఆదివారం','సోమవారం','మంగళవారం','బుధవారం','గురువారం','శుక్రవారం','శనివారం'];
@@ -308,7 +308,7 @@ return `<div class="card"><div class="g"><input id="lq" value="${esc(lq)}" place
 return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}</span>
 <div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div></div>
-<div class="acts"><button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
+<div class="acts">${d>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">📱 ${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
 function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),R=(k,v)=>`<tr><td class="m">${k}</td><td><b>${v}</b></td></tr>`;
@@ -337,21 +337,174 @@ return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
 <span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
 <div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">📢 ${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Send Note','మెసేజ్ పంపు')}</button></div>${recentFatherNotesHtml()}</div>
-${list.map(m=>{const s=st(m);return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span><div class="m">${tr('Due','బాకీ')} ${inr(s.due)} · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div>
-<div class="acts"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button><button onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
+${list.map(m=>{const s=st(m),dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
+const statusBadge=s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">⚠️ ${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">⏰ ${tr('Due today','ఈ రోజే')}</span>`:``)):``;
+return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span>${statusBadge}<div class="m">${tr('Due','బాకీ')} ${inr(s.due)} · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div>
+<div class="acts"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>${s.due>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">📱 ${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
 }
 function save(){if(!sel)return;const a=num($('#amt').value);if(!(a>0&&a<=1e7))return toast(tr('Enter amount','మొత్తం రాయండి'));const m=M.find(x=>x.id==sel.id);if(!m)return;
 const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
 go2=()=>{const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};sel=null;once(()=>db.collection('txns').add(t))};
 if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);go2()}
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
-rmsg=(m,s)=>`నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి గుర్తు చేస్తున్నాము:\nమీ వాయిదా ${inr(m.inst||0)} ${fdt(s.next)} న చెల్లించాలి.\nమిగిలిన బాకీ: ${inr(s.due)}\nధన్యవాదాలు 🙏\n${BIZ}`;
+rmsg=(m,s)=>{
+  const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):0;
+  const isOd=dl<0;
+  return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి గుర్తు చేస్తున్నాము:\n`+
+    (isOd?`మీ వాయిదా ${inr(m.inst||0)} చెల్లింపు తేదీ (${fdt(s.next)}) దాటిపోయింది (${Math.abs(dl)} రోజులు ఆలస్యం).\n`:`మీ వాయిదా ${inr(m.inst||0)} ${fdt(s.next)} న చెల్లించాలి.\n`)+
+    `మిగిలిన బాకీ: ${inr(s.due)}\n`+
+    (isOd?`దయచేసి వెంటనే చెల్లించగలరు.\n`:`దయచేసి సమయానికి చెల్లించగలరు.\n`)+
+    `ధన్యవాదాలు 🙏\n${BIZ}`;
+};
 function qitems(h){const o=[],td=today();
 for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
 o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
-if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
-if(dl>2||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:'Reminder · due '+(dl<=0?'today':'in '+dl+(dl==1?' day':' days')),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
+if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next||s.due<=0)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
+if(dl>2||dl<-60||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('⚠️ Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
 return o}
+function getRemList(){
+  const td=today(),list=[];
+  for(const m of M){
+    if(m.archived)continue;
+    const s=st(m);if(!s.next||s.due<=0)continue;
+    const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5);
+    if(dl>2||dl<-60)continue;
+    list.push({m,s,dl,isOd:dl<0,isTd:dl===0,isUp:dl>0});
+  }
+  return list.sort((a,b)=>a.dl-b.dl);
+}
+function sendRemind(mid){
+  const m=M.find(x=>x.id==mid);if(!m)return;
+  const s=st(m);if(s.due<=0)return toast(tr('This member has cleared their loan!','ఈ సభ్యుడికి ఎలాంటి బాకీ లేదు!'));
+  if(!s.next)s.next=today();
+  const text=rmsg(m,s);
+  const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
+  const id=m.id+'_'+today();
+  const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
+  try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now()});RM.add(id)}catch(_){}
+  toast(tr('WhatsApp reminder opened for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ తెరవబడింది ✓'));
+  draw();
+}
+function copyRemMsg(mid){
+  const m=M.find(x=>x.id==mid);if(!m)return;
+  const s=st(m),text=rmsg(m,s);
+  (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(text):Promise.reject())
+    .then(()=>toast(tr('Reminder message copied ✓','రిమైండర్ మెసేజ్ కాపీ అయింది ✓')))
+    .catch(()=>ask(text,'OK',()=>{}));
+}
+async function dlReminders(){
+  const d=await claude.use('downloads');if(!d)return toast(tr('Download not available','డౌన్‌లోడ్ అందుబాటులో లేదు'));
+  const rows=getRemList().map(r=>({
+    Member:r.m.name,
+    Telugu_Name:r.m.te||'',
+    Phone:ph(r.m.phone),
+    Village:r.m.village,
+    Installment:r.m.inst||0,
+    Total_Due:r.s.due,
+    Due_Date:r.s.next,
+    Status:r.isOd?('Overdue by '+Math.abs(r.dl)+' days'):(r.isTd?'Due Today':('Due in '+r.dl+' days')),
+    Reminded_Today:RM.has(r.m.id+'_'+today())?'Yes':'No',
+    WhatsApp_Link:`https://wa.me/${ph(r.m.phone)}?text=${encodeURIComponent(rmsg(r.m,r.s))}`
+  }));
+  await sv(d,'gangaya-reminders-'+today()+'.xlsx',xlsx([{name:'Reminders',rows}]));
+}
+function remindersTab(){
+  const all=getRemList();
+  const odCount=all.filter(r=>r.isOd).length,tdCount=all.filter(r=>r.isTd).length,upCount=all.filter(r=>r.isUp).length;
+  const odAmt=all.filter(r=>r.isOd).reduce((sum,r)=>sum+(r.m.inst||0),0);
+  const tdAmt=all.filter(r=>r.isTd).reduce((sum,r)=>sum+(r.m.inst||0),0);
+  const filtered=all.filter(r=>{
+    if(rmf=='od'&&!r.isOd)return false;
+    if(rmf=='td'&&!r.isTd)return false;
+    if(rmf=='up'&&!r.isUp)return false;
+    if(rmv&&r.m.village!=rmv)return false;
+    if(rmq){
+      const q=rmq.toLowerCase(),n=(r.m.name||'').toLowerCase(),te=(r.m.te||'').toLowerCase(),p=(r.m.phone||'');
+      if(!n.includes(q)&&!te.includes(q)&&!p.includes(q))return false;
+    }
+    return true;
+  });
+  const nextRem=filtered[rmi]||filtered[0];
+  return `
+    <div class="g" style="margin-bottom:12px">
+      <div class="card stat" style="border-left:4px solid var(--r);cursor:pointer" onclick="rmf='od';draw()">
+        <span class="m">${tr('Overdue Borrowers','గడువు దాటినవి')}</span>
+        <b style="color:var(--r)">${odCount} ${tr('members','మంది')}</b>
+        <span class="m">${tr('Instalments: ','వాయిదాలు: ')}${inr(odAmt)}</span>
+      </div>
+      <div class="card stat" style="border-left:4px solid #f59e0b;cursor:pointer" onclick="rmf='td';draw()">
+        <span class="m">${tr('Due Today','ఈ రోజు గడువు')}</span>
+        <b style="color:#f59e0b">${tdCount} ${tr('members','మంది')}</b>
+        <span class="m">${tr('Instalments: ','వాయిదాలు: ')}${inr(tdAmt)}</span>
+      </div>
+      <div class="card stat" style="border-left:4px solid var(--p);cursor:pointer" onclick="rmf='up';draw()">
+        <span class="m">${tr('Due in Next 2 Days','రాబోయే 2 రోజుల్లో')}</span>
+        <b>${upCount} ${tr('members','మంది')}</b>
+        <span class="m">${tr('Click to filter','ఫిల్టర్ చేయడానికి నొక్కండి')}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <h2>⏰ ${tr('Payment Reminders','చెల్లింపు రిమైండర్లు')} (${filtered.length})</h2>
+        <div class="acts">
+          <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>⬇ ${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
+        </div>
+      </div>
+      <p class="m" style="margin:4px 0 10px">${tr('Send payment reminders on WhatsApp before or on the due date. Overdue members are prioritized in red.','గడువు తేదీకి ముందు లేదా గడువు రోజే వాట్సాప్ ద్వారా గుర్తు చేయండి. గడువు దాటిన వారు ఎరుపు రంగులో కనిపిస్తారు.')}</p>
+      <div class="chips" style="margin-bottom:10px">
+        <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All','అన్నీ')} (${all.length})</button>
+        <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">⚠️ ${tr('Overdue','ఆలస్యం')} (${odCount})</button>
+        <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">⏰ ${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
+        <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">📅 ${tr('Upcoming (2d)','రాబోయేవి')} (${upCount})</button>
+      </div>
+      <div class="g">
+        <input type="search" placeholder="${tr('Search borrower name / phone...','సభ్యుడి పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="rmq=this.value;draw()">
+        <select onchange="rmv=this.value;draw()">
+          <option value="">${tr('All villages','అన్ని ఊర్లు')}</option>
+          ${V.map(v=>`<option value="${esc(v.name)}" ${v.name==rmv?'selected':''}>${esc(nm(v))}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    ${filtered.map(r=>{
+      const isRemToday=RM.has(r.m.id+'_'+today());
+      const statusBadge=r.isOd
+        ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">⚠️ ${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
+        :(r.isTd
+          ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">⏰ ${tr('Due Today','ఈ రోజే గడువు')}</span>`
+          :`<span class="chip" style="font-size:12px">📅 ${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`);
+      return `
+        <div class="card">
+          <div class="row">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <b>${esc(nm(r.m))}</b>
+                <span class="m">${esc(vl(r.m.village))}</span>
+                ${statusBadge}
+                ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:600">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
+              </div>
+              <div class="m" style="margin-top:4px">
+                ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}${inr(r.s.due)} · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}
+              </div>
+            </div>
+            <div class="acts" style="flex-shrink:0">
+              <button class="p sm" onclick="sendRemind('${r.m.id}')">📱 ${tr('WhatsApp','వాట్సాప్')}</button>
+              <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
+              <button class="sm" onclick="rv='${r.m.id}';draw()">${tr('Account','ఖాతా')}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')||`<div class="card empty"><p class="m">${tr('No reminders matching filters 🎉','రిమైండర్లు ఏమీ లేవు 🎉')}</p></div>`}
+    ${nextRem?`
+      <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0">
+        <button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendRemind('${nextRem.m.id}')">
+          🚀 ${tr('Send Reminder · next: ','తదుపరి రిమైండర్: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
+        </button>
+        <button style="padding:14px" onclick="rmi=(rmi+1)%filtered.length;draw()">${tr('Skip','దాటవేయి')}</button>
+      </div>
+    `:''}
+  `;
+}
 function done(k){if(!owner)return;const i=Q.find(x=>x.k==k);if(i&&i.mk)w(i.mk)}
 let pnd=null,pt=0;
 function track(k){if(!owner)return;pnd=k;clearTimeout(pt);pt=setTimeout(()=>{if(pnd){pnd=null;toast('WhatsApp did not seem to open here. Use Copy, paste it in WhatsApp, then tap ✓ Sent.')}},3500)}
@@ -360,7 +513,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});ad
 function toggleLang(){lang=(lang=='te')?'en':'te';try{localStorage.setItem('gangaya_lang',lang);localStorage.setItem('gf-lang',lang)}catch(e){}draw()}
 window.toggleLang=toggleLang;
 const langBtn=()=>role=='f'?`<button class="sm" onclick="toggleLang()" title="${isTe()?'Switch to English':'తెలుగులోకి మార్చండి'}">${isTe()?'🌐 English':'🌐 తెలుగు'}</button>`:'';
-const TIC={rc:'🧾',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊',ar:'📦'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
+const TIC={rc:'🧾',rm:'⏰',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊',ar:'📦'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
 function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');const isD=thm=='dark'||(thm=='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(m)m.setAttribute('content',isD?'#0e1210':'#16704a')}catch(e){}}
 function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm);localStorage.setItem('gangaya_theme',thm)}catch(e){}applyTheme();draw()}
 window.toggleTheme=cycleTheme;
@@ -507,8 +660,8 @@ function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).u
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function draw(){const app=$('#app');if(!db)return app.innerHTML='<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h3>Connecting…</h3><p class="m">Connecting to the database. If this takes more than a few seconds, tap Reload.</p><button class="p" style="margin-top:10px" onclick="location.reload()">🔄 Reload</button></div>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
-const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
-const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab}[tab]();
+const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remCount=getRemList().length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['rm','రిమైండర్లు ('+remCount+')'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['rm','Reminders ('+remCount+')'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
+const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
 app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:20px;padding:4px 10px;font-weight:600">📢 ${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}${notifPanel()}${fatherNoteModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
@@ -518,5 +671,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=13').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=14').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
