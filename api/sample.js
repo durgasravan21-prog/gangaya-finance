@@ -52,10 +52,10 @@ module.exports = async (req, res) => {
   const name = String((req.body && req.body.name) || '').trim();
   if (!name || name.length > 60 || !/^[\p{L}\p{M}\s.'-]+$/u.test(name)) return res.status(400).json({ error: 'name' });
   try {
-    const u = await fetch(U + '/auth/v1/user', { headers: { apikey: K, Authorization: 'Bearer ' + tok } });
+    const u = await fetch(U + '/auth/v1/user', { headers: { apikey: K, Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(6000) });
     if (!u.ok) return res.status(401).json({ error: 'auth' });
     const user = await u.json();
-    const p = await fetch(U + '/rest/v1/profiles?select=role&id=eq.' + encodeURIComponent(user.id), { headers: { apikey: K, Authorization: 'Bearer ' + tok } });
+    const p = await fetch(U + '/rest/v1/profiles?select=role&id=eq.' + encodeURIComponent(user.id), { headers: { apikey: K, Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(6000) });
     const rows = await p.json();
     if (!Array.isArray(rows) || !rows[0] || !['admin', 'collector'].includes(rows[0].role)) return res.status(403).json({ error: 'forbidden' });
     let te = A ? await transliterateClaude(name, A) : null;

@@ -65,7 +65,7 @@ button,a.wa{white-space:nowrap}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=11"></script>
+<script src="/runtime.js?v=12"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='';
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
@@ -349,11 +349,11 @@ function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n
 once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});clr(['nv','vt'])})}
 function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
-function draw(){const app=$('#app');if(!db)return app.innerHTML='<p>Could not connect to the database. Check the internet connection and reload.</p>';
+function draw(){const app=$('#app');if(!db)return app.innerHTML='<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h3>Connecting…</h3><p class="m">Connecting to the database. If this takes more than a few seconds, tap Reload.</p><button class="p" style="margin-top:10px" onclick="location.reload()">🔄 Reload</button></div>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,tabs=adm?[['rc','Receipts ('+qitems().length+')'],['fa','Collect'],['lg','Ledger'],['mb','Members'],['vl','Villages'],['rp','Reports'],['ar','Archived ('+archCount+')']]:(isTe()?[['fa','వసూలు'],['lg','ఖాతాలు'],['rp','నివేదికలు']]:[['fa','Collect'],['lg','Ledger'],['rp','Reports']]);if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab}[tab]();
-app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r)">⚠ ${esc(dbErr)}</div>`:''}${body}${recView()}${dlgHtml()}`;
+app.innerHTML=`<div class="hd"><div class="top"><h1>📒 ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}</h1><div class="acts">${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')">${adm?'Father’s dashboard':'Admin dashboard'}</button>`:''}${langBtn()}${themeBtn()}${window.__signout?`<button class="sm" onclick="__signout()">${tr('Sign out','సైన్ అవుట్')}</button>`:''}</div></div><div class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">${TIC[k]||''} ${l}</button>`).join('')}</div></div>${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}${body}${recView()}${dlgHtml()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
@@ -361,5 +361,5 @@ role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>T=a,cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)))}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=11').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=12').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
