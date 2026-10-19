@@ -7,7 +7,7 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.docs (
-  collection text not null check (collection in ('members','villages','txns','rem')),
+  collection text not null check (collection in ('members','villages','txns','rem','notifs')),
   id         text not null check (id ~ '^[A-Za-z0-9_-]{1,128}$'),
   data       jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
@@ -43,7 +43,7 @@ create policy docs_read on public.docs for select to authenticated
 create policy docs_insert_admin on public.docs for insert to authenticated
   with check (public.my_role() = 'admin');
 create policy docs_insert_collector on public.docs for insert to authenticated
-  with check (public.my_role() = 'collector' and collection = 'txns');
+  with check (public.my_role() = 'collector' and collection in ('txns','notifs'));
 create policy docs_update_admin on public.docs for update to authenticated
   using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
 create policy docs_delete_admin on public.docs for delete to authenticated
