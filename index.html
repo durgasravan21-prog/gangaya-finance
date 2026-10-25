@@ -24,198 +24,236 @@
 <style>
 /* ========================================================
    GANGAYA FINANCE - DASHBOARD V18 DESIGN SYSTEM
+   Inspired by Minimal Modern Bento & Glassmorphism
    ======================================================== */
 :root {
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: light;
-  --bg: #f5f7fa;
-  --c: #ffffff;
-  --c2: #edf2f7;
-  --card: #ffffff;
+  --bg: #f8fafc;
+  --bg-gradient: radial-gradient(circle at 10% 10%, #eef2ff 0%, #f8fafc 90%);
+  --c: rgba(255, 255, 255, 0.88);
+  --c2: rgba(241, 245, 249, 0.9);
+  --card: rgba(255, 255, 255, 0.88);
+  --card-border: rgba(226, 232, 240, 0.85);
   --t: #0f172a;
   --m: #64748b;
-  --a: #059669;
-  --a-hover: #047857;
+  --a: #6366f1;
+  --a-hover: #4f46e5;
   --ai: #ffffff;
-  --a-subtle: rgba(5, 150, 105, 0.1);
-  --p: #059669;
-  --s: #ecfdf5;
+  --a-subtle: rgba(99, 102, 241, 0.1);
+  --p: #6366f1;
+  --s: #e0e7ff;
   --b: #e2e8f0;
   --r: #ef4444;
   --r-subtle: #fee2e2;
   --amber: #f59e0b;
   --amber-subtle: #fef3c7;
-  --blue: #2563eb;
+  --blue: #3b82f6;
   --blue-subtle: #eff6ff;
-  --ok: #059669;
+  --ok: #10b981;
   --wa: #25d366;
   --wai: #ffffff;
-  --sh: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 6px 18px -3px rgba(0, 0, 0, 0.05);
-  --sh-lg: 0 12px 30px -4px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
-  --radius: 16px;
-  --radius-sm: 10px;
+  --sh: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  --sh-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.08), 0 6px 12px -2px rgba(0, 0, 0, 0.03);
+  --dock-bg: rgba(15, 23, 42, 0.94);
+  --dock-btn: #94a3b8;
+  --dock-active: #ffffff;
+  --radius: 22px;
+  --radius-sm: 12px;
 }
 :root[data-theme=dark] {
   color-scheme: dark;
-  --bg: #090d12;
-  --c: #111720;
-  --c2: #182230;
-  --card: #111720;
-  --t: #f1f5f9;
+  --bg: #090d16;
+  --bg-gradient: radial-gradient(circle at 10% 10%, rgba(30, 27, 75, 0.35) 0%, #090d16 90%);
+  --c: rgba(20, 24, 38, 0.85);
+  --c2: rgba(27, 33, 51, 0.9);
+  --card: rgba(20, 24, 38, 0.88);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --t: #f8fafc;
   --m: #94a3b8;
-  --a: #10b981;
-  --a-hover: #34d399;
-  --ai: #042416;
-  --a-subtle: rgba(16, 185, 129, 0.15);
-  --p: #10b981;
-  --s: #062a1c;
-  --b: #1f2937;
+  --a: #818cf8;
+  --a-hover: #a5b4fc;
+  --ai: #0f172a;
+  --a-subtle: rgba(129, 140, 248, 0.15);
+  --p: #818cf8;
+  --s: rgba(99, 102, 241, 0.15);
+  --b: #1e293b;
   --r: #f87171;
   --r-subtle: rgba(248, 113, 113, 0.15);
   --amber: #fbbf24;
   --amber-subtle: rgba(251, 191, 36, 0.15);
   --blue: #60a5fa;
   --blue-subtle: rgba(96, 165, 250, 0.15);
-  --ok: #10b981;
+  --ok: #34d399;
   --wa: #25d366;
   --wai: #05220e;
-  --sh: 0 2px 8px 0 rgba(0, 0, 0, 0.4), 0 12px 30px -4px rgba(0, 0, 0, 0.35);
+  --sh: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
   --sh-lg: 0 16px 40px -4px rgba(0, 0, 0, 0.6);
+  --dock-bg: rgba(15, 23, 42, 0.96);
+  --dock-btn: #94a3b8;
+  --dock-active: #ffffff;
 }
-@media(prefers-color-scheme:dark){
-  :root:not([data-theme=light]){
-    color-scheme: dark;
-    --bg: #090d12;
-    --c: #111720;
-    --c2: #182230;
-    --card: #111720;
-    --t: #f1f5f9;
-    --m: #94a3b8;
-    --a: #10b981;
-    --a-hover: #34d399;
-    --ai: #042416;
-    --a-subtle: rgba(16, 185, 129, 0.15);
-    --p: #10b981;
-    --s: #062a1c;
-    --b: #1f2937;
-    --r: #f87171;
-    --r-subtle: rgba(248, 113, 113, 0.15);
-    --amber: #fbbf24;
-    --amber-subtle: rgba(251, 191, 36, 0.15);
-    --blue: #60a5fa;
-    --blue-subtle: rgba(96, 165, 250, 0.15);
-    --ok: #10b981;
-    --wa: #25d366;
-    --wai: #05220e;
-    --sh: 0 2px 8px 0 rgba(0, 0, 0, 0.4), 0 12px 30px -4px rgba(0, 0, 0, 0.35);
-    --sh-lg: 0 16px 40px -4px rgba(0, 0, 0, 0.6);
-  }
-}
+
 html { scroll-padding-top: calc(env(safe-area-inset-top,0px) + 120px); -webkit-text-size-adjust: 100%; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--t); font: 14.5px/1.55 system-ui, -apple-system, "Segoe UI", "Noto Sans Telugu", "Nirmala UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; transition: background-color .2s, color .2s; -webkit-font-smoothing: antialiased; }
-main { max-width: 820px; margin: 0 auto; padding: 0 14px 32px; }
+body { margin: 0; background: var(--bg); background-image: var(--bg-gradient); color: var(--t); font: 14.5px/1.55 system-ui, -apple-system, "Segoe UI", "Noto Sans Telugu", "Nirmala UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; transition: background-color .2s, color .2s; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+main { max-width: 1240px; margin: 0 auto; padding: 18px 20px 48px; }
 h1, h2, h3 { letter-spacing: -0.01em; }
-h1 { font-size: 18px; margin: 0; }
-h2 { font-size: 15px; margin: 0 0 8px; font-weight: 700; }
+h1 { font-size: 20px; margin: 0; font-weight: 800; }
+h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 
-/* Sticky Header with Frosted Glass */
-.hd { position: sticky; top: env(safe-area-inset-top,0px); z-index: 25; background: rgba(245,247,250,0.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); margin: 0 -14px 12px; padding: 12px 14px 10px; border-bottom: 1px solid var(--b); transition: background-color .2s, border-color .2s; }
-:root[data-theme=dark] .hd { background: rgba(9,13,18,0.88); }
-.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+/* Frosted Glass Cards */
+.card, .glass-card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--sh); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform .2s cubic-bezier(0.16,1,0.3,1), box-shadow .2s ease; }
+.card:hover, .glass-card:hover { box-shadow: var(--sh-lg); }
 
-/* Dashboard v18 Branding */
+/* V18 Floating Dock Capsule (Desktop: Left Vertical, Mobile: Bottom Capsule) */
+.v18-dock { position: fixed; left: 24px; top: 24px; bottom: 24px; width: 68px; border-radius: 9999px; background: var(--dock-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+.v18-dock-brand { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); flex-shrink: 0; letter-spacing: -0.5px; cursor: pointer; }
+.v18-dock-nav { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+.v18-dock-btn { width: 44px; height: 44px; border-radius: 9999px; border: 0; background: transparent; color: var(--dock-btn); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all .2s ease; }
+.v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
+.v18-dock-btn.active { background: var(--dock-active); color: #0f172a; box-shadow: 0 4px 16px rgba(255,255,255,0.35); }
+.v18-dock-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--r); box-shadow: 0 0 0 2px var(--dock-bg); }
+.v18-dock-footer { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+
+/* Mobile Floating Dock Adjustment */
+@media (max-width: 959px) {
+  .v18-dock { left: 50%; transform: translateX(-50%); top: auto; bottom: 12px; width: calc(100% - 24px); max-width: 520px; height: 60px; flex-direction: row; padding: 0 12px; justify-content: space-around; }
+  .v18-dock-brand, .v18-dock-footer { display: none; }
+  .v18-dock-nav { flex-direction: row; justify-content: space-around; width: 100%; gap: 4px; }
+  main { padding: 12px 14px 84px; }
+}
+@media (min-width: 960px) {
+  main { margin-left: 104px; }
+}
+
+/* Sticky Top Bar for Brand & Controls */
+.hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--b); flex-wrap: wrap; gap: 10px; }
+.top { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
-.brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #059669, #0d9488); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3); flex-shrink: 0; letter-spacing: -0.5px; }
-.brand-title { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
-.brand-sub { font-size: 11px; color: var(--m); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
-.v18-pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; background: var(--a-subtle); color: var(--a); border: 1px solid var(--a); line-height: 1.3; }
-.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); animation: pulseGreen 2s infinite; }
-@keyframes pulseGreen { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+.brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); flex-shrink: 0; letter-spacing: -0.5px; }
+.brand-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
+.brand-sub { font-size: 11.5px; color: var(--m); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.v18-pill { font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--a-subtle); color: var(--a); border: 1px solid var(--a); line-height: 1.3; }
+.pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
 
-/* Dashboard v18 Tabs */
-.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+/* Tabs Bar (Secondary / Mobile Pill Bar) */
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-bottom: 14px; }
 .tabs::-webkit-scrollbar { display: none; }
-.tabs button { white-space: nowrap; border-radius: 999px; padding: 7px 13px; font-size: 13.5px; font-weight: 600; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--b); background: var(--c); transition: all .15s ease; }
+.tabs button { white-space: nowrap; border-radius: 999px; padding: 8px 14px; font-size: 13.5px; font-weight: 600; min-height: 38px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--b); background: var(--c); transition: all .15s ease; cursor: pointer; color: var(--t); }
 .tabs button:hover { background: var(--c2); border-color: var(--a); }
-.tabs button.on { background: var(--a); color: var(--ai); border-color: var(--a); box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3); }
+.tabs button.on { background: var(--a); color: var(--ai); border-color: var(--a); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3); }
 .t-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; padding: 0 6px; min-width: 18px; height: 18px; border-radius: 999px; background: var(--c2); color: var(--t); line-height: 1; }
 .tabs button.on .t-badge { background: rgba(255, 255, 255, 0.25); color: var(--ai); }
 .t-badge.warn { background: var(--r); color: #fff; }
-.tabs button.on .t-badge.warn { background: #fff; color: var(--r); }
 
-/* Dashboard v18 Hero Metrics & Actions */
-.v18-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 12px; }
-.kpi-card { background: var(--c); border: 1px solid var(--b); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--sh); position: relative; overflow: hidden; transition: transform .15s ease, box-shadow .15s ease; }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--sh-lg); }
-.kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--a); }
-.kpi-card.kpi-alt::before { background: var(--blue); }
-.kpi-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-.kpi-label { font-size: 12px; color: var(--m); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-.kpi-chip { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--c2); color: var(--m); }
-.kpi-val { font-size: 24px; font-weight: 800; color: var(--t); letter-spacing: -0.02em; margin-bottom: 4px; }
-.kpi-sub { font-size: 12px; color: var(--m); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.dot-upi { color: var(--blue); font-size: 14px; }
-.dot-cash { color: var(--amber); font-size: 14px; }
-.kpi-alert { color: var(--r); font-weight: 600; }
-.kpi-good { color: var(--ok); font-weight: 600; }
-.v18-quick-bar { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; padding: 2px 0; }
-.v18-quick-bar::-webkit-scrollbar { display: none; }
-.quick-btn { white-space: nowrap; font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--b); background: var(--c); color: var(--t); box-shadow: 0 1px 2px rgba(0,0,0,0.03); display: inline-flex; align-items: center; gap: 5px; min-height: 34px; transition: all .15s ease; }
+/* ========================================================
+   DASHBOARD V18 BENTO GRID LAYOUT
+   ======================================================== */
+.v18-bento-top { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 860px) { .v18-bento-top { grid-template-columns: 1fr; } }
+
+/* Hero Banner ("Work's always better together") */
+.v18-banner { background: linear-gradient(135deg, rgba(238, 242, 255, 0.88) 0%, rgba(243, 232, 255, 0.88) 50%, rgba(254, 243, 199, 0.6) 100%); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: var(--radius); padding: 22px 26px; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; min-height: 150px; }
+:root[data-theme=dark] .v18-banner { background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(46, 16, 101, 0.6) 50%, rgba(15, 23, 42, 0.85) 100%); border-color: rgba(255,255,255,0.08); }
+.v18-banner-content { max-width: 440px; z-index: 2; }
+.v18-banner-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--a); margin-bottom: 6px; }
+.v18-banner-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; line-height: 1.2; }
+.v18-banner-sub { font-size: 13px; color: var(--m); margin: 0 0 14px; line-height: 1.4; }
+.v18-banner-btn { border-radius: 9999px; padding: 7px 16px; font-size: 12.5px; font-weight: 700; background: var(--t); color: var(--bg); border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform .15s; }
+.v18-banner-btn:hover { transform: translateY(-1px); }
+.v18-banner-art { position: relative; width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.v18-orb { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #c084fc, #818cf8, #38bdf8); filter: blur(4px); opacity: 0.85; animation: floatOrb 6s ease-in-out infinite alternate; }
+@keyframes floatOrb { 0% { transform: scale(0.9) rotate(0deg); } 100% { transform: scale(1.08) rotate(30deg); } }
+
+/* Calendar Week Picker ("May, 2023" Mon 15, Tue 16, etc.) */
+.v18-calendar { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; }
+.v18-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.v18-cal-month { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.v18-cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.v18-day-pill { border-radius: 12px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all .15s ease; border: 1px solid transparent; background: var(--c2); }
+.v18-day-pill:hover { background: rgba(99, 102, 241, 0.12); border-color: var(--a); }
+.v18-day-pill.active { background: var(--t); color: var(--bg); font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.v18-day-name { font-size: 10px; font-weight: 600; text-transform: uppercase; color: inherit; opacity: 0.8; }
+.v18-day-num { font-size: 13.5px; font-weight: 700; }
+
+/* Bento Row 2: 3 Cards (Members, 8.5h Collections, Impact Bars) */
+.v18-bento-tri { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .v18-bento-tri { grid-template-columns: 1fr; } }
+
+.v18-card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.v18-card-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--m); }
+.v18-stat-num { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: var(--t); margin-bottom: 4px; line-height: 1.1; }
+.v18-stat-sub { font-size: 12px; color: var(--m); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Overlapping Avatar Stack */
+.v18-avatar-stack { display: flex; align-items: center; margin: 10px 0; }
+.v18-avatar-stack .avatar { margin-left: -8px; border: 2px solid var(--c); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+.v18-avatar-stack .avatar:first-child { margin-left: 0; }
+
+/* Vertical Pastel Bars ("Impact") */
+.v18-bars { display: flex; align-items: flex-end; gap: 8px; height: 50px; margin-top: 10px; }
+.v18-bar-col { flex: 1; border-radius: 8px; background: linear-gradient(180deg, #c084fc, #e9d5ff); transition: height .3s; }
+.v18-bar-col:nth-child(even) { background: linear-gradient(180deg, #818cf8, #c7d2fe); }
+.v18-bar-col:last-child { background: linear-gradient(180deg, #34d399, #a7f3d0); }
+
+/* Bento Row 3: Statistics 33 42 + Quick Tools + Notifications */
+.v18-bento-dual { display: grid; grid-template-columns: 1.2fr 1.4fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .v18-bento-dual { grid-template-columns: 1fr; } }
+
+/* Dual Stat ("33 42") */
+.v18-dual-stat { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.v18-dual-num { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.v18-dual-num.sec { color: var(--m); opacity: 0.6; }
+.v18-sub-boxes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.v18-sub-box { background: var(--c2); border-radius: 14px; padding: 10px 12px; }
+.v18-sub-box-val { font-size: 15px; font-weight: 700; color: var(--t); }
+.v18-sub-box-lbl { font-size: 11px; color: var(--m); font-weight: 600; text-transform: uppercase; }
+
+/* Quick Action Bar */
+.v18-quick-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.quick-btn { border-radius: 9999px; padding: 8px 16px; font-size: 13px; font-weight: 600; background: var(--c); border: 1px solid var(--b); color: var(--t); cursor: pointer; transition: all .15s ease; box-shadow: var(--sh); }
 .quick-btn:hover { background: var(--c2); border-color: var(--a); transform: translateY(-1px); }
 .quick-btn.p { background: var(--a); color: var(--ai); border-color: var(--a); }
 
-/* Common controls */
-button, select, input, textarea { font: inherit; font-size: 15px; color: var(--t); background: var(--c); border: 1px solid var(--b); border-radius: var(--radius-sm); padding: 9px 12px; min-height: 42px; transition: background-color .15s, border-color .15s, box-shadow .15s, transform .05s; }
+/* Common UI Elements */
+input, select, textarea { width: 100%; border: 1px solid var(--b); background: var(--c); color: var(--t); border-radius: var(--radius-sm); padding: 10px 14px; font: inherit; font-size: 14.5px; transition: border-color .15s, box-shadow .15s; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a); box-shadow: 0 0 0 3px var(--a-subtle); }
-input::placeholder, textarea::placeholder { color: var(--m); opacity: .85; }
-button { cursor: pointer; font-weight: 600; }
-button:hover { background: var(--c2); }
-button:active { transform: scale(.98); }
-button.p { background: var(--a); color: var(--ai); border-color: var(--a); box-shadow: 0 2px 8px rgba(5, 150, 105, 0.25); }
-button.p:hover { background: var(--a-hover); border-color: var(--a-hover); box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35); }
-button.sm { padding: 4px 11px; font-size: 13px; min-height: 32px; border-radius: 8px; }
-button.d { color: var(--r); border-color: var(--r); background: transparent; }
-button.d:hover { background: var(--r-subtle); }
-button.ic { padding: 4px 10px; min-height: 36px; font-size: 16px; line-height: 1; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-.card { background: var(--c); border: 1px solid var(--b); border-radius: var(--radius); padding: 15px; margin-bottom: 12px; box-shadow: var(--sh); transition: box-shadow .2s ease, border-color .2s ease; }
-.row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
-.row>div { min-width: 0; word-break: break-word; }
+button { font: inherit; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid var(--b); background: var(--c); color: var(--t); padding: 9px 15px; font-weight: 600; transition: all .15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+button:hover { background: var(--c2); border-color: var(--a); }
+button.p { background: var(--a); color: var(--ai); border-color: var(--a); }
+button.p:hover { background: var(--a-hover); }
+button.d { background: var(--r-subtle); color: var(--r); border-color: var(--r); }
+button.sm { padding: 5px 11px; font-size: 12.5px; border-radius: 8px; min-height: 30px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.g { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .m { color: var(--m); font-size: 13px; }
-.ok { color: var(--ok); font-weight: 600; }
-.g { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-.g input, .g select { width: 100%; }
-.stat b { display: block; font-size: 22px; font-weight: 800; }
-.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ok { color: var(--ok); font-weight: 700; }
+.dot-upi { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2563eb; }
+.dot-cash { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
 table { width: 100%; border-collapse: collapse; }
-td, th { padding: 9px 6px; border-bottom: 1px solid var(--b); text-align: left; vertical-align: middle; }
-th { font-size: 11.5px; color: var(--m); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-a.wa { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #25d366, #1ebe5d); color: #ffffff; text-decoration: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 13.5px; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3); transition: transform .15s ease, box-shadow .15s ease; white-space: nowrap; }
-a.wa:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4); }
+th, td { padding: 9px 10px; border-bottom: 1px solid var(--b); text-align: left; }
+th { font-size: 11.5px; color: var(--m); font-weight: 700; text-transform: uppercase; }
+a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: #fff; text-decoration: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 13px; }
 .sc { overflow-x: auto; }
 .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .opt { display: flex; align-items: center; gap: 6px; border: 1px solid var(--b); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
-input[type=radio] { width: auto!important; min-height: 0; padding: 0; margin: 0; accent-color: var(--a); }
-button, a.wa { white-space: nowrap; }
-.rec { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--b); }
+.rec { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--b); }
 .rec:last-child { border: 0; }
-.rec>b { white-space: nowrap; }
-.chip { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--c2); color: var(--m); border: 1px solid var(--b); }
-.chip.good { color: var(--ok); border-color: currentColor; background: var(--s); }
+.chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--c2); color: var(--m); border: 1px solid var(--b); }
 .bar { height: 6px; border-radius: 999px; background: var(--c2); margin-top: 8px; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--a); border-radius: inherit; transition: width .3s; }
-.empty { text-align: center; color: var(--m); padding: 24px 0; }
-.toast { position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top, 0px)); max-width: 520px; margin: 0 auto; background: #111827; color: #ffffff; border-radius: 12px; padding: 12px 16px; z-index: 100; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 8px; animation: modalFadeIn 0.2s ease; }
-.avatar { width: 34px; height: 34px; border-radius: 10px; background: var(--c2); color: var(--t); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--b); flex-shrink: 0; }
-.notif-badge { position: absolute; top: -4px; right: -4px; background: var(--r); color: #fff; border-radius: 999px; font-size: 10px; font-weight: 800; padding: 1px 5px; min-width: 15px; line-height: 1.2; text-align: center; box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4); }
+.toast { position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top, 0px)); max-width: 520px; margin: 0 auto; background: #111827; color: #ffffff; border-radius: 14px; padding: 12px 18px; z-index: 100; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--c2); color: var(--t); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--b); flex-shrink: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.chips button { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @media(prefers-reduced-motion:reduce){ * { transition: none!important; animation: none!important; } }
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=18"></script>
+<script src="/runtime.js?v=20"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
@@ -259,28 +297,7 @@ async function readCloudStatus(){
   draw();
 }
 
-async function clearAllData(){
-  if(!owner)return;
-  ask(tr('DANGER: This will permanently wipe ALL members, loans, payments, reminders, and notes from the database. Are you sure?','హెచ్చరిక: ఇది డేటాబేస్ నుండి అన్ని రికార్డులను శాశ్వతంగా తొలగిస్తుంది. కొనసాగించాలా?'),tr('Wipe Everything','మొత్తం తొలగించు'),async()=>{
-    busy=true;draw();
-    try{
-      if(db&&db.clearAll){
-        await db.clearAll();
-      } else {
-        for(const m of M){try{await db.doc('members/'+m.id).delete()}catch(_){}}
-        for(const v of V){try{await db.doc('villages/'+v.id).delete()}catch(_){}}
-        for(const n of NT){try{await db.doc('notifs/'+n.id).delete()}catch(_){}}
-      }
-      M=[];V=[];T=[];NT=[];RM=new Set();
-      await readCloudStatus();
-      toast(tr('Database cleared successfully (0 records)','డేటాబేస్ విజయవంతంగా క్లియర్ చేయబడింది (0 రికార్డులు)'));
-    }catch(e){
-      toast('Error clearing data: '+(e&&e.message||e));
-    }finally{
-      busy=false;draw();
-    }
-  });
-}
+
 
 async function reloadAllData(){
   busy=true;draw();
@@ -301,12 +318,12 @@ async function reloadAllData(){
 function stats(){const r=rep(),c=(x,l)=>`<div class="card stat"><span class="m">${l}</span><b>${inr(x.c)}</b><span class="m">UPI ${inr(x.u)} · ${tr('Cash','నగదు')} ${inr(x.c-x.u)}</span></div>`;
 return `<div class="card" style="border-color:var(--b);margin-top:14px">
   <h2>${tr('Database & Cloud Verification','డేటాబేస్ & క్లౌడ్ స్థితి')}</h2>
-  <p class="m" style="margin:0 0 10px">${tr('Verify data consistency, read cloud records, or wipe database cleanly.','డేటా సమగ్రతను తనిఖీ చేయండి, లేదా క్లౌడ్ డేటాను పరిశీలించండి.')}</p>
+  <p class="m" style="margin:0 0 10px">${tr('Verify data consistency, read cloud records, or inspect real-time cloud data.','డేటా సమగ్రతను తనిఖీ చేయండి, లేదా క్లౌడ్ డేటాను పరిశీలించండి.')}</p>
   ${cloudStatusText?`<div class="card" style="background:var(--s);padding:8px 12px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--t)">${esc(cloudStatusText)}</div>`:''}
   <div class="acts">
     <button class="p sm" onclick="readCloudStatus()">${tr('Read / Verify Cloud DB','క్లౌడ్ డేటాబేస్ పరిశీలించు')}</button>
     <button class="sm" onclick="reloadAllData()">${tr('Reload from Cloud','క్లౌడ్ నుండి రీలోడ్')}</button>
-    <button class="d sm" onclick="clearAllData()">${tr('Clear Database & History','డేటాను మొత్తం తొలగించు')}</button>
+    
   </div>
 </div>`+`<div class="g">${c(r.t,tr('Today','ఈ రోజు'))}${c(r.w,tr('Last 7 days','గత 7 రోజులు'))}</div>
 <div class="card sc"><h2>${tr('Village-wise','ఊరి వారీగా')}</h2><table><tr><th>${tr('Village','ఊరు')}</th><th>${tr('Today','ఈ రోజు')}</th><th>${tr('7 days','7 రోజులు')}</th></tr>${Object.entries(r.v).map(([k,v])=>`<tr><td>${esc(vl(k))}</td><td>${inr(v.t)}</td><td>${inr(v.w)}</td></tr>`).join('')||'<tr><td colspan=3 class="m">'+tr('No collections yet','ఇంకా వసూలు లేదు')+'</td></tr>'}</table></div>`+recList()}
@@ -1168,34 +1185,168 @@ function heroKpis(){
   const odCount=remList.filter(x=>x.isOd).length;
   const pndRc=qitems().length;
   const adm=owner&&role=='a';
-  return `<div class="v18-hero">
-    <div class="kpi-card" onclick="go('rp')" style="cursor:pointer" title="${tr('View daily collections report','రోజువారీ వసూళ్ల నివేదిక')}">
-      <div class="kpi-header">
-        <span class="kpi-label">${tr("Today's Collections","ఈ రోజు వసూలు")}</span>
-        <span class="kpi-chip">${fd(today())}</span>
+
+  const now = new Date();
+  const currD = now.getDay();
+  const monOffset = currD === 0 ? -6 : 1 - currD;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + monOffset);
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const weekDays = [];
+  for(let i=0; i<7; i++){
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const dayIdx = (i + 1) % 7;
+    weekDays.push({
+      name: days[i],
+      num: d.getDate(),
+      isToday: d.toDateString() === now.toDateString(),
+      dayIdx
+    });
+  }
+  const monthStr = now.toLocaleDateString(isTe()?'te-IN':'en-US', { month: 'long', year: 'numeric' });
+
+  const wd = now.getDay();
+  const todayVillages = V.filter(v => v.day == wd);
+  const schedM = M.filter(m => !m.archived && todayVillages.some(v => v.name == m.village));
+  const todayPaidCount = schedM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
+
+  const recents = T.slice(0, 3).map(t => {
+    const m = M.find(x => x.id == t.mid);
+    return { t, m };
+  }).filter(x => x.m);
+
+  return `<div class="v18-bento-top">
+    <div class="v18-banner glass-card">
+      <div class="v18-banner-content">
+        <div class="v18-banner-tag">Dashboard V18 • Modern & Minimal</div>
+        <h1 class="v18-banner-title">${adm?'Gangaya Finance Admin':(isTe()?'గంగయ్య ఫైనాన్స్ కలెక్షన్స్':'Gangaya Finance Collections')}</h1>
+        <p class="v18-banner-sub">${tr('Smart daily collections, member ledgers, and zero-latency cloud database.','స్మార్ట్ రోజువారీ వసూళ్లు, సభ్యుల ఖాతాలు మరియు వేగవంతమైన క్లౌడ్ లెడ్జర్.')}</p>
+        <div class="acts" style="margin-top:12px">
+          ${adm?`<button class="v18-banner-btn" onclick="openAddMemberDlg()">+ ${tr('Add Member','సభ్యుడిని చేర్చు')}</button>`:''}
+          <button class="v18-banner-btn" style="background:var(--c2);color:var(--t)" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
+          ${!adm?`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
+        </div>
       </div>
-      <div class="kpi-val">${inr(todayTot)}</div>
-      <div class="kpi-sub">
-        <span title="UPI payments"><span class="dot-upi">●</span> UPI ${inr(todayUpi)}</span>
-        <span title="Cash payments"><span class="dot-cash">●</span> ${tr('Cash','నగదు')} ${inr(todayCash)}</span>
+      <div class="v18-banner-art">
+        <div class="v18-orb"></div>
       </div>
     </div>
-    <div class="kpi-card kpi-alt" onclick="go('lg')" style="cursor:pointer" title="${tr('View all member ledgers','అన్ని ఖాతాలు చూడండి')}">
-      <div class="kpi-header">
-        <span class="kpi-label">${tr('Outstanding Balance','మొత్తం బాకీ నిల్వ')}</span>
-        <span class="kpi-chip">${activeM.length} ${tr('members','మంది')}</span>
+
+    <div class="v18-calendar glass-card">
+      <div class="v18-cal-header">
+        <span class="v18-cal-month">${monthStr}</span>
+        <span class="chip" style="font-size:11px;font-weight:700">${activeM.length} ${tr('Members','సభ్యులు')}</span>
       </div>
-      <div class="kpi-val">${inr(totDue)}</div>
-      <div class="kpi-sub">
-        ${odCount>0?`<span class="kpi-alert">${odCount} ${tr('overdue loans','గడువు దాటినవి')}</span>`:`<span class="kpi-good">${tr('All up to date','అన్నీ సకాలంలో')}</span>`}
-        ${pndRc>0?`<span style="margin-left:auto;color:var(--a);font-weight:700">${pndRc} ${tr('receipts waiting','రసీదులు')}</span>`:''}
+      <div class="v18-cal-days">
+        ${weekDays.map(d => `
+          <div class="v18-day-pill ${d.isToday?'active':''}" onclick="setScheduleDay(${d.dayIdx})" title="${d.name} (${d.num})">
+            <span class="v18-day-name">${d.name}</span>
+            <span class="v18-day-num">${d.num}</span>
+          </div>
+        `).join('')}
       </div>
     </div>
   </div>
+
+  <div class="v18-bento-tri">
+    <div class="glass-card" onclick="go('mb')" style="cursor:pointer" title="${tr('Manage Members','సభ్యుల వివరాలు')}">
+      <div class="v18-card-head">
+        <span class="v18-card-title">${tr('Members','సభ్యులు')}</span>
+        <span class="chip" style="background:var(--s);color:var(--a);border-color:transparent;font-weight:700">${activeM.length} ${tr('Active','మంది')}</span>
+      </div>
+      <div class="v18-avatar-stack">
+        ${activeM.slice(0, 5).map(m => `<div class="avatar" title="${esc(nm(m))}">${(nm(m)||'').charAt(0).toUpperCase()}</div>`).join('')}
+      </div>
+      <div class="v18-stat-sub">
+        <span>${V.length} ${tr('villages scheduled','ఊర్లలో')}</span>
+        <span style="margin-left:auto;color:var(--a);font-weight:700">→</span>
+      </div>
+    </div>
+
+    <div class="glass-card" onclick="go('rp')" style="cursor:pointer" title="${tr('View Daily Reports','రోజువారీ నివేదిక')}">
+      <div class="v18-card-head">
+        <span class="v18-card-title">${tr("Today's Collections","ఈ రోజు వసూలు")}</span>
+        <span class="chip" style="font-size:11px">${fd(today())}</span>
+      </div>
+      <div class="v18-stat-num">${inr(todayTot)}</div>
+      <div class="v18-stat-sub">
+        <span><span class="dot-upi">●</span> UPI ${inr(todayUpi)}</span>
+        <span><span class="dot-cash">●</span> ${tr('Cash','నగదు')} ${inr(todayCash)}</span>
+      </div>
+      <div class="bar" style="margin-top:10px"><i style="width:${todayTot>0?Math.min(100, Math.round(todayTot*100/50000)):0}%"></i></div>
+    </div>
+
+    <div class="glass-card" onclick="go('lg')" style="cursor:pointer" title="${tr('View Ledger','ఖాతాలు చూడండి')}">
+      <div class="v18-card-head">
+        <span class="v18-card-title">${tr('Outstanding Due','మొత్తం బాకీ')}</span>
+        ${odCount>0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:transparent;font-weight:700">${odCount} ${tr('Overdue','ఆలస్యం')}</span>`:`<span class="chip" style="background:#dcfce7;color:#15803d;border-color:transparent;font-weight:700">✓ ${tr('Healthy','సరిగ్గా')}</span>`}
+      </div>
+      <div class="v18-stat-num">${inr(totDue)}</div>
+      <div class="v18-bars">
+        <div class="v18-bar-col" style="height:35%"></div>
+        <div class="v18-bar-col" style="height:60%"></div>
+        <div class="v18-bar-col" style="height:45%"></div>
+        <div class="v18-bar-col" style="height:85%"></div>
+        <div class="v18-bar-col" style="height:70%"></div>
+        <div class="v18-bar-col" style="height:90%"></div>
+        <div class="v18-bar-col" style="height:55%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v18-bento-dual">
+    <div class="glass-card">
+      <div class="v18-card-head">
+        <span class="v18-card-title">${tr('Statistics','గణాంకాలు')}</span>
+        <span class="chip">${tr('Today','ఈ రోజు')}</span>
+      </div>
+      <div class="v18-dual-stat">
+        <div class="v18-dual-num">${todayPaidCount}</div>
+        <div class="v18-dual-num sec">/ ${schedM.length||activeM.length}</div>
+        <span class="m" style="font-size:13px">${tr('members paid','సభ్యులు చెల్లించారు')}</span>
+      </div>
+      <div class="v18-sub-boxes">
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val ok">${inr(todayTot)}</div>
+          <div class="v18-sub-box-lbl">${tr('Collected','వసూలైనది')}</div>
+        </div>
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val" style="color:var(--amber)">${inr(Math.max(0, totDue))}</div>
+          <div class="v18-sub-box-lbl">${tr('Balance Due','మిగిలిన బాకీ')}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="v18-card-head">
+        <span class="v18-card-title">${tr('Recent Activity','ఇటీవలి లావాదేవీలు')}</span>
+        <button class="sm" onclick="go('rc')">${tr('View All','అన్నీ')}</button>
+      </div>
+      <div>
+        ${recents.length?recents.map(({t,m})=>`
+          <div class="rec">
+            <div style="display:flex;gap:10px;align-items:center">
+              <div class="avatar" style="width:30px;height:30px;font-size:12px">${(nm(m)||'').charAt(0).toUpperCase()}</div>
+              <div>
+                <b>${esc(nm(m))}</b>
+                <div class="m" style="font-size:11.5px">${esc(vl(m.village))} · ${fd(t.d)}</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b>
+              <div class="m" style="font-size:11.5px">${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('Loan','అప్పు')}</div>
+            </div>
+          </div>
+        `).join(''):`<p class="m" style="margin:12px 0">${tr('No recent payments recorded.','ఇటీవల ఎలాంటి చెల్లింపులు లేవు.')}</p>`}
+      </div>
+    </div>
+  </div>
+
   <div class="v18-quick-bar">
     <button class="quick-btn" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
     <button class="quick-btn" onclick="openManualRem()">${tr('Send Reminder','రిమైండర్ పంపు')}</button>
-    ${adm?`<button class="quick-btn" onclick="go('mb')">${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
+    ${adm?`<button class="quick-btn" onclick="openAddMemberDlg()">${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
     ${adm?`<button class="quick-btn" onclick="go('vl')">${tr('Villages','ఊర్లు')}</button>`:''}
     ${!adm?`<button class="quick-btn p" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
   </div>`;
@@ -1230,7 +1381,24 @@ const tabs=adm?[
 if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const showHero=['rc','fa','rp'].includes(tab);
 const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
-app.innerHTML=`<div class="hd">
+
+app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
+  <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
+  <nav class="v18-dock-nav">
+    ${tabs.map(([k, label, cnt]) => `
+      <button class="v18-dock-btn ${k==tab?'active':''}" onclick="go('${k}')" title="${esc(label)}">
+        ${V18_ICONS[k]||''}
+        ${cnt!=null&&cnt>0?`<span class="v18-dock-badge"></span>`:''}
+      </button>
+    `).join('')}
+  </nav>
+  <div class="v18-dock-footer">
+    ${adm?notifBellBtn():''}
+    ${langBtn()}
+    ${themeBtn()}
+  </div>
+</aside>
+<div class="hd">
   <div class="top">
     <div class="brand">
       <div class="brand-logo">GF</div>
@@ -1256,7 +1424,7 @@ app.innerHTML=`<div class="hd">
   <div class="tabs" role="tablist">
     ${tabs.map(([k,l,cnt])=>`
       <button role="tab" aria-selected="${k==tab}" class="${k==tab?'on':''}" onclick="go('${k}')">
-        <span>${TIC[k]||''}</span>
+        <span>${V18_ICONS[k]||''}</span>
         <span>${l}</span>
         ${cnt!=null&&cnt>0?`<span class="t-badge ${k=='rm'&&hasOd?'warn':''}">${cnt>99?'99+':cnt}</span>`:''}
       </button>
@@ -1280,5 +1448,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=18').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=20').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
