@@ -9,6 +9,8 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon-512.jpg">
+<link rel="preconnect" href="https://digmxlceoejepixflqnh.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://digmxlceoejepixflqnh.supabase.co">
 <script>
 (function(){
   try{
@@ -260,7 +262,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=23"></script>
+<script src="/runtime.js?v=24"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 const V18_ICONS = {
@@ -288,10 +290,21 @@ fd=d=>{const x=new Date(d+'T00:00:00');return isTe()?x.getDate()+' '+TM[x.getMon
 ph=p=>{p=String(p).replace(/\D/g,'');return p.length==10?'91'+p:p},
 nm=o=>isTe()&&o.te?o.te:o.name,sb=o=>isTe()&&o.te&&o.te!==o.name?o.name:(o.te&&o.te!==o.name?o.te:''),tr=(e,t)=>isTe()?t:e,
 vl=n=>{const v=V.find(x=>x.name==n);return v?nm(v):n};
-function st(m,u,d0){let g=0,p=0,last=m.created||today(),lp='';for(const t of T)if(t.mid==m.id&&(!u||t.ts<=u)){t.type=='loan'?g+=t.repay:p+=t.amt;if(t.d>last)last=t.d;if(t.type=='pay'&&t.d>lp)lp=t.d}
-const due=g-p,v=V.find(x=>x.name==m.village),td=d0||today();let next=null;
-if(due>0){if(m.freq==1)next=lp>=td?addD(td,1):td;else if(v&&v.day!=null){let c=td;while(new Date(c+'T00:00:00').getDay()!=v.day)c=addD(c,1);if(lp>=addD(c,-6))c=addD(c,7);next=c}else next=addD(last,m.freq||7)}
-return{g,p,due,next}}
+let _stCache = new Map(), _stTxnLen = -1;
+function st(m,u,d0){
+  if(!u && !d0){
+    if(_stTxnLen !== T.length){ _stCache.clear(); _stTxnLen = T.length; }
+    const hit = _stCache.get(m.id);
+    if(hit) return hit;
+  }
+  let g=0,p=0,last=m.created||today(),lp='';
+  for(const t of T)if(t.mid==m.id&&(!u||t.ts<=u)){t.type=='loan'?g+=t.repay:p+=t.amt;if(t.d>last)last=t.d;if(t.type=='pay'&&t.d>lp)lp=t.d}
+  const due=g-p,v=V.find(x=>x.name==m.village),td=d0||today();let next=null;
+  if(due>0){if(m.freq==1)next=lp>=td?addD(td,1):td;else if(v&&v.day!=null){let c=td;while(new Date(c+'T00:00:00').getDay()!=v.day)c=addD(c,1);if(lp>=addD(c,-6))c=addD(c,7);next=c}else next=addD(last,m.freq||7)}
+  const res = {g,p,due,next};
+  if(!u && !d0) _stCache.set(m.id, res);
+  return res;
+}
 function rep(){const td=today(),w=addD(td,-6),r={t:{c:0,u:0},w:{c:0,u:0},v:{}};
 for(const t of T){if(t.type!='pay')continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;const v=m.village||'?';
 for(const[k,ok]of[['t',t.d==td],['w',t.d>=w]]){if(!ok)continue;r[k].c+=t.amt;if(t.mode=='upi')r[k].u+=t.amt;(r.v[v]??={t:0,w:0})[k]+=t.amt}}return r}
@@ -357,7 +370,7 @@ who=()=>str((me&&(me.name||me.id))||(role=='a'?'admin':'collector'),40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
-cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Father',ts:num(d.ts),read:d.read===true})).sort((x,y)=>y.ts-x.ts);
+cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Father',to:str(d.to,40),ts:num(d.ts),read:d.read===true})).sort((x,y)=>y.ts-x.ts);
 function initAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume()}catch(_){}}
 function playChime(){try{initAudio();if(!audioCtx)return;const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.setValueAtTime(587.33,audioCtx.currentTime);osc.frequency.setValueAtTime(880,audioCtx.currentTime+0.1);gain.gain.setValueAtTime(0.2,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5);osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+0.5)}catch(_){}}
 function notifyBrowser(t,b){try{if('Notification' in window&&Notification.permission==='granted')new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}}
@@ -378,11 +391,17 @@ function onTxnsUpdate(newT){
   knownTxnIds=new Set(newT.map(x=>x.id));T=newT;
 }
 function onNotifsUpdate(newNT){
-  if(bootComplete&&role=='a'){
+  if(bootComplete){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)&&n.ts>sessionStartTs){
-        const txt=`Message from Father: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
-        toast(txt);playChime();notifyBrowser('Gangaya Finance - Note from Father',txt);
+        const isFromAdmin=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector';
+        if(role=='a'&&!isFromAdmin){
+          const txt=`Message from Collector: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
+          toast(txt);playChime();notifyBrowser('Gangaya Finance - Note from Collector',txt);
+        }else if(role=='f'&&isFromAdmin){
+          const txt=`Instructions from Admin: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
+          toast(txt);playChime();notifyBrowser('Gangaya Finance - Instructions from Admin',txt);
+        }
       }
     }
   }
@@ -391,13 +410,15 @@ function onNotifsUpdate(newNT){
 function allNotifs(){
   const list=[];
   for(const n of NT){
-    list.push({id:'n_'+n.id,rawId:n.id,type:'note',icon:'',title:tr('Message from Father','తండ్రి గారి నుండి మెసేజ్'),desc:n.text,extra:(n.village?tr('Village: ','ఊరు: ')+vl(n.village):'')+(n.mname?' · '+tr('Member: ','సభ్యుడు: ')+n.mname:'')+' · '+tr('By ','పంపినవారు: ')+(n.by||'Father'),ts:n.ts});
+    const isFromAdmin=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector';
+    const title=isFromAdmin?tr('Instructions from Admin','అడ్మిన్ నుండి సూచనలు'):tr('Message from Collector','కలెక్టర్ నుండి సందేశం');
+    list.push({id:'n_'+n.id,rawId:n.id,type:'note',icon:'',title,desc:n.text,extra:(n.village?tr('Village: ','ఊరు: ')+vl(n.village):'')+(n.mname?' · '+tr('Member: ','సభ్యుడు: ')+n.mname:'')+' · '+tr('By ','పంపినవారు: ')+(n.by||(isFromAdmin?'Admin':'Collector')),ts:n.ts});
   }
   const sortedT=T.slice().sort((a,b)=>b.ts-a.ts).slice(0,100);
   for(const t of sortedT){
     const m=M.find(x=>x.id==t.mid)||{},memName=nm(m)||tr('Member','సభ్యుడు'),vilName=m.village?vl(m.village):'';
     if(t.type=='pay'){
-      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',icon:'',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Father collected ','తండ్రి గారు వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Father':'Admin')),extra:'',ts:t.ts});
+      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',icon:'',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Collector collected ','కలెక్టర్ వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Collector':'Admin')),extra:'',ts:t.ts});
     }else if(t.type=='loan'){
       list.push({id:'t_'+t.id,rawId:t.id,type:'loan',icon:'',title:tr('New Loan: ','కొత్త అప్పు: ')+inr(t.amt)+' → '+tr('Return: ','తిరిగి: ')+inr(t.repay),desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Installment: ','వాయిదా: ')+inr(t.inst||m.inst||0)+' · '+tr('By ','ఇచ్చినవారు: ')+(t.by||'Admin'),extra:'',ts:t.ts});
     }
@@ -437,7 +458,7 @@ function notifPanel(){
       <div class="row" style="margin-bottom:8px">
         <h2 style="margin:0">${tr('Notifications & Activity','నోటిఫికేషన్లు & కార్యకలాపాలు')}</h2>
         <div class="acts">
-          <button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
+          <button class="sm p" onclick="openFatherNoteDlg()">${role=='a'?tr('+ Send Note to Collector','+ కలెక్టర్‌కి నోట్'):tr('+ Send Note to Admin','+ అడ్మిన్‌కి మెసేజ్')}</button><button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
           ${owner?`<button class="sm d" onclick="clearNotifHistory()">${tr('Clear History','క్లియర్')}</button>`:''}
           <button class="sm" onclick="closeNotifs();draw()">✕</button>
         </div>
@@ -445,7 +466,7 @@ function notifPanel(){
       <div class="chips" style="margin-bottom:12px">
         <button class="${notifFilter=='all'?'p':''}" onclick="notifFilter='all';draw()">${tr('All','అన్నీ')} (${all.length})</button>
         <button class="${notifFilter=='pays'?'p':''}" onclick="notifFilter='pays';draw()">${tr('Payments','చెల్లింపులు')} (${all.filter(x=>x.type=='pay').length})</button>
-        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">${tr('Notes from Father','తండ్రి మెసేజ్‌లు')} (${all.filter(x=>x.type=='note').length})</button>
+        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">${tr('Notes & Messages','నోట్స్ & మెసేజ్‌లు')} (${all.filter(x=>x.type=='note').length})</button>
         <button class="${notifFilter=='loans'?'p':''}" onclick="notifFilter='loans';draw()">${tr('Loans','అప్పులు')} (${all.filter(x=>x.type=='loan').length})</button>
       </div>
       <div style="max-height:65vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
@@ -465,36 +486,60 @@ function notifPanel(){
     </div>
   </div>`;
 }
-function getPresets(){return [
-  [tr("Today's collection completed", "ఈ రోజు వసూలు పూర్తయింది"), "<span class='pulse-dot' style='background:#10b981;margin-right:6px'></span>"],
-  [tr("Member requested new loan", "సభ్యుడికి కొత్త అప్పు కావాలి"), "<span class='pulse-dot' style='background:#f59e0b;margin-right:6px'></span>"],
-  [tr("Cash deposited / handed over", "డబ్బులు డిపాజిట్ చేశాను"), "<span class='pulse-dot' style='background:#3b82f6;margin-right:6px'></span>"],
-  [tr("Member unavailable / phone switched off", "సభ్యుడు అందుబాటులో లేరు"), "<span class='pulse-dot' style='background:#ef4444;margin-right:6px'></span>"],
-  [tr("Collection delayed", "వసూలు ఆలస్యం అవుతుంది"), "<span class='pulse-dot' style='background:#94a3b8;margin-right:6px'></span>"]
-];}
+function getPresets(){
+  if(role==='a'){
+    return [
+      [tr("Priority: Collect from this member/village today", "ప్రాధాన్యత: ఈ రోజు ఈ సభ్యుడు/గ్రామం వద్ద వసూలు చేయండి"), "<span class='pulse-dot' style='background:#10b981;margin-right:6px'></span>"],
+      [tr("New loan sanctioned — deliver cash & collect signature", "కొత్త అప్పు మంజూరైంది — నగదు అందించి సంతకం తీసుకోండి"), "<span class='pulse-dot' style='background:#f59e0b;margin-right:6px'></span>"],
+      [tr("Verify overdue balance & report back", "బాకీ ఉన్న మొత్తాన్ని తనిఖీ చేసి వివరాలు తెలపండి"), "<span class='pulse-dot' style='background:#ef4444;margin-right:6px'></span>"],
+      [tr("Office update: Accounts balanced & verified", "ఆఫీస్ సమాచారం: లెక్కలు సరిచూడబడ్డాయి"), "<span class='pulse-dot' style='background:#3b82f6;margin-right:6px'></span>"],
+      [tr("Do not collect: Loan completed or disputed", "వసూలు చేయవద్దు: అప్పు పూర్తయింది లేదా వివాదం ఉంది"), "<span class='pulse-dot' style='background:#94a3b8;margin-right:6px'></span>"]
+    ];
+  }
+  return [
+    [tr("Today's collection completed", "ఈ రోజు వసూలు పూర్తయింది"), "<span class='pulse-dot' style='background:#10b981;margin-right:6px'></span>"],
+    [tr("Member requested new loan", "సభ్యుడికి కొత్త అప్పు కావాలి"), "<span class='pulse-dot' style='background:#f59e0b;margin-right:6px'></span>"],
+    [tr("Cash deposited / handed over", "డబ్బులు డిపాజిట్ చేశాను"), "<span class='pulse-dot' style='background:#3b82f6;margin-right:6px'></span>"],
+    [tr("Member unavailable / phone switched off", "సభ్యుడు అందుబాటులో లేరు"), "<span class='pulse-dot' style='background:#ef4444;margin-right:6px'></span>"],
+    [tr("Collection delayed", "వసూలు ఆలస్యం అవుతుంది"), "<span class='pulse-dot' style='background:#94a3b8;margin-right:6px'></span>"]
+  ];
+}
 function applyPreset(i){const p=getPresets()[i];if(!p)return;fnTxt=p[0];const e=$('#fntxt');if(e){e.value=fnTxt;e.focus()}}
-function openFatherNoteDlg(preset){fnDlg=true;fnVil=vil||(V[0]&&V[0].name)||'';fnMid='';if(preset)fnTxt=preset;draw()}
+function openFatherNoteDlg(preset, v, mid){fnDlg=true;if(v!=null)fnVil=v;else if(!fnVil)fnVil=vil||(V[0]&&V[0].name)||'';if(mid!=null)fnMid=mid;if(preset)fnTxt=preset;draw()}
 function closeFatherNoteDlg(){fnDlg=false;draw()}
 function sendFatherNote(){
   const text=($('#fntxt')?$('#fntxt').value:fnTxt).trim();
   if(!text)return toast(tr('Enter a message first','ముందు మెసేజ్ రాయండి'));
+  const isAdm=(role==='a');
   const v=$('#fnvil')?$('#fnvil').value:fnVil,mid=$('#fnmid')?$('#fnmid').value:fnMid,m=M.find(x=>x.id==mid),mname=m?(m.te||m.name):'';
   fnDlg=false;draw();
   once(async()=>{
-    await db.collection('notifs').add({type:'note',text,village:v,mid,mname,by:who(),ts:Date.now(),read:false});
-    fnTxt='';toast(tr('Message sent to Admin ✓','అడ్మిన్‌కి మెసేజ్ పంపబడింది ✓'));
+    await db.collection('notifs').add({
+      type:'note',
+      text,
+      village:v,
+      mid,
+      mname,
+      by: who(),
+      to: isAdm ? 'collector' : 'admin',
+      ts: Date.now(),
+      read: false
+    });
+    fnTxt='';
+    toast(isAdm ? tr('Note sent to Collector ✓','కలెక్టర్‌కి నోట్ పంపబడింది ✓') : tr('Message sent to Admin ✓','అడ్మిన్‌కి మెసేజ్ పంపబడింది ✓'));
   });
 }
 function fatherNoteModal(){
   if(!fnDlg)return '';
+  const isAdm=(role==='a');
   const presets=getPresets(),vilMembers=M.filter(m=>!m.archived&&(!fnVil||m.village==fnVil));
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this)closeFatherNoteDlg()">
     <div class="card" role="dialog" aria-modal="true" style="max-width:460px;width:100%;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)">
       <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్ పంపండి')}</h2>
+        <h2 style="margin:0">${isAdm?tr('Send Note to Collector','కలెక్టర్‌కి నోట్ / సూచనలు'):tr('Message Admin','అడ్మిన్‌కి మెసేజ్ పంపండి')}</h2>
         <button class="sm" onclick="closeFatherNoteDlg()">✕</button>
       </div>
-      <p class="m" style="margin:0 0 10px">${tr('Tap a quick message below, or type your own:','క్రింది ఆప్షన్‌పై నొక్కండి లేదా మీరే రాయండి:')}</p>
+      <p class="m" style="margin:0 0 10px">${isAdm?tr('Select a quick instruction below, or type your own:','క్రింది సూచనలలో ఒకదాన్ని ఎంచుకోండి లేదా మీరే రాయండి:'):tr('Tap a quick message below, or type your own:','క్రింది ఆప్షన్‌పై నొక్కండి లేదా మీరే రాయండి:')}</p>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
         ${presets.map(([p,ic],i)=>`<button type="button" class="sm" onclick="applyPreset(${i})" style="text-align:left;font-size:12px;padding:6px 10px">${ic} ${esc(p)}</button>`).join('')}
       </div>
@@ -512,9 +557,9 @@ function fatherNoteModal(){
           </select>
         </label>
       </div>
-      <textarea id="fntxt" rows="3" placeholder="${tr('Type message to Admin...','అడ్మిన్‌కి మెసేజ్ రాయండి...')}" style="width:100%;margin-bottom:12px;box-sizing:border-box;font-family:inherit;font-size:14px;padding:8px" oninput="fnTxt=this.value">${esc(fnTxt)}</textarea>
+      <textarea id="fntxt" rows="3" placeholder="${isAdm?tr('Type instructions or note for Collector...','కలెక్టర్‌కి సూచనలు లేదా సందేశం రాయండి...'):tr('Type message to Admin...','అడ్మిన్‌కి మెసేజ్ రాయండి...')}" style="width:100%;margin-bottom:12px;box-sizing:border-box;font-family:inherit;font-size:14px;padding:8px" oninput="fnTxt=this.value">${esc(fnTxt)}</textarea>
       <div class="acts">
-        <button class="p" onclick="sendFatherNote()">${tr('Send to Admin','అడ్మిన్‌కి పంపు')}</button>
+        <button class="p" onclick="sendFatherNote()">${isAdm?tr('Send to Collector','కలెక్టర్‌కి పంపు'):tr('Send to Admin','అడ్మిన్‌కి పంపు')}</button>
         <button onclick="closeFatherNoteDlg()">${tr('Cancel','వద్దు')}</button>
       </div>
     </div>
@@ -524,8 +569,12 @@ function recentFatherNotesHtml(){
   const myNotes=NT.slice(0,3);
   if(!myNotes.length)return '';
   return `<div style="margin-top:8px;border-top:1px dashed var(--b);padding-top:6px;font-size:12px">
-    <span class="m">${tr('Recent notes sent:','ఇటీవల పంపినవి:')}</span>
-    ${myNotes.map(n=>`<div style="display:flex;justify-content:space-between;gap:8px;margin-top:3px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.text)}</span><span class="m">${relTime(n.ts)}</span></div>`).join('')}
+    <span class="m">${tr('Recent notes:','ఇటీవల నోట్స్:')}</span>
+    ${myNotes.map(n=>{
+      const isAdmNote=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector';
+      const sender=isAdmNote?(isTe()?'అడ్మిన్:':'Admin:'):(isTe()?'కలెక్టర్:':'Collector:');
+      return `<div style="display:flex;justify-content:space-between;gap:8px;margin-top:3px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--p)">${sender}</b> ${esc(n.text)}</span><span class="m">${relTime(n.ts)}</span></div>`;
+    }).join('')}
   </div>`;
 }
 function toast(m){tmsg=String(m);clearTimeout(tt);tt=setTimeout(()=>{tmsg='';draw()},5000);draw()}
@@ -588,7 +637,7 @@ return `<div class="card"><h2>${tr('Records – one by one','రికార్�
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">Download Excel</button>':''}</div>
 <div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
-function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>isTe()?DT[d]:DE[d];
+function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>isTe()?DT[d]:DE[d],isAdm=owner&&role=='a';
 if(!vil&&tv.length)vil=tv[0].name;
 const list=M.filter(m=>m.village==vil&&!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))),
 tp=id=>T.filter(x=>x.mid==id&&x.d==td&&x.type=='pay').sort((a,b)=>a.ts-b.ts),paid=id=>tp(id).reduce((s,x)=>s+x.amt,0),
@@ -600,7 +649,7 @@ return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="chips">${tv.map(v=>`<button class="${v.name==vil?'p':''}" onclick="pick(${V.indexOf(v)})">${esc(nm(v))}</button>`).join('')||`<span class="m">${tr('No village scheduled today','ఈ రోజు ఏ ఊరూ లేదు')}</span>`}</div>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
 <span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
-<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Notify Admin','సమాచారం పంపు')}</button></div>${recentFatherNotesHtml()}</div>
+<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${isAdm?tr('Send Note / Instruction to Collector','కలెక్టర్‌కి సూచనలు / నోట్'):tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${isAdm?tr('Sanction loan, prioritize a borrower, or report targets.','కొత్త అప్పు మంజూరు, ప్రాధాన్యత లేదా ఆఫీస్ సమాచారం పంపండి.'):tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${isAdm?tr('Send Note','నోట్ పంపు'):tr('Notify Admin','సమాచారం పంపు')}</button></div>${recentFatherNotesHtml()}</div>
 ${list.map(m=>{
   const s=st(m), dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
   const pAmt = paid(m.id);
@@ -1232,14 +1281,14 @@ function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n
 once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});clr(['nv','vt'])})}
 function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
-function heroKpis(){
+function heroKpis(preRemList, prePndRc){
   const r=rep();
   const todayTot=r.t.c,todayUpi=r.t.u,todayCash=todayTot-todayUpi;
   const activeM=M.filter(m=>!m.archived);
   let totDue=0;for(const m of activeM){totDue+=Math.max(st(m).due,0)}
-  const remList=getRemList();
+  const remList=preRemList||getRemList();
   const odCount=remList.filter(x=>x.isOd).length;
-  const pndRc=qitems().length;
+  const pndRc=prePndRc!=null?prePndRc:qitems().length;
   const adm=owner&&role=='a';
 
   const now = new Date();
@@ -1281,7 +1330,7 @@ function heroKpis(){
         <div class="acts" style="margin-top:12px">
           ${adm?`<button class="v18-banner-btn" onclick="openAddMemberDlg()">+ ${tr('Add Member','సభ్యుడిని చేర్చు')}</button>`:''}
           <button class="v18-banner-btn" style="background:var(--c2);color:var(--t)" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
-          ${!adm?`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
+          ${adm?`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Send Note to Collector','కలెక్టర్‌కి నోట్')}</button>`:`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}
         </div>
       </div>
       <div class="v18-banner-art">
@@ -1489,7 +1538,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   </div>
 </div>
 ${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>${esc(dbErr)}</span><button class="sm" onclick="location.reload()">Retry</button></div>`:''}
-${showHero?heroKpis():''}
+${showHero?heroKpis(remList, pndRc):''}
 ${body}
 ${recView()}
 ${dlgHtml()}
@@ -1505,5 +1554,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=23').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=24').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
