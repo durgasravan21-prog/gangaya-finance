@@ -28,7 +28,7 @@
           document.documentElement.setAttribute('data-theme', next);
           try { localStorage.setItem('gangaya_theme', next); } catch (_) {}
           const m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', next === 'dark' ? '#121513' : '#1f7a4d');
+          if (m) m.setAttribute('content', next === 'dark' ? '#090d12' : '#059669');
           render();
         };
         o.querySelector('#rt-m').textContent = msg || '';
