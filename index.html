@@ -564,7 +564,7 @@ return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="chips">${tv.map(v=>`<button class="${v.name==vil?'p':''}" onclick="pick(${V.indexOf(v)})">${esc(nm(v))}</button>`).join('')||`<span class="m">${tr('No village scheduled today','ఈ రోజు ఏ ఊరూ లేదు')}</span>`}</div>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
 <span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
-<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Send Note','మెసేజ్ పంపు')}</button></div>${recentFatherNotesHtml()}</div>
+<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Notify Admin','సమాచారం పంపు')}</button></div>${recentFatherNotesHtml()}</div>
 ${list.map(m=>{const s=st(m),dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
 const statusBadge=s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">${tr('Due today','ఈ రోజే')}</span>`:``)):``;
 const init=(nm(m)||'').charAt(0).toUpperCase();
@@ -844,7 +844,7 @@ function manualRemModal(){
         <span><b>${esc(vl(curM.village))}</b></span>
         <span>${tr('Due: ','బాకీ: ')}<b>${inr(curS.due)}</b></span>
         <span>${tr('Inst: ','వాయిదా: ')}<b>${inr(curM.inst||0)}</b></span>
-        ${curS.next?`<span>⏰ ${tr('Date: ','తేదీ: ')}<b>${fd(curS.next)}</b></span>`:''}
+        ${curS.next?`<span>${tr('Date: ','తేదీ: ')}<b>${fd(curS.next)}</b></span>`:''}
       </div>`:''}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <span class="m" style="font-weight:600">${tr('Message Language:','మెసేజ్ భాష:')}</span>
@@ -934,7 +934,7 @@ function remindersTab(){
       <div class="chips" style="margin-bottom:10px">
         <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All Active Dues','అందరూ బాకీదారులు')} (${allDueCount})</button>
         <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">${tr('Overdue','ఆలస్యం')} (${odCount})</button>
-        <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">⏰ ${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
+        <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
         <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
         <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
       </div>
@@ -951,7 +951,7 @@ function remindersTab(){
       const statusBadge=r.isOd
         ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
         :(r.isTd
-          ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">⏰ ${tr('Due Today','ఈ రోజే గడువు')}</span>`
+          ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">${tr('Due Today','ఈ రోజే గడువు')}</span>`
           :(r.isUp
             ?`<span class="chip" style="font-size:12px">${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
             :(r.s.due>0?`<span class="chip" style="font-size:12px">${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
@@ -1071,7 +1071,7 @@ return `<div class="card">
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div>
 </div>
 <div class="acts">
-${role=='a'?`<button class="p sm" onclick="restoreM('${m.id}')">↩ ${tr('Restore','పునరుద్ధరించు')}</button>`:''}
+${role=='a'?`<button class="p sm" onclick="restoreM('${m.id}')">${tr('Restore','పునరుద్ధరించు')}</button>`:''}
 <button class="sm" onclick="arv_id=arv_id=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide Records','దాచు'):tr('View Records','రికార్డులు చూడు')}</button>
 </div>
 </div>
