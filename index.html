@@ -251,9 +251,16 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 .chips button { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @media(prefers-reduced-motion:reduce){ * { transition: none!important; animation: none!important; } }
-</style></head><body><main id="app"><p class="m">Loading…</p></main>
+</style></head><body><main id="app">
+  <div class="card" style="max-width:380px;margin:80px auto;text-align:center;border-radius:24px;padding:32px 20px">
+    <div class="brand-logo" style="margin:0 auto 14px;width:48px;height:48px;font-size:18px;border-radius:14px">GF</div>
+    <div style="font-size:17px;font-weight:800;letter-spacing:-0.01em;margin-bottom:4px">Gangaya Finance</div>
+    <div class="m" style="font-size:12px;margin-bottom:14px">Dashboard V18 • Cloud Ledger</div>
+    <div class="bar" style="margin:0 auto;max-width:180px"><i style="width:65%"></i></div>
+  </div>
+</main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=22"></script>
+<script src="/runtime.js?v=23"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 const V18_ICONS = {
@@ -1396,6 +1403,7 @@ function heroKpis(){
     <button class="quick-btn" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
     <button class="quick-btn" onclick="openManualRem()">${tr('Send Reminder','రిమైండర్ పంపు')}</button>
     ${adm?`<button class="quick-btn" onclick="openAddMemberDlg()">${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
+    ${adm?`<button class="quick-btn" onclick="openFatherNoteDlg()">${tr('Send Note to Collector','కలెక్టర్‌కి నోట్')}</button>`:''}
     ${adm?`<button class="quick-btn" onclick="go('vl')">${tr('Villages','ఊర్లు')}</button>`:''}
     ${!adm?`<button class="quick-btn p" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
   </div>`;
@@ -1497,5 +1505,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=22').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=23').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
