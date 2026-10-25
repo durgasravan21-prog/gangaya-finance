@@ -19,7 +19,7 @@
       const render = () => {
         const curTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('gangaya_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         const isDark = curTheme === 'dark';
-        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">📒 Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? '☀️ Light' : '🌙 Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
+        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? 'Light' : 'Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
           '<p style="text-align:center;margin:12px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
@@ -80,6 +80,17 @@
     return out;
   }
   const stores = new Map();
+  const persistTimers = new Map();
+  function schedulePersist(c, s) {
+    if (persistTimers.has(c)) clearTimeout(persistTimers.get(c));
+    persistTimers.set(c, setTimeout(() => {
+      persistTimers.delete(c);
+      try {
+        localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([id, data]) => ({ id, data }))));
+      } catch (_) {}
+    }, 250));
+  }
+
   function getStore(c) {
     let s = stores.get(c);
     if (!s) {
@@ -96,14 +107,13 @@
             try { next(snapshot); } catch (e) { console.error(e); }
           }
         },
-        async load() {
+        async load(force) {
+          if (s.loaded && !force && s.map.size > 0) return;
           try {
             const rows = await allRows(c);
             s.map = new Map(rows.map(r => [r.id, r.data]));
             s.loaded = true;
-            try {
-              localStorage.setItem('gf_c_' + c, JSON.stringify(rows.map(r => ({ id: r.id, data: r.data }))));
-            } catch (_) {}
+            schedulePersist(c, s);
             s.emit();
           } catch (e) {
             console.error('load error for ' + c, e);
@@ -134,20 +144,21 @@
             const delId = (p.old && p.old.id) || (p.new && p.new.id);
             if (delId) {
               s.map.delete(delId);
-              try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([id, data]) => ({ id, data })))); } catch (_) {}
+              schedulePersist(c, s);
               s.emit();
             }
           } else if (p.new && p.new.id && p.new.data) {
             s.map.set(p.new.id, p.new.data);
-            try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([id, data]) => ({ id, data })))); } catch (_) {}
+            schedulePersist(c, s);
             s.emit();
           }
         })
         .subscribe(st => {
-          if (st === 'SUBSCRIBED') s.load().catch(() => {});
-          else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+          if (st === 'SUBSCRIBED') {
+            if (!s.loaded || s.map.size === 0) s.load().catch(() => {});
+          } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
             clearTimeout(t);
-            t = setTimeout(() => s.load().catch(() => {}), 5000);
+            t = setTimeout(() => s.load(true).catch(() => {}), 6000);
           }
         });
     }
@@ -162,9 +173,32 @@
         const { data, error } = await sb.from('docs').insert({ collection: c, id, data: d }).select('id,data').maybeSingle();
         if (error) throw err(error);
         s.map.set(id, (data && data.data) || d);
-        try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([i, item]) => ({ id: i, data: item })))); } catch (_) {}
+        schedulePersist(c, s);
         s.emit();
         return { id };
+      },
+      async addMany(items) {
+        if (!items || !items.length) return [];
+        const rows = items.map(d => ({
+          collection: c,
+          id: crypto.randomUUID(),
+          data: d
+        }));
+        const chunkSize = 50;
+        const results = [];
+        for (let i = 0; i < rows.length; i += chunkSize) {
+          const chunk = rows.slice(i, i + chunkSize);
+          const { data, error } = await sb.from('docs').insert(chunk).select('id,data');
+          if (error) throw err(error);
+          const returned = data || chunk;
+          for (const r of returned) {
+            s.map.set(r.id, r.data || r);
+            results.push({ id: r.id });
+          }
+        }
+        schedulePersist(c, s);
+        s.emit();
+        return results;
       },
       onSnapshot(next, fail) {
         s.subs.add(next);
@@ -175,7 +209,7 @@
             docs: [...s.map].map(([id, d]) => ({ id, exists: true, data: () => JSON.parse(JSON.stringify(d)) }))
           });
         }
-        s.load().catch(e => { if (on && fail && !s.loaded) fail(e); });
+        if (!s.loaded) s.load().catch(e => { if (on && fail && !s.loaded) fail(e); });
         return () => { on = false; s.subs.delete(next); };
       }
     };
@@ -190,7 +224,7 @@
         if (!data) throw denied();
         if (s.map.has(id)) {
           s.map.set(id, { ...s.map.get(id), ...patch });
-          try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([i, item]) => ({ id: i, data: item })))); } catch (_) {}
+          schedulePersist(c, s);
           s.emit();
         } else {
           s.load().catch(() => {});
@@ -200,7 +234,7 @@
         const { error } = await sb.from('docs').upsert({ collection: c, id, data: d });
         if (error) throw err(error);
         s.map.set(id, d);
-        try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([i, item]) => ({ id: i, data: item })))); } catch (_) {}
+        schedulePersist(c, s);
         s.emit();
       },
       async delete() {
@@ -208,7 +242,7 @@
         if (error) throw err(error);
         if (!data || !data.length) throw denied();
         s.map.delete(id);
-        try { localStorage.setItem('gf_c_' + c, JSON.stringify([...s.map].map(([i, item]) => ({ id: i, data: item })))); } catch (_) {}
+        schedulePersist(c, s);
         s.emit();
       }
     };
@@ -268,9 +302,27 @@
       throw new Error('transliteration unavailable');
     }
   };
+  async function clearAll() {
+    const { error } = await sb.rpc('clear_all_docs');
+    if (error) throw err(error);
+    for (const [colName, store] of stores.entries()) {
+      store.map.clear();
+      try { localStorage.removeItem('gf_c_' + colName); } catch (_) {}
+      store.emit();
+    }
+    return true;
+  }
+  async function reloadAll() {
+    const promises = [];
+    for (const [colName, store] of stores.entries()) {
+      promises.push(store.load(true));
+    }
+    await Promise.all(promises);
+    return true;
+  }
   const caps = {
     user: { async canEdit() { return prof.role === 'admin'; }, async isOwner() { return prof.role === 'admin'; }, async me() { return { id: uid, name: prof.name || email, email }; } },
-    db: { collection: colRef, doc: docRef }, downloads, sample
+    db: { collection: colRef, doc: docRef, clearAll, reloadAll }, downloads, sample
   };
   window.claude = { use: n => ready.then(() => caps[n] || null) };
 
@@ -281,7 +333,7 @@
       cfg = await r.json();
       if (!cfg.url || !cfg.anonKey) throw new Error('config');
     } catch (e) {
-      overlay('<div class="card" style="max-width:360px;margin:0;text-align:center"><h3 style="margin:0 0 8px">⚠ Connection Error</h3><p class="m">Could not load app settings. Check internet connection and tap retry.</p><button class="p" style="margin-top:10px" onclick="location.reload()">🔄 Retry</button></div>');
+      overlay('<div class="card" style="max-width:360px;margin:0;text-align:center"><h3 style="margin:0 0 8px">Connection Error</h3><p class="m">Could not load app settings. Check internet connection and tap retry.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Retry</button></div>');
       return;
     }
 
@@ -299,7 +351,7 @@
         global: { fetch: fetchWithTimeout }
       });
     } catch (e) {
-      overlay('<div class="card" style="max-width:340px;margin:0"><b>Client Error</b><p class="m">' + e.message + '</p><button class="p" onclick="location.reload()">🔄 Retry</button></div>');
+      overlay('<div class="card" style="max-width:340px;margin:0"><b>Client Error</b><p class="m">' + e.message + '</p><button class="p" onclick="location.reload()">Retry</button></div>');
       return;
     }
 
@@ -336,7 +388,7 @@
         } catch (netErr) {
           attempts++;
           if (attempts < 3) {
-            overlay('<div class="card" style="max-width:340px;margin:0;text-align:center"><h3 style="margin:0 0 8px">⏳ Connecting to database…</h3><p class="m">Database is starting up. Retrying (' + attempts + '/3)…</p></div>');
+            overlay('<div class="card" style="max-width:340px;margin:0;text-align:center"><h3 style="margin:0 0 8px">Connecting to database…</h3><p class="m">Database is starting up. Retrying (' + attempts + '/3)…</p></div>');
             await new Promise(r => setTimeout(r, 2000));
           }
         }
@@ -361,7 +413,7 @@
       // If it's a connection failure / server waking up, provide retry button without signing out
       if (!res || (error && /timeout|fetch|network/i.test(error.message || ''))) {
         await new Promise(resolveRetry => {
-          overlay('<div class="card" style="max-width:360px;margin:0"><h3 style="margin:0 0 8px">⚠ Connection Timeout</h3><p class="m">Could not connect to the database. If it was paused, it may take 20-30 seconds to wake up.</p><div class="acts" style="margin-top:12px"><button class="p" id="rt-retry">🔄 Retry Connection</button><button id="rt-so">Sign Out</button></div></div>');
+          overlay('<div class="card" style="max-width:360px;margin:0"><h3 style="margin:0 0 8px">Connection Timeout</h3><p class="m">Could not connect to the database. If it was paused, it may take 20-30 seconds to wake up.</p><div class="acts" style="margin-top:12px"><button class="p" id="rt-retry">Retry Connection</button><button id="rt-so">Sign Out</button></div></div>');
           document.getElementById('rt-retry').onclick = () => resolveRetry();
           document.getElementById('rt-so').onclick = async () => {
             try { await sb.auth.signOut(); } catch (_) {}

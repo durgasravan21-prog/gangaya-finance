@@ -242,12 +242,57 @@ const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','�
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
 const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
-return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది ✅\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు 🙏':'\nధన్యవాదాలు 🙏'}\n${BIZ}`}
+return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 function go(t){tab=t;sel=null;rv='';draw()}
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
+async function clearAllData(){
+  if(!owner)return;
+  ask(tr('DANGER: This will permanently wipe ALL members, loans, payments, reminders, and notes from the database. Are you sure?','హెచ్చరిక: ఇది డేటాబేస్ నుండి అన్ని రికార్డులను శాశ్వతంగా తొలగిస్తుంది. కొనసాగించాలా?'),tr('Wipe Everything','మొత్తం తొలగించు'),async()=>{
+    busy=true;draw();
+    try{
+      if(db&&db.clearAll){
+        await db.clearAll();
+      } else {
+        for(const m of M){try{await db.doc('members/'+m.id).delete()}catch(_){}}
+        for(const v of V){try{await db.doc('villages/'+v.id).delete()}catch(_){}}
+        for(const n of NT){try{await db.doc('notifs/'+n.id).delete()}catch(_){}}
+      }
+      M=[];V=[];T=[];NT=[];RM=new Set();
+      toast(tr('Database cleared successfully','డేటాబేస్ విజయవంతంగా క్లియర్ చేయబడింది'));
+    }catch(e){
+      toast('Error clearing data: '+(e&&e.message||e));
+    }finally{
+      busy=false;draw();
+    }
+  });
+}
+
+async function reloadAllData(){
+  busy=true;draw();
+  try{
+    if(db&&db.reloadAll){
+      await db.reloadAll();
+      toast(tr('Reloaded latest data from cloud','క్లౌడ్ నుండి తాజా డేటా లోడ్ అయింది'));
+    } else {
+      location.reload();
+    }
+  }catch(e){
+    toast('Error: '+(e&&e.message||e));
+  }finally{
+    busy=false;draw();
+  }
+}
+
 function stats(){const r=rep(),c=(x,l)=>`<div class="card stat"><span class="m">${l}</span><b>${inr(x.c)}</b><span class="m">UPI ${inr(x.u)} · ${tr('Cash','నగదు')} ${inr(x.c-x.u)}</span></div>`;
-return `<div class="g">${c(r.t,tr('Today','ఈ రోజు'))}${c(r.w,tr('Last 7 days','గత 7 రోజులు'))}</div>
+return `$<div class="card" style="border-color:var(--b);margin-top:14px">
+  <h2>${tr('Database & Cloud Management','డేటాబేస్ & క్లౌడ్ నిర్వహణ')}</h2>
+  <p class="m" style="margin:0 0 10px">${tr('Verify data consistency, reload fresh state from cloud, or wipe all records cleanly.','డేటా సమగ్రతను తనిఖీ చేయండి, లేదా తాజా డేటాను లోడ్ చేయండి.')}</p>
+  <div class="acts">
+    <button class="p sm" onclick="reloadAllData()">${tr('Reload from Cloud','క్లౌడ్ నుండి రీలోడ్')}</button>
+    <button class="d sm" onclick="clearAllData()">${tr('Clear Database & History','డేటాను మొత్తం తొలగించు')}</button>
+  </div>
+</div>`+`<div class="g">${c(r.t,tr('Today','ఈ రోజు'))}${c(r.w,tr('Last 7 days','గత 7 రోజులు'))}</div>
 <div class="card sc"><h2>${tr('Village-wise','ఊరి వారీగా')}</h2><table><tr><th>${tr('Village','ఊరు')}</th><th>${tr('Today','ఈ రోజు')}</th><th>${tr('7 days','7 రోజులు')}</th></tr>${Object.entries(r.v).map(([k,v])=>`<tr><td>${esc(vl(k))}</td><td>${inr(v.t)}</td><td>${inr(v.w)}</td></tr>`).join('')||'<tr><td colspan=3 class="m">'+tr('No collections yet','ఇంకా వసూలు లేదు')+'</td></tr>'}</table></div>`+recList()}
 function pick(i){vil=V[i].name;sel=null;rv='';draw()}
 function lastRec(m){const l=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts)[0];if(!l)return '';
@@ -273,8 +318,8 @@ function onTxnsUpdate(newT){
     for(const t of newT){
       if(!knownTxnIds.has(t.id)&&t.ts>sessionStartTs){
         const m=M.find(x=>x.id==t.mid)||{},mn=nm(m)||tr('Member','సభ్యుడు');
-        const txt=t.type=='pay'?`🔔 Payment: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'Cash'}) from ${mn} (by ${t.by||'Father'})`:`🔔 New Loan: ${inr(t.amt)} to ${mn}`;
-        toast(txt);playChime();notifyBrowser('Gangaya Finance',txt.replace('🔔 ',''));
+        const txt=t.type=='pay'?`Payment: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'Cash'}) from ${mn} (by ${t.by||'Father'})`:`New Loan: ${inr(t.amt)} to ${mn}`;
+        toast(txt);playChime();notifyBrowser('Gangaya Finance',txt);
       }
     }
   }
@@ -284,8 +329,8 @@ function onNotifsUpdate(newNT){
   if(bootComplete&&role=='a'){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)&&n.ts>sessionStartTs){
-        const txt=`✉ Message from Father: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
-        toast(txt);playChime();notifyBrowser('Gangaya Finance - Note from Father',txt.replace('✉ ',''));
+        const txt=`Message from Father: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
+        toast(txt);playChime();notifyBrowser('Gangaya Finance - Note from Father',txt);
       }
     }
   }
@@ -294,15 +339,15 @@ function onNotifsUpdate(newNT){
 function allNotifs(){
   const list=[];
   for(const n of NT){
-    list.push({id:'n_'+n.id,rawId:n.id,type:'note',icon:'✉',title:tr('Message from Father','తండ్రి గారి నుండి మెసేజ్'),desc:n.text,extra:(n.village?tr('Village: ','ఊరు: ')+vl(n.village):'')+(n.mname?' · '+tr('Member: ','సభ్యుడు: ')+n.mname:'')+' · '+tr('By ','పంపినవారు: ')+(n.by||'Father'),ts:n.ts});
+    list.push({id:'n_'+n.id,rawId:n.id,type:'note',icon:'',title:tr('Message from Father','తండ్రి గారి నుండి మెసేజ్'),desc:n.text,extra:(n.village?tr('Village: ','ఊరు: ')+vl(n.village):'')+(n.mname?' · '+tr('Member: ','సభ్యుడు: ')+n.mname:'')+' · '+tr('By ','పంపినవారు: ')+(n.by||'Father'),ts:n.ts});
   }
   const sortedT=T.slice().sort((a,b)=>b.ts-a.ts).slice(0,100);
   for(const t of sortedT){
     const m=M.find(x=>x.id==t.mid)||{},memName=nm(m)||tr('Member','సభ్యుడు'),vilName=m.village?vl(m.village):'';
     if(t.type=='pay'){
-      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',icon:'💰',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Father collected ','తండ్రి గారు వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Father':'Admin')),extra:'',ts:t.ts});
+      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',icon:'',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Father collected ','తండ్రి గారు వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Father':'Admin')),extra:'',ts:t.ts});
     }else if(t.type=='loan'){
-      list.push({id:'t_'+t.id,rawId:t.id,type:'loan',icon:'🤝',title:tr('New Loan: ','కొత్త అప్పు: ')+inr(t.amt)+' → '+tr('Return: ','తిరిగి: ')+inr(t.repay),desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Installment: ','వాయిదా: ')+inr(t.inst||m.inst||0)+' · '+tr('By ','ఇచ్చినవారు: ')+(t.by||'Admin'),extra:'',ts:t.ts});
+      list.push({id:'t_'+t.id,rawId:t.id,type:'loan',icon:'',title:tr('New Loan: ','కొత్త అప్పు: ')+inr(t.amt)+' → '+tr('Return: ','తిరిగి: ')+inr(t.repay),desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Installment: ','వాయిదా: ')+inr(t.inst||m.inst||0)+' · '+tr('By ','ఇచ్చినవారు: ')+(t.by||'Admin'),extra:'',ts:t.ts});
     }
   }
   return list.sort((a,b)=>b.ts-a.ts);
@@ -311,7 +356,22 @@ function unreadNotifCount(){return allNotifs().filter(n=>n.ts>lastReadNotif).len
 function toggleNotifs(){notifOpen=!notifOpen;if(notifOpen){lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}draw()}
 function closeNotifs(){notifOpen=false;lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}
 function markAllNotifsRead(){lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}
-function notifBellBtn(){const c=unreadNotifCount();return `<button class="sm notif-btn" onclick="toggleNotifs()" title="${tr('Notifications','నోటిఫికేషన్లు')}" style="position:relative;padding:5px 9px;border-radius:10px;font-size:14px">🔔${c>0?`<span class="notif-badge">${c>99?'99+':c}</span>`:''}</button>`}
+function notifBellBtn(){const c=unreadNotifCount();return `<button class="sm notif-btn" onclick="toggleNotifs()" title="${tr('Notifications','నోటిఫికేషన్లు')}" style="position:relative;padding:5px 10px;border-radius:10px;font-size:12px;font-weight:600">${tr('Alerts','అలర్ట్స్')}${c>0?`<span class="notif-badge">${c>99?'99+':c}</span>`:""}</button>`}
+async function clearNotifHistory(){
+  if(!owner)return;
+  ask(tr('Clear all notifications and message history?','అన్ని నోటిఫికేషన్లు మరియు సందేశాలను తొలగించాలా?'),tr('Clear','తొలగించు'),async()=>{
+    busy=true;draw();
+    try{
+      for(const n of NT){
+        try{await db.doc('notifs/'+n.id).delete()}catch(_){}
+      }
+      NT=[];
+      toast(tr('Notification history cleared','నోటిఫికేషన్లు తొలగించబడ్డాయి'));
+    }catch(e){toast('Error: '+(e&&e.message||e))}
+    finally{busy=false;draw()}
+  });
+}
+
 function notifPanel(){
   if(!notifOpen)return '';
   const all=allNotifs(),list=all.filter(n=>{
@@ -323,24 +383,25 @@ function notifPanel(){
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this){closeNotifs();draw();}">
     <div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;margin:20px auto 40px;box-shadow:0 8px 30px rgba(0,0,0,.3)">
       <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">🔔 ${tr('Notifications & Activity','నోటిఫికేషన్లు & కార్యకలాపాలు')}</h2>
+        <h2 style="margin:0">${tr('Notifications & Activity','నోటిఫికేషన్లు & కార్యకలాపాలు')}</h2>
         <div class="acts">
-          <button class="sm" onclick="markAllNotifsRead();draw()">${tr('✓ Mark Read','✓ చదివినట్లు మార్చు')}</button>
+          <button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
+          ${owner?`<button class="sm d" onclick="clearNotifHistory()">${tr('Clear History','క్లియర్')}</button>`:''}
           <button class="sm" onclick="closeNotifs();draw()">✕</button>
         </div>
       </div>
       <div class="chips" style="margin-bottom:12px">
         <button class="${notifFilter=='all'?'p':''}" onclick="notifFilter='all';draw()">${tr('All','అన్నీ')} (${all.length})</button>
-        <button class="${notifFilter=='pays'?'p':''}" onclick="notifFilter='pays';draw()">💰 ${tr('Payments','చెల్లింపులు')} (${all.filter(x=>x.type=='pay').length})</button>
-        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">✉ ${tr('Father Notes','తండ్రి మెసేజ్‌లు')} (${all.filter(x=>x.type=='note').length})</button>
-        <button class="${notifFilter=='loans'?'p':''}" onclick="notifFilter='loans';draw()">🤝 ${tr('Loans','అప్పులు')} (${all.filter(x=>x.type=='loan').length})</button>
+        <button class="${notifFilter=='pays'?'p':''}" onclick="notifFilter='pays';draw()">${tr('Payments','చెల్లింపులు')} (${all.filter(x=>x.type=='pay').length})</button>
+        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">${tr('Notes from Father','తండ్రి మెసేజ్‌లు')} (${all.filter(x=>x.type=='note').length})</button>
+        <button class="${notifFilter=='loans'?'p':''}" onclick="notifFilter='loans';draw()">${tr('Loans','అప్పులు')} (${all.filter(x=>x.type=='loan').length})</button>
       </div>
       <div style="max-height:65vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
         ${list.map(n=>{
           const isNew=n.ts>lastReadNotif;
           return `<div class="card" style="margin:0;padding:10px;${isNew?'border-left:4px solid var(--p);background:var(--s)':'background:var(--bg)'}">
             <div class="row" style="margin-bottom:4px">
-              <b>${n.icon} ${esc(n.title)}</b>
+              <b>${esc(n.title)}</b>
               <span class="m" style="font-size:12px">${relTime(n.ts)}</span>
             </div>
             <div class="m" style="font-size:13px">${esc(n.desc)}</div>
@@ -353,11 +414,11 @@ function notifPanel(){
   </div>`;
 }
 function getPresets(){return [
-  [tr("Today's collection completed", "ఈ రోజు వసూలు పూర్తయింది"), "🟢"],
-  [tr("Member requested new loan", "సభ్యుడికి కొత్త అప్పు కావాలి"), "🟡"],
-  [tr("Cash deposited / handed over", "డబ్బులు డిపాజిట్ చేశాను"), "🔵"],
-  [tr("Member unavailable / phone switched off", "సభ్యుడు అందుబాటులో లేరు"), "🔴"],
-  [tr("Collection delayed", "వసూలు ఆలస్యం అవుతుంది"), "⚪"]
+  [tr("Today's collection completed", "ఈ రోజు వసూలు పూర్తయింది"), "<span class='pulse-dot' style='background:#10b981;margin-right:6px'></span>"],
+  [tr("Member requested new loan", "సభ్యుడికి కొత్త అప్పు కావాలి"), "<span class='pulse-dot' style='background:#f59e0b;margin-right:6px'></span>"],
+  [tr("Cash deposited / handed over", "డబ్బులు డిపాజిట్ చేశాను"), "<span class='pulse-dot' style='background:#3b82f6;margin-right:6px'></span>"],
+  [tr("Member unavailable / phone switched off", "సభ్యుడు అందుబాటులో లేరు"), "<span class='pulse-dot' style='background:#ef4444;margin-right:6px'></span>"],
+  [tr("Collection delayed", "వసూలు ఆలస్యం అవుతుంది"), "<span class='pulse-dot' style='background:#94a3b8;margin-right:6px'></span>"]
 ];}
 function applyPreset(i){const p=getPresets()[i];if(!p)return;fnTxt=p[0];const e=$('#fntxt');if(e){e.value=fnTxt;e.focus()}}
 function openFatherNoteDlg(preset){fnDlg=true;fnVil=vil||(V[0]&&V[0].name)||'';fnMid='';if(preset)fnTxt=preset;draw()}
@@ -378,7 +439,7 @@ function fatherNoteModal(){
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this)closeFatherNoteDlg()">
     <div class="card" role="dialog" aria-modal="true" style="max-width:460px;width:100%;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)">
       <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">📢 ${tr('Message Admin','అడ్మిన్‌కి మెసేజ్ పంపండి')}</h2>
+        <h2 style="margin:0">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్ పంపండి')}</h2>
         <button class="sm" onclick="closeFatherNoteDlg()">✕</button>
       </div>
       <p class="m" style="margin:0 0 10px">${tr('Tap a quick message below, or type your own:','క్రింది ఆప్షన్‌పై నొక్కండి లేదా మీరే రాయండి:')}</p>
@@ -401,7 +462,7 @@ function fatherNoteModal(){
       </div>
       <textarea id="fntxt" rows="3" placeholder="${tr('Type message to Admin...','అడ్మిన్‌కి మెసేజ్ రాయండి...')}" style="width:100%;margin-bottom:12px;box-sizing:border-box;font-family:inherit;font-size:14px;padding:8px" oninput="fnTxt=this.value">${esc(fnTxt)}</textarea>
       <div class="acts">
-        <button class="p" onclick="sendFatherNote()">🚀 ${tr('Send to Admin','అడ్మిన్‌కి పంపు')}</button>
+        <button class="p" onclick="sendFatherNote()">${tr('Send to Admin','అడ్మిన్‌కి పంపు')}</button>
         <button onclick="closeFatherNoteDlg()">${tr('Cancel','వద్దు')}</button>
       </div>
     </div>
@@ -412,7 +473,7 @@ function recentFatherNotesHtml(){
   if(!myNotes.length)return '';
   return `<div style="margin-top:8px;border-top:1px dashed var(--b);padding-top:6px;font-size:12px">
     <span class="m">${tr('Recent notes sent:','ఇటీవల పంపినవి:')}</span>
-    ${myNotes.map(n=>`<div style="display:flex;justify-content:space-between;gap:8px;margin-top:3px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✉ ${esc(n.text)}</span><span class="m">${relTime(n.ts)}</span></div>`).join('')}
+    ${myNotes.map(n=>`<div style="display:flex;justify-content:space-between;gap:8px;margin-top:3px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.text)}</span><span class="m">${relTime(n.ts)}</span></div>`).join('')}
   </div>`;
 }
 function toast(m){tmsg=String(m);clearTimeout(tt);tt=setTimeout(()=>{tmsg='';draw()},5000);draw()}
@@ -459,7 +520,7 @@ return `<div class="card"><div class="g"><input id="lq" value="${esc(lq)}" place
 return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}</span>
 <div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div></div>
-<div class="acts">${d>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">📱 ${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
+<div class="acts">${d>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
 function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),R=(k,v)=>`<tr><td class="m">${k}</td><td><b>${v}</b></td></tr>`;
@@ -472,7 +533,7 @@ return T.filter(t=>{if(from&&t.d<from)return false;if(fp=='p'&&!t.past)return fa
 function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce((a,t)=>a+t.amt,0),up=pay.filter(t=>t.mode=='upi').reduce((a,t)=>a+t.amt,0);
 return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ'],['p','Past records','పాత రికార్డులు']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
-<p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">⬇ Download Excel</button>':''}</div>
+<p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">Download Excel</button>':''}</div>
 <div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
 function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>isTe()?DT[d]:DE[d];
@@ -487,12 +548,12 @@ return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="chips">${tv.map(v=>`<button class="${v.name==vil?'p':''}" onclick="pick(${V.indexOf(v)})">${esc(nm(v))}</button>`).join('')||`<span class="m">${tr('No village scheduled today','ఈ రోజు ఏ ఊరూ లేదు')}</span>`}</div>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
 <span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
-<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">📢 ${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Send Note','మెసేజ్ పంపు')}</button></div>${recentFatherNotesHtml()}</div>
+<div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Send Note','మెసేజ్ పంపు')}</button></div>${recentFatherNotesHtml()}</div>
 ${list.map(m=>{const s=st(m),dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
-const statusBadge=s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">⚠️ ${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">⏰ ${tr('Due today','ఈ రోజే')}</span>`:``)):``;
+const statusBadge=s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">${tr('Due today','ఈ రోజే')}</span>`:``)):``;
 const init=(nm(m)||'').charAt(0).toUpperCase();
 return `<div class="card"><div class="row" style="align-items:flex-start"><div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0"><div class="avatar">${init}</div><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span>${statusBadge}</div><div class="m" style="margin-top:2px">${tr('Due','బాకీ')} <b style="color:${s.due>0?'var(--t)':'var(--ok)'}">${inr(s.due)}</b> · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div></div>
-<div class="acts" style="margin-top:2px"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>${s.due>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">📱 ${tr('Remind','గుర్తు చేయి')}</button>`:''}<button class="sm" onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
+<div class="acts" style="margin-top:2px"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>${s.due>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}<button class="sm" onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
 }
 function save(){if(!sel)return;const a=num($('#amt').value);if(!(a>0&&a<=1e7))return toast(tr('Enter amount','మొత్తం రాయండి'));const m=M.find(x=>x.id==sel.id);if(!m)return;
 const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
@@ -517,7 +578,7 @@ rmsg=(m,s,l)=>{
       sched=`Your regular instalment is ${inr(instAmt)}.\n`;
     }
     const urg=isOd?'Please repay your overdue instalment immediately using the QR scanner below:\n':'Please repay your instalment on time using the QR scanner below:\n';
-    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nThank you 🙏\n${biz}`;
+    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nThank you\n${biz}`;
   }else{
     const biz='గంగయ్య ఫైనాన్స్';
     let sched='';
@@ -529,14 +590,14 @@ rmsg=(m,s,l)=>{
       sched=`మీ వాయిదా: ${inr(instAmt)}\n`;
     }
     const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును క్రింది QR స్కానర్ ద్వారా పూర్తి చేయగలరు:\n';
-    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nధన్యవాదాలు\n${biz}`;
   }
 };
 function qitems(h){const o=[],td=today();
 for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
 o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
 if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next||s.due<=0)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
-if(dl>2||dl<-60||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('⚠️ Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
+if(dl>2||dl<-60||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
 return o}
 function getRemList(allMembers){
   const td=today(),list=[];
@@ -615,16 +676,16 @@ function getRemTemplate(m,s,tpl,l){
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
   const scanLink=SCANNER_URL();
   if(tpl==='od'){
-    if(isEn)return `Hello,\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (was due on '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease repay your overdue instalment immediately using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (was due on '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease repay your overdue instalment immediately using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
   }
   if(tpl==='bal'){
-    if(isEn)return `Hello,\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to repay your balance using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్రింది QR స్కానర్ ద్వారా చెల్లించి పూర్తి చేయగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to repay your balance using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్రింది QR స్కానర్ ద్వారా చెల్లించి పూర్తి చేయగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
   }
   if(tpl==='gen'){
-    if(isEn)return `Hello,\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease repay your instalment using the QR scanner below:\n${scanLink}\n\nThank you 🙏\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nదయచేసి క్రింది QR స్కానర్ ద్వారా మీ వాయిదాను చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు 🙏\n${biz}`;
+    if(isEn)return `Hello,\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease repay your instalment using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nదయచేసి క్రింది QR స్కానర్ ద్వారా మీ వాయిదాను చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
   }
   return rmsg(m,s,l);
 }
@@ -650,7 +711,7 @@ function scannerModal(){
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
     <div class="card" role="dialog" aria-modal="true" style="max-width:440px;width:100%;margin:auto;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
       <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">🏦 BRANCH small finance bank</h2>
+        <h2 style="margin:0">BRANCH small finance bank</h2>
         <button class="sm" onclick="closeScannerDlg()">✕</button>
       </div>
       <p class="m" style="margin:0 0 10px">${tr('Repayment QR Scanner (without personal name / UPI ID)','చెల్లింపుల కోసం అధికారిక QR స్కానర్')}</p>
@@ -658,8 +719,8 @@ function scannerModal(){
         <img src="/scanner.png" alt="BRANCH small finance bank QR Scanner" style="max-width:100%;height:auto;max-height:60vh;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;margin:auto">
       </div>
       <div class="acts" style="justify-content:center;gap:8px;flex-wrap:wrap">
-        <button class="p" onclick="copyScannerImg()">📋 ${tr('Copy Scanner','స్కానర్ కాపీ')}</button>
-        <button onclick="downloadScannerImg()">⬇ ${tr('Download Scanner','డౌన్‌లోడ్')}</button>
+        <button class="p" onclick="copyScannerImg()">${tr('Copy Scanner','స్కానర్ కాపీ')}</button>
+        <button onclick="downloadScannerImg()">${tr('Download Scanner','డౌన్‌లోడ్')}</button>
         <button onclick="closeScannerDlg()">${tr('Close','మూసివేయి')}</button>
       </div>
     </div>
@@ -741,7 +802,7 @@ function manualRemModal(){
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:45;padding:16px;overflow:auto" onclick="if(event.target===this)closeManualRem()">
     <div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;margin:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)">
       <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">✍️ ${tr('Send Manual Reminder','మాన్యువల్ రిమైండర్ పంపండి')}</h2>
+        <h2 style="margin:0">${tr('Send Manual Reminder','మాన్యువల్ రిమైండర్ పంపండి')}</h2>
         <button class="sm" onclick="closeManualRem()">✕</button>
       </div>
       <p class="m" style="margin:0 0 10px">${tr('Select any client and send a reminder in Telugu or English with QR scanner without personal name/UPI ID.','వ్యక్తిగత పేరు మరియు UPI ID లేకుండా QR స్కానర్‌తో రిమైండర్ పంపండి.')}</p>
@@ -749,10 +810,10 @@ function manualRemModal(){
       <div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
         <img src="/scanner.png" alt="Scanner" style="width:48px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--b);cursor:pointer;flex-shrink:0" onclick="openScannerDlg()" title="${tr('Click to enlarge','పూర్తి స్కానర్ చూడండి')}">
         <div style="flex:1">
-          <b style="font-size:13px">🏦 BRANCH small finance bank</b>
+          <b style="font-size:13px">BRANCH small finance bank</b>
           <div class="m" style="font-size:12px">${tr('QR Scanner attached (no personal name & no UPI ID)','వ్యక్తిగత పేరు & UPI ID లేని స్కానర్ జతచేయబడింది')}</div>
         </div>
-        <button type="button" class="sm" onclick="openScannerDlg()">👁️ ${tr('View','చూడండి')}</button>
+        <button type="button" class="sm" onclick="openScannerDlg()">${tr('View','చూడండి')}</button>
       </div>
 
       <div class="g" style="margin-bottom:10px">
@@ -763,34 +824,34 @@ function manualRemModal(){
         </label>
       </div>
       ${curM?`<div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;font-size:13px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
-        <span>📱 <b>${esc(curM.phone||'-')}</b></span>
-        <span>🏘️ <b>${esc(vl(curM.village))}</b></span>
-        <span>💰 ${tr('Due: ','బాకీ: ')}<b>${inr(curS.due)}</b></span>
-        <span>📅 ${tr('Inst: ','వాయిదా: ')}<b>${inr(curM.inst||0)}</b></span>
+        <span><b>${esc(curM.phone||'-')}</b></span>
+        <span><b>${esc(vl(curM.village))}</b></span>
+        <span>${tr('Due: ','బాకీ: ')}<b>${inr(curS.due)}</b></span>
+        <span>${tr('Inst: ','వాయిదా: ')}<b>${inr(curM.inst||0)}</b></span>
         ${curS.next?`<span>⏰ ${tr('Date: ','తేదీ: ')}<b>${fd(curS.next)}</b></span>`:''}
       </div>`:''}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <span class="m" style="font-weight:600">${tr('Message Language:','మెసేజ్ భాష:')}</span>
         <div class="chips" style="margin:0">
-          <button type="button" class="${mremLang=='te'?'p':''}" onclick="onManualRemLangChange('te')">🌐 తెలుగు</button>
-          <button type="button" class="${mremLang=='en'?'p':''}" onclick="onManualRemLangChange('en')">🌐 English</button>
+          <button type="button" class="${mremLang=='te'?'p':''}" onclick="onManualRemLangChange('te')">తెలుగు</button>
+          <button type="button" class="${mremLang=='en'?'p':''}" onclick="onManualRemLangChange('en')">English</button>
         </div>
       </div>
       <label class="m" style="margin-bottom:4px;display:block">${tr('Quick Templates:','త్వరిత టెంప్లేట్లు:')}</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-        <button type="button" class="sm ${mremTpl=='std'?'p':''}" onclick="onManualRemTplChange('std')">📋 ${tr('Instalment','వాయిదా')}</button>
-        <button type="button" class="sm ${mremTpl=='od'?'p':''}" onclick="onManualRemTplChange('od')">⚠️ ${tr('Overdue','ఆలస్యం')}</button>
-        <button type="button" class="sm ${mremTpl=='bal'?'p':''}" onclick="onManualRemTplChange('bal')">💰 ${tr('Total Due','మొత్తం బాకీ')}</button>
-        <button type="button" class="sm ${mremTpl=='gen'?'p':''}" onclick="onManualRemTplChange('gen')">🤝 ${tr('Friendly','సాధారణ')}</button>
+        <button type="button" class="sm ${mremTpl=='std'?'p':''}" onclick="onManualRemTplChange('std')">${tr('Instalment','వాయిదా')}</button>
+        <button type="button" class="sm ${mremTpl=='od'?'p':''}" onclick="onManualRemTplChange('od')">${tr('Overdue','ఆలస్యం')}</button>
+        <button type="button" class="sm ${mremTpl=='bal'?'p':''}" onclick="onManualRemTplChange('bal')">${tr('Total Due','మొత్తం బాకీ')}</button>
+        <button type="button" class="sm ${mremTpl=='gen'?'p':''}" onclick="onManualRemTplChange('gen')">${tr('Friendly','సాధారణ')}</button>
       </div>
       <label class="m" style="display:block;margin-bottom:4px">${tr('Message Text (editable):','మెసేజ్ టెక్స్ట్ (మార్చుకోవచ్చు):')}
         <textarea id="mremtxt" rows="6" style="width:100%;font-size:14px;padding:8px;border-radius:6px;border:1px solid var(--b);background:var(--card);color:var(--t);resize:vertical" oninput="mremTxt=this.value">${esc(mremTxt)}</textarea>
       </label>
       <div class="acts" style="margin-top:12px;justify-content:space-between">
-        <button type="button" class="sm" onclick="copyManualRemTxt()">📋 ${tr('Copy','కాపీ')}</button>
+        <button type="button" class="sm" onclick="copyManualRemTxt()">${tr('Copy','కాపీ')}</button>
         <div style="display:flex;gap:8px">
           <button type="button" onclick="closeManualRem()">${tr('Cancel','రద్దు')}</button>
-          <button type="button" class="p" onclick="sendManualRemNow()">📱 ${tr('Send WhatsApp + Scanner','వాట్సాప్ + స్కానర్')}</button>
+          <button type="button" class="p" onclick="sendManualRemNow()">${tr('Send WhatsApp + Scanner','వాట్సాప్ + స్కానర్')}</button>
         </div>
       </div>
     </div>
@@ -837,11 +898,11 @@ function remindersTab(){
     </div>
     <div class="card">
       <div class="row" style="flex-wrap:wrap;gap:8px">
-        <h2>⏰ ${tr('Payment Reminders','చెల్లింపు రిమైండర్లు')} (${filtered.length})</h2>
+        <h2>${tr('Payment Reminders','చెల్లింపు రిమైండర్లు')} (${filtered.length})</h2>
         <div class="acts">
-          <button onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">🏦 ${tr('QR Scanner','QR స్కానర్')}</button>
-          <button class="p" onclick="openManualRem()">✍️ ${tr('Manual Reminder','మాన్యువల్ రిమైండర్')}</button>
-          <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>⬇ ${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
+          <button onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">${tr('QR Scanner','QR స్కానర్')}</button>
+          <button class="p" onclick="openManualRem()">${tr('Manual Reminder','మాన్యువల్ రిమైండర్')}</button>
+          <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
         </div>
       </div>
       <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp with official QR scanner (without personal name & UPI ID).','అధికారిక QR స్కానర్‌తో వాట్సాప్ ద్వారా రిమైండర్లు పంపండి (వ్యక్తిగత పేరు మరియు UPI ID లేకుండా).')}</p>
@@ -849,17 +910,17 @@ function remindersTab(){
       <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;padding:8px 12px;background:var(--s);border-radius:8px;flex-wrap:wrap;gap:8px">
         <span style="font-size:13px;font-weight:600">${tr('Reminder Message Language:','రిమైండర్ మెసేజ్ భాష:')}</span>
         <div class="chips" style="margin:0">
-          <button class="${rmLang=='te'?'p':''}" onclick="setRmLang('te')">🌐 తెలుగు (Telugu)</button>
-          <button class="${rmLang=='en'?'p':''}" onclick="setRmLang('en')">🌐 English</button>
+          <button class="${rmLang=='te'?'p':''}" onclick="setRmLang('te')">తెలుగు (Telugu)</button>
+          <button class="${rmLang=='en'?'p':''}" onclick="setRmLang('en')">English</button>
         </div>
       </div>
 
       <div class="chips" style="margin-bottom:10px">
         <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All Active Dues','అందరూ బాకీదారులు')} (${allDueCount})</button>
-        <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">⚠️ ${tr('Overdue','ఆలస్యం')} (${odCount})</button>
+        <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">${tr('Overdue','ఆలస్యం')} (${odCount})</button>
         <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">⏰ ${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
-        <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">📅 ${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
-        <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">👥 ${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
+        <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
+        <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
       </div>
       <div class="g">
         <input type="search" placeholder="${tr('Search client name / phone...','క్లయింట్ పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="rmq=this.value;draw()">
@@ -872,12 +933,12 @@ function remindersTab(){
     ${filtered.map(r=>{
       const isRemToday=RM.has(r.m.id+'_'+today());
       const statusBadge=r.isOd
-        ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">⚠️ ${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
+        ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
         :(r.isTd
           ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">⏰ ${tr('Due Today','ఈ రోజే గడువు')}</span>`
           :(r.isUp
-            ?`<span class="chip" style="font-size:12px">📅 ${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
-            :(r.s.due>0?`<span class="chip" style="font-size:12px">💰 ${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
+            ?`<span class="chip" style="font-size:12px">${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
+            :(r.s.due>0?`<span class="chip" style="font-size:12px">${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
       return `
         <div class="card">
           <div class="row">
@@ -893,21 +954,21 @@ function remindersTab(){
               </div>
             </div>
             <div class="acts" style="flex-shrink:0">
-              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">📱 ${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
-              <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'🌐 తెలుగు':'🌐 EN'}</button>
-              <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">📸</button>
-              <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">✍️ ${tr('Edit','ఎడిట్')}</button>
+              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
+              <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'తెలుగు':'EN'}</button>
+              <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">QR</button>
+              <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">${tr('Edit','ఎడిట్')}</button>
               <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
               <button class="sm" onclick="rv='${r.m.id}';draw()">${tr('Account','ఖాతా')}</button>
             </div>
           </div>
         </div>
       `;
-    }).join('')||`<div class="card empty"><p class="m">${tr('No clients matching filters 🎉','రిమైండర్లు ఏమీ లేవు 🎉')}</p></div>`}
+    }).join('')||`<div class="card empty"><p class="m">${tr('No clients matching filters ','రిమైండర్లు ఏమీ లేవు ')}</p></div>`}
     ${nextRem?`
       <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0">
         <button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendRemind('${nextRem.m.id}')">
-          🚀 ${tr('Send Reminder ('+(rmLang=='en'?'English':'తెలుగు')+') · next: ','రిమైండర్ పంపు ('+(rmLang=='en'?'ఇంగ్లీష్':'తెలుగు')+') · తదుపరి: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
+          ${tr('Send Reminder ('+(rmLang=='en'?'English':'తెలుగు')+') · next: ','రిమైండర్ పంపు ('+(rmLang=='en'?'ఇంగ్లీష్':'తెలుగు')+') · తదుపరి: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
         </button>
         <button style="padding:14px" onclick="rmi=(rmi+1)%filtered.length;draw()">${tr('Skip','దాటవేయి')}</button>
       </div>
@@ -921,8 +982,8 @@ function away(){if(pnd){const k=pnd;pnd=null;clearTimeout(pt);done(k)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)away()});addEventListener('pagehide',away);addEventListener('blur',away);
 function toggleLang(){lang=(lang=='te')?'en':'te';try{localStorage.setItem('gangaya_lang',lang);localStorage.setItem('gf-lang',lang)}catch(e){}draw()}
 window.toggleLang=toggleLang;
-const langBtn=()=>role=='f'?`<button class="sm" onclick="toggleLang()" title="${isTe()?'Switch to English':'తెలుగులోకి మార్చండి'}" style="font-size:12px;padding:4px 9px;border-radius:10px">${isTe()?'🌐 EN':'🌐 తె'}</button>`:'';
-const TIC={rc:'🧾',rm:'⏰',fa:'✅',lg:'📒',mb:'👥',vl:'🏘️',rp:'📊',ar:'📦'},themeBtn=()=>`<button class="ic" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}">${thm=='light'?'☀️':thm=='dark'?'🌙':'🌓'}</button>`;
+const langBtn=()=>role=='f'?`<button class="sm" onclick="toggleLang()" title="${isTe()?'Switch to English':'తెలుగులోకి మార్చండి'}" style="font-size:12px;padding:4px 9px;border-radius:10px;font-weight:600">${isTe()?'EN':'తె'}</button>`:'';
+const TIC={rc:'',rm:'',fa:'',lg:'',mb:'',vl:'',rp:'',ar:''},themeBtn=()=>`<button class="sm" onclick="cycleTheme()" aria-label="Theme: ${thm}" title="Theme: ${thm}" style="padding:4px 9px;border-radius:10px;font-size:12px;font-weight:600">${thm=='dark'?'Light':'Dark'}</button>`;
 function applyTheme(){const r=document.documentElement;thm=='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',thm);try{const m=document.querySelector('meta[name=theme-color]');const isD=thm=='dark'||(thm=='auto'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(m)m.setAttribute('content',isD?'#090d12':'#059669')}catch(e){}}
 function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{localStorage.setItem('gf-theme',thm);localStorage.setItem('gangaya_theme',thm)}catch(e){}applyTheme();draw()}
 window.toggleTheme=cycleTheme;
@@ -934,9 +995,9 @@ function sendNext(){if(!owner||pnd)return;const i=Q[qi]||Q[0];if(!i)return;const
 function sentNow(k){if(owner)done(k)}
 function copyMsg(k){const i=Q.find(x=>x.k==k);if(!i)return;(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(i.text):Promise.reject()).then(()=>toast('Message copied. Paste it in the WhatsApp chat of '+i.m.phone)).catch(()=>ask(i.text,'OK',()=>{}))}
 function receipts(){const q=qitems(hist).sort((a,b)=>hist?b.ts-a.ts:a.d.localeCompare(b.d)||a.ts-b.ts).slice(0,hist?40:500);if(!hist)Q=q;if(qi>=q.length)qi=0;const nx=!hist&&q[qi];
-return `<div class="card"><div class="row"><b>${hist?'Sent (latest 40)':q.length+' waiting'}</b><div class="acts">${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>⬇ Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?'Show waiting':'Show sent'}</button></div></div>
+return `<div class="card"><div class="row"><b>${hist?'Sent (latest 40)':q.length+' waiting'}</b><div class="acts">${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?'Show waiting':'Show sent'}</button></div></div>
 ${hist?'':'<p class="m" style="margin:6px 0 0">One receipt per payment or loan, plus reminders for dues in the next 2 days. Tap the green bar at the bottom: WhatsApp opens with the message ready, press Send there, come back and tap again. If WhatsApp does not open, use Copy, paste it in WhatsApp, then tap ✓ Sent. The Messages file works with bulk-sending tools.</p>'}</div>`
-+(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm" onclick="vr='${i.k.slice(1)}';draw()">View</button>`:''}</div></div></div>`).join('')||'<div class="empty">🗂️ Nothing here</div>')
++(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm" onclick="vr='${i.k.slice(1)}';draw()">View</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
 +(nx?`<div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0"><button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendNext()">Send all · next: ${esc(nm(nx.m))} (${q.length} left)</button><button style="padding:14px" onclick="qi++;draw()">Skip</button></div>`:'')}
 async function sv(d,fn,data){try{await d.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')toast('Could not download: '+((e&&(e.message||e.code))||'error'))}}
 async function dlMsgs(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
@@ -976,7 +1037,7 @@ ms=M.filter(m=>m.archived&&(!arv||m.village==arv)&&(!q||(m.name+' '+(m.te||'')).
 rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length,tc:T.filter(t=>t.mid==m.id).length})),
 S=rows.reduce((a,{L,pc,tc})=>{a.n+=L.length;a.c+=pc;a.t+=tc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,t:0,g:0,r:0,p:0});
 return `<div class="card">
-<div class="row"><h2 style="margin:0">📦 ${tr('Archived Khatas & Records','ఆర్కైవ్ చేసిన ఖాతాలు & రికార్డులు')}</h2>${role=='a'&&rows.length?`<button class="sm" onclick="dlArchived()">⬇ Download Excel</button>`:''}</div>
+<div class="row"><h2 style="margin:0">${tr('Archived Khatas & Records','ఆర్కైవ్ చేసిన ఖాతాలు & రికార్డులు')}</h2>${role=='a'&&rows.length?`<button class="sm" onclick="dlArchived()">Download Excel</button>`:''}</div>
 <p class="m" style="margin:6px 0 10px">${tr('These accounts and their records are completely isolated here and excluded from active collections, ledger, receipts and reports. You can review full history or restore them to active at any time.','ఈ ఖాతాలు మరియు వాటి రికార్డులు ఇక్కడ భద్రపరచబడ్డాయి. యాక్టివ్ ఖాతాలు, వసూళ్లు మరియు రసీదులలో కలపబడవు.')}</p>
 <div class="g">
 <input id="arq" value="${esc(arq)}" placeholder="${tr('Search archived name…','ఆర్కైవ్ చేసిన పేరు వెతకండి…')}" oninput="arq=this.value;draw()">
@@ -989,7 +1050,7 @@ const g=L.reduce((a,l)=>a+l.given,0),r=L.reduce((a,l)=>a+l.repay,0),p=L.reduce((
 return `<div class="card">
 <div class="row">
 <div>
-<b>${esc(nm(m))}</b> <span class="chip">Archived</span> <span class="m">${esc(sb(m))} ${esc(vl(m.village))} · 📞 ${esc(m.phone||'-')}</span>
+<b>${esc(nm(m))}</b> <span class="chip">Archived</span> <span class="m">${esc(sb(m))} ${esc(vl(m.village))} · ${esc(m.phone||'-')}</span>
 <div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b> · ${tr('Total records','మొత్తం రికార్డులు')}: <b>${tc}</b></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div>
 </div>
@@ -999,7 +1060,7 @@ ${role=='a'?`<button class="p sm" onclick="restoreM('${m.id}')">↩ ${tr('Restor
 </div>
 </div>
 ${open?loanBlocks(m,L):''}
-</div>`}).join('')||`<div class="empty">📦 ${tr('No archived accounts found','ఆర్కైవ్ చేసిన ఖాతాలు లేవు')}</div>`)}
+</div>`}).join('')||`<div class="empty">${tr('No archived accounts found','ఆర్కైవ్ చేసిన ఖాతాలు లేవు')}</div>`)}
 async function dlArchived(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
 const ms=M.filter(m=>m.archived&&(!arv||m.village==arv)),mids=new Set(ms.map(m=>m.id)),
 tx=T.filter(t=>mids.has(t.mid)).sort((a,b)=>a.ts-b.ts).map(t=>{const m=ms.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Status:'Archived'}}),
@@ -1046,7 +1107,22 @@ if(warn.length)return ask(warn.join(', and ')+'. Save anyway?','Save',go);go()}
 async function runImport(){if(!imp||busy||!owner)return;busy=true;draw();const I=imp;
 try{
 if(I.atomic&&I.k==0&&I.ops[0].k=='m'){try{I.mid=await db.atomic(I.ops[0].data,I.ops.slice(1).map(o=>o.data));I.k=I.ops.length}catch(e){if(/add_member_history|PGRST202|find the function/i.test((e&&e.message)||'')){I.atomic=false}else throw e}}
-for(;I.k<I.ops.length;I.k++){const o=I.ops[I.k];if(o.k=='m'){const d=await db.collection('members').add(o.data);I.mid=d.id}else await db.collection('txns').add({...o.data,mid:I.mid});if(I.k%5==0)draw()}
+if(I.ops[0].k=='m'){
+    const d=await db.collection('members').add(I.ops[0].data);
+    I.mid=d.id;
+    I.k=1;
+  }
+  const remainingTxns=I.ops.slice(I.k).map(o=>({...o.data,mid:I.mid}));
+  if(remainingTxns.length>0&&db.collection('txns').addMany){
+    await db.collection('txns').addMany(remainingTxns);
+    I.k=I.ops.length;
+  }else{
+    for(;I.k<I.ops.length;I.k++){
+      const o=I.ops[I.k];
+      await db.collection('txns').add({...o.data,mid:I.mid});
+      if(I.k%5==0)draw();
+    }
+  }
 const n=I.ops.filter(o=>o.k=='t'&&o.data.type=='pay').length;imp=null;hp=[];exb=false;clr(['n','nt','p','lg','lr','i','ld','gc','ga','gd','pa','pr','pi']);toast('Saved '+I.name+(I.ops[0].k=='m'?': loan + ':': ')+n+' payment(s)')
 }catch(e){const c=e&&e.code;toast((c=='not_granted'||c=='revoked'?'You do not have permission to do this. ':'Stopped: '+((e&&(e.message||e.code))||'error')+'. ')+'Saved '+I.k+' of '+I.ops.length+'. Tap "Continue saving" to resume; nothing will be saved twice.')}
 finally{busy=false;draw()}}
@@ -1080,7 +1156,7 @@ function heroKpis(){
     <div class="kpi-card" onclick="go('rp')" style="cursor:pointer" title="${tr('View daily collections report','రోజువారీ వసూళ్ల నివేదిక')}">
       <div class="kpi-header">
         <span class="kpi-label">${tr("Today's Collections","ఈ రోజు వసూలు")}</span>
-        <span class="kpi-chip">📅 ${fd(today())}</span>
+        <span class="kpi-chip">${fd(today())}</span>
       </div>
       <div class="kpi-val">${inr(todayTot)}</div>
       <div class="kpi-sub">
@@ -1091,25 +1167,33 @@ function heroKpis(){
     <div class="kpi-card kpi-alt" onclick="go('lg')" style="cursor:pointer" title="${tr('View all member ledgers','అన్ని ఖాతాలు చూడండి')}">
       <div class="kpi-header">
         <span class="kpi-label">${tr('Outstanding Balance','మొత్తం బాకీ నిల్వ')}</span>
-        <span class="kpi-chip">👥 ${activeM.length} ${tr('members','మంది')}</span>
+        <span class="kpi-chip">${activeM.length} ${tr('members','మంది')}</span>
       </div>
       <div class="kpi-val">${inr(totDue)}</div>
       <div class="kpi-sub">
-        ${odCount>0?`<span class="kpi-alert">⚠️ ${odCount} ${tr('overdue loans','గడువు దాటినవి')}</span>`:`<span class="kpi-good">✓ ${tr('All up to date','అన్నీ సకాలంలో')}</span>`}
-        ${pndRc>0?`<span style="margin-left:auto;color:var(--a);font-weight:700">🧾 ${pndRc} ${tr('waiting','రసీదులు')}</span>`:''}
+        ${odCount>0?`<span class="kpi-alert">${odCount} ${tr('overdue loans','గడువు దాటినవి')}</span>`:`<span class="kpi-good">${tr('All up to date','అన్నీ సకాలంలో')}</span>`}
+        ${pndRc>0?`<span style="margin-left:auto;color:var(--a);font-weight:700">${pndRc} ${tr('receipts waiting','రసీదులు')}</span>`:''}
       </div>
     </div>
   </div>
   <div class="v18-quick-bar">
-    <button class="quick-btn" onclick="openScannerDlg()">🏦 ${tr('QR Scanner','QR స్కానర్')}</button>
-    <button class="quick-btn" onclick="openManualRem()">📱 ${tr('Send Reminder','రిమైండర్ పంపు')}</button>
-    ${adm?`<button class="quick-btn" onclick="go('mb')">➕ ${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
-    ${adm?`<button class="quick-btn" onclick="go('vl')">🏘️ ${tr('Villages','ఊర్లు')}</button>`:''}
-    ${!adm?`<button class="quick-btn p" onclick="openFatherNoteDlg()">📢 ${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
+    <button class="quick-btn" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
+    <button class="quick-btn" onclick="openManualRem()">${tr('Send Reminder','రిమైండర్ పంపు')}</button>
+    ${adm?`<button class="quick-btn" onclick="go('mb')">${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
+    ${adm?`<button class="quick-btn" onclick="go('vl')">${tr('Villages','ఊర్లు')}</button>`:''}
+    ${!adm?`<button class="quick-btn p" onclick="openFatherNoteDlg()">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`:''}
   </div>`;
 }
 
-function draw(){const app=$('#app');if(!db)return app.innerHTML='<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h3>Connecting…</h3><p class="m">Connecting to the database. If this takes more than a few seconds, tap Reload.</p><button class="p" style="margin-top:10px" onclick="location.reload()">🔄 Reload</button></div>';
+let _drawPending = false;
+function draw(){
+  if (_drawPending) return;
+  _drawPending = true;
+  requestAnimationFrame(_drawInner);
+}
+function _drawInner(){
+  _drawPending = false;
+  const app=$('#app');if(!db)return app.innerHTML='<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h3>Connecting…</h3><p class="m">Connecting to the database. If this takes more than a few seconds, tap Reload.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Reload</button></div>';
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
@@ -1146,11 +1230,11 @@ app.innerHTML=`<div class="hd">
       </div>
     </div>
     <div class="acts">
-      ${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')" style="border-radius:10px;font-size:12px;font-weight:700">${adm?'👑 Admin':'👨‍🌾 '+tr('Father','తండ్రి')}</button>`:''}
-      ${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:10px;padding:4px 9px;font-weight:700;font-size:12px">📢 ${tr('Note','సందేశం')}</button>`}
+      ${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')" style="border-radius:10px;font-size:12px;font-weight:700">${adm?'Admin':'Collector'}</button>`:''}
+      ${adm?notifBellBtn():`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:10px;padding:4px 9px;font-weight:700;font-size:12px">${tr('Notify Admin','అడ్మిన్‌కి మెసేజ్')}</button>`}
       ${langBtn()}
       ${themeBtn()}
-      ${window.__signout?`<button class="sm" onclick="__signout()" title="${tr('Sign out','సైన్ అవుట్')}" style="padding:4px 8px;border-radius:10px;font-size:13px">🚪</button>`:''}
+      ${window.__signout?`<button class="sm" onclick="__signout()" title="${tr('Sign out','సైన్ అవుట్')}" style="padding:4px 8px;border-radius:10px;font-size:12px;font-weight:600">${tr('Sign out','సైన్ అవుట్')}</button>`:''}
     </div>
   </div>
   <div class="tabs" role="tablist">
@@ -1163,7 +1247,7 @@ app.innerHTML=`<div class="hd">
     `).join('')}
   </div>
 </div>
-${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>⚠ ${esc(dbErr)}</span><button class="sm" onclick="location.reload()">🔄 Retry</button></div>`:''}
+${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>${esc(dbErr)}</span><button class="sm" onclick="location.reload()">Retry</button></div>`:''}
 ${showHero?heroKpis():''}
 ${body}
 ${recView()}

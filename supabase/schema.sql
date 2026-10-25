@@ -121,3 +121,21 @@ do $$ begin
     alter publication supabase_realtime add table public.docs;
   end if;
 end $$;
+
+-- Admin-only database reset
+create or replace function public.clear_all_docs()
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.my_role() <> 'admin' then
+    raise exception 'only admin can clear all data';
+  end if;
+  truncate table public.docs;
+  return true;
+end;
+$$;
+revoke all on function public.clear_all_docs() from public;
+grant execute on function public.clear_all_docs() to authenticated;
