@@ -70,14 +70,9 @@
   const denied = () => Object.assign(new Error('Not allowed, or the record does not exist'), { code: 'not_granted' });
 
   async function allRows(c) {
-    const out = [];
-    for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.from('docs').select('id,data').eq('collection', c).order('created_at').order('id').range(from, from + 999);
-      if (error) throw err(error);
-      out.push(...data);
-      if (data.length < 1000) break;
-    }
-    return out;
+    const { data, error } = await sb.from('docs').select('id,data').eq('collection', c).limit(3000);
+    if (error) throw err(error);
+    return data || [];
   }
   const stores = new Map();
   const persistTimers = new Map();
@@ -203,13 +198,14 @@
       onSnapshot(next, fail) {
         s.subs.add(next);
         let on = true;
-        if (s.loaded) {
+        // Instant emit: provide current cached data immediately so UI renders in 0ms!
+        try {
           next({
             size: s.map.size,
             docs: [...s.map].map(([id, d]) => ({ id, exists: true, data: () => JSON.parse(JSON.stringify(d)) }))
           });
-        }
-        if (!s.loaded) s.load().catch(e => { if (on && fail && !s.loaded) fail(e); });
+        } catch (_) {}
+        if (!s.loaded) s.load().catch(e => { if (on && fail && s.map.size === 0) fail(e); });
         return () => { on = false; s.subs.delete(next); };
       }
     };

@@ -253,7 +253,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 @media(prefers-reduced-motion:reduce){ * { transition: none!important; animation: none!important; } }
 </style></head><body><main id="app"><p class="m">Loading…</p></main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=20"></script>
+<script src="/runtime.js?v=21"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
@@ -582,16 +582,43 @@ return `<div class="card"><b>${dn(wd)}, ${fd(td)}</b>
 <div class="row" style="margin-top:8px"><select onchange="if(this.value!=='')pick(+this.value)"><option value="">${tr('Other village…','ఇతర ఊరు…')}</option>${V.map((v,i)=>`<option value="${i}">${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}</select>
 <span class="m">${vil?esc(vl(vil))+' · ':''}${n}/${list.length} ${tr('paid','చెల్లించారు')} · <b class="ok">${inr(got)}</b></span></div><div class="bar" aria-hidden="true"><i style="width:${list.length?Math.round(n*100/list.length):0}%"></i></div></div>${f}
 <div class="card" style="margin-bottom:12px;border-left:4px solid var(--p)"><div class="row"><div><b style="font-size:14px">${tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</b><div class="m" style="font-size:12px">${tr('Collection done? Need a loan? Alert Admin.','వసూలు పూర్తి అయిందా? అడ్మిన్‌కి సమాచారం ఇవ్వండి.')}</div></div><button class="p sm" onclick="openFatherNoteDlg()">${tr('Notify Admin','సమాచారం పంపు')}</button></div>${recentFatherNotesHtml()}</div>
-${list.map(m=>{const s=st(m),dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
-const statusBadge=s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">${tr('Due today','ఈ రోజే')}</span>`:``)):``;
-const init=(nm(m)||'').charAt(0).toUpperCase();
-return `<div class="card"><div class="row" style="align-items:flex-start"><div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0"><div class="avatar">${init}</div><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span>${statusBadge}</div><div class="m" style="margin-top:2px">${tr('Due','బాకీ')} <b style="color:${s.due>0?'var(--t)':'var(--ok)'}">${inr(s.due)}</b> · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div></div>
-<div class="acts" style="margin-top:2px"><button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>${s.due>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}<button class="sm" onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button></div></div>${rv==m.id?memRecs(m):''}</div>`}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
+${list.map(m=>{
+  const s=st(m), dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
+  const pAmt = paid(m.id);
+  const pToday = pAmt > 0;
+  const statusBadge = pToday
+    ? `<span class="chip ok" style="background:#dcfce7;color:#15803d;border-color:#86efac;font-size:11px;margin-left:6px;font-weight:700">✓ ${tr('Paid Today ('+inr(pAmt)+')','ఈ రోజు చెల్లించారు ('+inr(pAmt)+')')}</span>`
+    : (s.due>0?(dl!=null&&dl<0?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-size:11px;margin-left:6px;font-weight:700">${Math.abs(dl)} ${tr('d overdue','రో. ఆలస్యం')}</span>`:(dl===0?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-size:11px;margin-left:6px;font-weight:700">${tr('Due today','ఈ రోజే')}</span>`:``)):``);
+  const init = (nm(m)||'').charAt(0).toUpperCase();
+  return `<div class="card"><div class="row" style="align-items:flex-start"><div style="display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0"><div class="avatar">${init}</div><div style="min-width:0;flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))}</span>${statusBadge}</div><div class="m" style="margin-top:2px">${tr('Due','బాకీ')} <b style="color:${s.due>0?'var(--t)':'var(--ok)'}">${inr(s.due)}</b> · ${inr(m.inst||0)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')}</div>${lastRec(m)}</div></div>
+  <div class="acts" style="margin-top:2px">
+    ${pToday?`<button class="sm" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('+ Add More','మరోసారి')}</button>`:`<button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>`}
+    ${(!pToday && s.due>0)?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}
+    <button class="sm" onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button>
+  </div></div>${rv==m.id?memRecs(m):''}`;
+}).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
 }
-function save(){if(!sel)return;const a=num($('#amt').value);if(!(a>0&&a<=1e7))return toast(tr('Enter amount','మొత్తం రాయండి'));const m=M.find(x=>x.id==sel.id);if(!m)return;
-const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0),
-go2=()=>{const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};sel=null;once(()=>db.collection('txns').add(t))};
-if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);go2()}
+function save(){
+  if(!sel)return;
+  const a=num($('#amt').value);
+  if(!(a>0&&a<=1e7))return toast(tr('Enter amount','మొత్తం రాయండి'));
+  const m=M.find(x=>x.id==sel.id);
+  if(!m)return;
+  const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0);
+  const go2=()=>{
+    const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};
+    sel=null;
+    const remId1 = m.id + '_' + today();
+    RM.add(remId1);
+    const curS = st(m);
+    if(curS.next) RM.add(m.id + '_' + curS.next);
+    try{db.doc('rem/'+remId1).set({mid:m.id,d:today(),sent:true,paid:true,ts:Date.now()})}catch(_){}
+    once(()=>db.collection('txns').add(t));
+    toast(tr('Payment of '+inr(a)+' recorded ✓',inr(a)+' చెల్లింపు నమోదు చేయబడింది ✓'));
+  };
+  if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
+  go2();
+}
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
 fde=d=>{const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
 SCANNER_URL=()=>((typeof location!=='undefined'&&location.origin)?location.origin+'/scanner.png':'https://gangaya-finance.vercel.app/scanner.png'),
@@ -629,18 +656,28 @@ rmsg=(m,s,l)=>{
 function qitems(h){const o=[],td=today();
 for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
 o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
-if(!h)for(const m of M){if(m.archived)continue;const s=st(m);if(!s.next||s.due<=0)continue;const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
-if(dl>2||dl<-60||RM.has(id))continue;o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})})}
+if(!h)for(const m of M){
+  if(m.archived)continue;
+  const s=st(m);
+  if(!s.next||s.due<=0)continue;
+  if(T.some(t=>t.mid==m.id&&t.d==td&&t.type=='pay'))continue;
+  const dl=Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5),id=m.id+'_'+s.next;
+  if(dl>2||dl<-60||RM.has(id)||RM.has(m.id+'_'+td))continue;
+  o.push({k:'r'+id,m,d:s.next,ts:0,tag:dl<0?('Overdue · '+Math.abs(dl)+'d'):('Reminder · '+(dl<=0?'due today':'in '+dl+(dl==1?' day':' days'))),text:rmsg(m,s),mk:()=>db.doc('rem/'+id).set({mid:m.id,d:s.next,sent:true,ts:Date.now()})});
+}
 return o}
 function getRemList(allMembers){
   const td=today(),list=[];
   for(const m of M){
     if(m.archived)continue;
     const s=st(m);
-    if(!allMembers&&s.due<=0)continue;
+    if(s.due<=0)continue;
+    const paidToday = T.some(t => t.mid == m.id && t.d == td && t.type == 'pay');
+    if(paidToday && !allMembers) continue;
     const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
     const isOd=dl!==null&&dl<0,isTd=dl===0,isUp=dl!==null&&dl>0&&dl<=2;
-    list.push({m,s,dl:dl===null?9999:dl,isOd,isTd,isUp});
+    if(!allMembers && !isOd && !isTd && !isUp) continue;
+    list.push({m,s,dl:dl===null?9999:dl,isOd,isTd,isUp,paidToday});
   }
   return list.sort((a,b)=>a.dl-b.dl);
 }
@@ -1448,5 +1485,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=20').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=21').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
