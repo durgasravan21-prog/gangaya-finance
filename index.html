@@ -246,6 +246,19 @@ return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుం
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 function go(t){tab=t;sel=null;rv='';draw()}
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
+let cloudStatusText = '';
+async function readCloudStatus(){
+  try{
+    const res = await (db && db.getStatus ? db.getStatus() : { count: M.length + V.length + T.length + NT.length });
+    cloudStatusText = tr(`Cloud DB Status: ${res.count} record(s) verified in database`, `క్లౌడ్ డేటాబేస్: ${res.count} రికార్డులు సరిచూడబడ్డాయి`);
+    toast(cloudStatusText);
+  }catch(e){
+    cloudStatusText = 'Error reading cloud status: ' + (e && e.message || e);
+    toast(cloudStatusText);
+  }
+  draw();
+}
+
 async function clearAllData(){
   if(!owner)return;
   ask(tr('DANGER: This will permanently wipe ALL members, loans, payments, reminders, and notes from the database. Are you sure?','హెచ్చరిక: ఇది డేటాబేస్ నుండి అన్ని రికార్డులను శాశ్వతంగా తొలగిస్తుంది. కొనసాగించాలా?'),tr('Wipe Everything','మొత్తం తొలగించు'),async()=>{
@@ -259,7 +272,8 @@ async function clearAllData(){
         for(const n of NT){try{await db.doc('notifs/'+n.id).delete()}catch(_){}}
       }
       M=[];V=[];T=[];NT=[];RM=new Set();
-      toast(tr('Database cleared successfully','డేటాబేస్ విజయవంతంగా క్లియర్ చేయబడింది'));
+      await readCloudStatus();
+      toast(tr('Database cleared successfully (0 records)','డేటాబేస్ విజయవంతంగా క్లియర్ చేయబడింది (0 రికార్డులు)'));
     }catch(e){
       toast('Error clearing data: '+(e&&e.message||e));
     }finally{
@@ -285,11 +299,13 @@ async function reloadAllData(){
 }
 
 function stats(){const r=rep(),c=(x,l)=>`<div class="card stat"><span class="m">${l}</span><b>${inr(x.c)}</b><span class="m">UPI ${inr(x.u)} · ${tr('Cash','నగదు')} ${inr(x.c-x.u)}</span></div>`;
-return `$<div class="card" style="border-color:var(--b);margin-top:14px">
-  <h2>${tr('Database & Cloud Management','డేటాబేస్ & క్లౌడ్ నిర్వహణ')}</h2>
-  <p class="m" style="margin:0 0 10px">${tr('Verify data consistency, reload fresh state from cloud, or wipe all records cleanly.','డేటా సమగ్రతను తనిఖీ చేయండి, లేదా తాజా డేటాను లోడ్ చేయండి.')}</p>
+return `<div class="card" style="border-color:var(--b);margin-top:14px">
+  <h2>${tr('Database & Cloud Verification','డేటాబేస్ & క్లౌడ్ స్థితి')}</h2>
+  <p class="m" style="margin:0 0 10px">${tr('Verify data consistency, read cloud records, or wipe database cleanly.','డేటా సమగ్రతను తనిఖీ చేయండి, లేదా క్లౌడ్ డేటాను పరిశీలించండి.')}</p>
+  ${cloudStatusText?`<div class="card" style="background:var(--s);padding:8px 12px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--t)">${esc(cloudStatusText)}</div>`:''}
   <div class="acts">
-    <button class="p sm" onclick="reloadAllData()">${tr('Reload from Cloud','క్లౌడ్ నుండి రీలోడ్')}</button>
+    <button class="p sm" onclick="readCloudStatus()">${tr('Read / Verify Cloud DB','క్లౌడ్ డేటాబేస్ పరిశీలించు')}</button>
+    <button class="sm" onclick="reloadAllData()">${tr('Reload from Cloud','క్లౌడ్ నుండి రీలోడ్')}</button>
     <button class="d sm" onclick="clearAllData()">${tr('Clear Database & History','డేటాను మొత్తం తొలగించు')}</button>
   </div>
 </div>`+`<div class="g">${c(r.t,tr('Today','ఈ రోజు'))}${c(r.w,tr('Last 7 days','గత 7 రోజులు'))}</div>

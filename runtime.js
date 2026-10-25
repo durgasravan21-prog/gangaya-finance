@@ -320,22 +320,44 @@
     await Promise.all(promises);
     return true;
   }
+  async function getStatus() {
+    const { count, error } = await sb.from('docs').select('collection', { count: 'exact', head: true });
+    if (error) throw err(error);
+    return { count: count || 0 };
+  }
   const caps = {
     user: { async canEdit() { return prof.role === 'admin'; }, async isOwner() { return prof.role === 'admin'; }, async me() { return { id: uid, name: prof.name || email, email }; } },
-    db: { collection: colRef, doc: docRef, clearAll, reloadAll }, downloads, sample
+    db: { collection: colRef, doc: docRef, clearAll, reloadAll, getStatus }, downloads, sample
   };
   window.claude = { use: n => ready.then(() => caps[n] || null) };
 
   async function boot() {
-    let cfg;
+    let cfg = null;
     try {
-      const r = await fetch('/api/config', { cache: 'no-store', signal: AbortSignal.timeout(8000) });
-      cfg = await r.json();
-      if (!cfg.url || !cfg.anonKey) throw new Error('config');
-    } catch (e) {
-      overlay('<div class="card" style="max-width:360px;margin:0;text-align:center"><h3 style="margin:0 0 8px">Connection Error</h3><p class="m">Could not load app settings. Check internet connection and tap retry.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Retry</button></div>');
-      return;
+      const cached = localStorage.getItem('gf_cfg');
+      if (cached) cfg = JSON.parse(cached);
+    } catch (_) {}
+
+    if (!cfg || !cfg.url || !cfg.anonKey) {
+      try {
+        const r = await fetch('/api/config', { signal: AbortSignal.timeout(6000) });
+        cfg = await r.json();
+        if (!cfg.url || !cfg.anonKey) throw new Error('config');
+        try { localStorage.setItem('gf_cfg', JSON.stringify(cfg)); } catch (_) {}
+      } catch (e) {
+        overlay('<div class="card" style="max-width:360px;margin:0;text-align:center"><h3 style="margin:0 0 8px">Connection Error</h3><p class="m">Could not load app settings. Check internet connection and tap retry.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Retry</button></div>');
+        return;
+      }
+    } else {
+      fetch('/api/config', { signal: AbortSignal.timeout(6000) })
+        .then(r => r.json())
+        .then(fresh => {
+          if (fresh && fresh.url && fresh.anonKey) {
+            try { localStorage.setItem('gf_cfg', JSON.stringify(fresh)); } catch (_) {}
+          }
+        }).catch(() => {});
     }
+
 
     const fetchWithTimeout = (url, options = {}) => {
       const timeoutMs = (options && options.timeout) || 12000;
