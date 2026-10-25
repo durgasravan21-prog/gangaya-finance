@@ -70,9 +70,21 @@
   const denied = () => Object.assign(new Error('Not allowed, or the record does not exist'), { code: 'not_granted' });
 
   async function allRows(c) {
-    const { data, error } = await sb.from('docs').select('id,data').eq('collection', c).limit(3000);
-    if (error) throw err(error);
-    return data || [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { data, error } = await sb.from('docs').select('id,data').eq('collection', c).order('created_at').limit(3000);
+        if (error) throw err(error);
+        return data || [];
+      } catch (e) {
+        if (attempt < 2) {
+          console.warn('allRows attempt ' + (attempt + 1) + ' for ' + c + ' failed, retrying...');
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+        } else {
+          throw e;
+        }
+      }
+    }
+    return [];
   }
   const stores = new Map();
   const persistTimers = new Map();
@@ -111,9 +123,8 @@
             schedulePersist(c, s);
             s.emit();
           } catch (e) {
-            console.error('load error for ' + c, e);
-            if (s.map.size > 0) s.emit();
-            else throw e;
+            console.warn('load for ' + c + ': ' + (e && e.message || e));
+            if (s.map.size > 0) { s.loaded = true; s.emit(); }
           }
         }
       };
@@ -356,7 +367,7 @@
 
 
     const fetchWithTimeout = (url, options = {}) => {
-      const timeoutMs = (options && options.timeout) || 12000;
+      const timeoutMs = (options && options.timeout) || 45000;
       if (!options.signal && typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
         return fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
       }
@@ -378,17 +389,39 @@
       s = (await sb.auth.getSession()).data.session;
     } catch (_) {}
 
-    // Check for cached profile in localStorage
+    // Check for cached profile - unblock immediately if available
+    let hasCachedProf = false;
     try {
       const cp = localStorage.getItem('gf_prof');
       if (cp && s) {
         prof = JSON.parse(cp);
         uid = s.user.id;
         email = s.user.email || '';
+        hasCachedProf = true;
       }
     } catch (_) {}
 
     let msg = '';
+    // If cached profile exists, unblock page IMMEDIATELY (0ms startup)
+    if (hasCachedProf && prof && prof.role) {
+      const o = document.getElementById('rt-ov'); if (o) o.remove();
+      sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); });
+      window.__signout = async () => {
+        try { await sb.auth.signOut(); } catch (_) {}
+        try { localStorage.removeItem('gf_prof'); } catch (_) {}
+        location.reload();
+      };
+      finish();
+      // Background-validate profile (non-blocking)
+      sb.from('profiles').select('role,name').eq('id', s.user.id).maybeSingle()
+        .then(res => {
+          if (res.data && res.data.role) {
+            prof = res.data;
+            try { localStorage.setItem('gf_prof', JSON.stringify(res.data)); } catch (_) {}
+          }
+        }).catch(() => {});
+      return;
+    }
     for (;;) {
       if (!s) {
         await loginUI(msg);
