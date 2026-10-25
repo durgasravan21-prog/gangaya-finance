@@ -253,6 +253,65 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 .chips button { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @media(prefers-reduced-motion:reduce){ * { transition: none!important; animation: none!important; } }
+
+.hist-grid-head {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.8fr) minmax(80px, 1.2fr) minmax(90px, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--m);
+  text-transform: uppercase;
+  margin: 10px 0 6px;
+  padding: 0 4px;
+}
+.hist-grid {
+  display: grid;
+  grid-template-columns: minmax(130px, 1.8fr) minmax(80px, 1.2fr) minmax(90px, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+  width: 100%;
+}
+.hist-grid input, .hist-grid select {
+  width: 100%!important;
+  margin: 0!important;
+  padding: 8px 10px!important;
+  font-size: 13.5px!important;
+  box-sizing: border-box!important;
+  min-width: 0!important;
+}
+.hist-grid button {
+  width: 36px!important;
+  height: 38px!important;
+  padding: 0!important;
+  margin: 0!important;
+  display: inline-flex!important;
+  align-items: center!important;
+  justify-content: center!important;
+  flex-shrink: 0!important;
+}
+@media (max-width: 520px) {
+  .hist-grid-head {
+    grid-template-columns: 1.4fr 1.1fr 1fr 34px;
+    gap: 4px;
+    font-size: 10px;
+  }
+  .hist-grid {
+    grid-template-columns: 1.4fr 1.1fr 1fr 34px;
+    gap: 4px;
+  }
+  .hist-grid input, .hist-grid select {
+    padding: 7px 5px!important;
+    font-size: 12px!important;
+  }
+  .hist-grid button {
+    width: 34px!important;
+    height: 36px!important;
+  }
+}
+
 </style></head><body><main id="app">
   <div class="card" style="max-width:380px;margin:80px auto;text-align:center;border-radius:24px;padding:32px 20px">
     <div class="brand-logo" style="margin:0 auto 14px;width:48px;height:48px;font-size:18px;border-radius:14px">GF</div>
@@ -262,7 +321,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=24"></script>
+<script src="/runtime.js?v=25"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
 const V18_ICONS = {
@@ -276,7 +335,18 @@ const V18_ICONS = {
   ar: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>'
 };
 function setScheduleDay(d){ const tv = V.filter(v => v.day == d); if(tv.length){ vil = tv[0].name; sel = null; rv = ''; } go('fa'); }
-function openAddMemberDlg(){ edM(null); }
+function openAddMemberDlg(){
+  go('mb');
+  sel = null;
+  exb = false;
+  setTimeout(() => {
+    const el = document.getElementById('n');
+    if (el) {
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 120);
+}
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
 try{const savedRmLang=localStorage.getItem('gangaya_rmlang')||localStorage.getItem('gf-rmlang');if(savedRmLang=='en'||savedRmLang=='te')rmLang=savedRmLang}catch(e){}
 const isTe=()=>role=='f'?(lang=='te'):false;
@@ -416,7 +486,9 @@ function allNotifs(){
   }
   const sortedT=T.slice().sort((a,b)=>b.ts-a.ts).slice(0,100);
   for(const t of sortedT){
-    const m=M.find(x=>x.id==t.mid)||{},memName=nm(m)||tr('Member','సభ్యుడు'),vilName=m.village?vl(m.village):'';
+    const m=M.find(x=>x.id==t.mid);
+    if(!m || m.archived) continue;
+    const memName=nm(m)||tr('Member','సభ్యుడు'),vilName=m.village?vl(m.village):'';
     if(t.type=='pay'){
       list.push({id:'t_'+t.id,rawId:t.id,type:'pay',icon:'',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Collector collected ','కలెక్టర్ వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Collector':'Admin')),extra:'',ts:t.ts});
     }else if(t.type=='loan'){
@@ -427,8 +499,14 @@ function allNotifs(){
 }
 function unreadNotifCount(){return allNotifs().filter(n=>n.ts>lastReadNotif).length}
 function toggleNotifs(){notifOpen=!notifOpen;if(notifOpen){lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}draw()}
-function closeNotifs(){notifOpen=false;lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}
-function markAllNotifsRead(){lastReadNotif=Date.now();try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}}
+function closeNotifs(){notifOpen=false;lastReadNotif=Date.now()+1000;try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}draw();}
+function markAllNotifsRead(){
+  lastReadNotif=Date.now()+1000;
+  try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}
+  for(const n of NT){ if(!n.read){ n.read=true; try{db.doc('notifs/'+n.id).update({read:true})}catch(_){} } }
+  toast(tr('All notifications marked as read ✓','నోటిఫికేషన్లు చదివినట్లు మార్చబడ్డాయి ✓'));
+  draw();
+}
 function notifBellBtn(){const c=unreadNotifCount();return `<button class="sm notif-btn" onclick="toggleNotifs()" title="${tr('Notifications','నోటిఫికేషన్లు')}" style="position:relative;padding:5px 10px;border-radius:10px;font-size:12px;font-weight:600">${tr('Alerts','అలర్ట్స్')}${c>0?`<span class="notif-badge">${c>99?'99+':c}</span>`:""}</button>`}
 async function clearNotifHistory(){
   if(!owner)return;
@@ -1217,12 +1295,48 @@ go2()}
 const HRT=(t)=>`${tr('payments','చెల్లింపులు')}`;
 function hsumText(){const t=hp.reduce((a,r)=>a+(num(r.a)||0),0);return hp.length+' payment(s) · total '+inr(t)}
 function hsum(){const e=$('#hs');if(e)e.textContent=hsumText()}
-function histSection(){return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:10px"><h2>Payments already received</h2>
-<p class="m" style="margin:0 0 8px">${sel&&sel.k=='past'?'Add the payments from your father\'s book.':'The loan fields above (given, total to return, instalment, loan date) are the ORIGINAL loan. Add what he has paid so far.'} Add them one by one, or generate regular instalments and then fix the ones that differ.</p>
-<div class="g"><input id="gc" type="number" inputmode="numeric" placeholder="How many instalments"><input id="ga" type="number" inputmode="numeric" placeholder="Amount each ₹"><label class="m">First payment date<input id="gd" type="date" min="1990-01-01" max="${today()}"></label><select id="gf"><option value="7">Every week</option><option value="1">Every day</option></select></div>
-<p class="acts" style="margin:8px 0"><button onclick="genRows()">Generate rows</button><button onclick="hp.push({d:'',a:'',m:'cash'});draw()">+ Add one</button>${hp.length?'<button class="d" onclick="hp=[];draw()">Clear all</button>':''}</p>
-${hp.map((r,i)=>`<div class="acts" style="margin-bottom:6px"><input type="date" value="${esc(r.d)}" min="1990-01-01" max="${today()}" onchange="hp[${i}].d=this.value" style="flex:1 1 140px" aria-label="Payment ${i+1} date"><input type="number" inputmode="numeric" placeholder="₹" value="${esc(r.a)}" oninput="hp[${i}].a=this.value;hsum()" style="flex:1 1 90px" aria-label="Payment ${i+1} amount"><select onchange="hp[${i}].m=this.value" aria-label="Payment ${i+1} mode"><option value="cash" ${r.m=='cash'?'selected':''}>Cash</option><option value="upi" ${r.m=='upi'?'selected':''}>UPI</option></select><button class="sm d" onclick="hp.splice(${i},1);draw()" aria-label="Remove payment ${i+1}">✕</button></div>`).join('')}
-<p class="m" id="hs" style="margin:6px 0 0">${hsumText()}</p></div>`}
+function histSection(){
+  return `<div style="margin-top:12px;border-top:1px solid var(--b);padding-top:12px">
+    <h3 style="margin:0 0 4px">${tr('Payments already received','ఇప్పటివరకు స్వీకరించిన చెల్లింపులు')}</h3>
+    <p class="m" style="margin:0 0 10px">${sel&&sel.k=='past'?tr("Add payments from ledger book. Each row stays in a single clean line.","ఖాతా పుస్తకం నుండి చెల్లింపులను చేర్చండి. ప్రతి చెల్లింపు ఒకే వరుసలో ఉంటుంది."):tr("Original loan details are above. Add payments made so far:","పైన అసలు అప్పు వివరాలు ఉన్నాయి. ఇప్పటివరకు చెల్లించిన వివరాలను చేర్చండి:")}</p>
+    <div class="g" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin-bottom: 10px;">
+      <input id="gc" type="number" inputmode="numeric" placeholder="${tr('How many instalments','ఎన్ని వాయిదాలు')}">
+      <input id="ga" type="number" inputmode="numeric" placeholder="${tr('Amount each ₹','వాయిదా మొత్తం ₹')}">
+      <label class="m" style="display:flex;flex-direction:column;gap:3px">${tr('First payment date','మొదటి చెల్లింపు తేదీ')}
+        <input id="gd" type="date" min="1990-01-01" max="${today()}">
+      </label>
+      <select id="gf">
+        <option value="7">${tr('Every week','ప్రతి వారం')}</option>
+        <option value="1">${tr('Every day','ప్రతి రోజు')}</option>
+      </select>
+    </div>
+    <div class="acts" style="margin:8px 0 12px">
+      <button type="button" onclick="genRows()">${tr('Generate rows','వరుసలను రూపొందించు')}</button>
+      <button type="button" onclick="hp.push({d:'',a:'',m:'cash'});draw()">+ ${tr('Add one','ఒకటి చేర్చు')}</button>
+      ${hp.length?`<button type="button" class="d" onclick="hp=[];draw()">${tr('Clear all','అన్నీ తొలగించు')}</button>`:''}
+    </div>
+    ${hp.length?`
+    <div class="hist-grid-head">
+      <div>${tr('Date','తేదీ')}</div>
+      <div>${tr('Amount ₹','మొత్తం ₹')}</div>
+      <div>${tr('Mode','పద్ధతి')}</div>
+      <div></div>
+    </div>
+    `:''}
+    ${hp.map((r,i)=>`
+    <div class="hist-grid">
+      <input type="date" value="${esc(r.d)}" min="1990-01-01" max="${today()}" onchange="hp[${i}].d=this.value" aria-label="Payment ${i+1} date">
+      <input type="number" inputmode="numeric" placeholder="₹" value="${esc(r.a)}" oninput="hp[${i}].a=this.value;hsum()" aria-label="Payment ${i+1} amount">
+      <select onchange="hp[${i}].m=this.value" aria-label="Payment ${i+1} mode">
+        <option value="cash" ${r.m=='cash'?'selected':''}>${tr('Cash','నగదు')}</option>
+        <option value="upi" ${r.m=='upi'?'selected':''}>UPI</option>
+      </select>
+      <button type="button" class="sm d" onclick="hp.splice(${i},1);draw()" aria-label="Remove payment ${i+1}" title="${tr('Delete','తొలగించు')}">✕</button>
+    </div>
+    `).join('')}
+    <p class="m" id="hs" style="margin:8px 0 0;font-weight:600">${hsumText()}</p>
+  </div>`;
+}
 function genRows(){const c=Math.floor(num($('#gc').value)),ia=$('#i')?num($('#i').value):((M.find(x=>sel&&x.id==sel.id)||{}).inst||0),a=num($('#ga').value)||ia,d0=$('#gd').value,step=$('#gf').value=='1'?1:7;
 if(!(c>=1&&c<=400))return toast('Enter how many instalments (1 to 400)');if(!(a>0))return toast('Enter the amount of each instalment');if(!DRE.test(d0)||d0>today()||d0<'1990-01-01')return toast('Pick the date of the first payment (not in the future)');
 let d=d0;const rows=[];for(let k=0;k<c;k++){if(d>today())break;rows.push({d,a:String(a),m:'cash'});d=addD(d,step)}
@@ -1274,9 +1388,77 @@ once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.col
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i})})}
-function villages(){return `<div class="card"><h2>Add village</h2><div class="g"><input id="nv" placeholder="Village (English)" onblur="tl('nv','vt')"><input id="vt" placeholder="Telugu name" oninput="this.dataset.m=1"><select id="vd">${DE.map((d,i)=>`<option value="${i}">${d}</option>`).join('')}</select></div>
-<p><button class="p" onclick="addV()">Save village</button></p></div>
-<div class="card sc"><h2>Villages &amp; collection day</h2><table><tr><th>Village</th><th>Day</th><th>Members</th></tr>${V.map((v,i)=>`<tr><td>${esc(nm(v))}<input value="${esc(v.te||'')}" placeholder="Telugu name" onchange="setVTe(${i},this.value)" style="width:100%;margin-top:4px"></td><td><select onchange="setDay(${i},this.value)">${v.day==null?'<option>Set day</option>':''}${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${DE[j]}</option>`).join('')}</select></td><td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td></tr>`).join('')||'<tr><td colspan=3 class="m">No villages yet</td></tr>'}</table></div>`}
+function villages(){
+  return `<div class="card">
+    <h2>${tr('Add Village','కొత్త ఊరు చేర్చు')}</h2>
+    <div class="g">
+      <input id="nv" placeholder="${tr('Village (English)','ఊరు (ఇంగ్లీష్)')}" onblur="tl('nv','vt')">
+      <input id="vt" placeholder="${tr('Telugu name','తెలుగు పేరు')}" oninput="this.dataset.m=1">
+      <select id="vd">${DE.map((d,i)=>`<option value="${i}">${isTe()?DT[i]:DE[i]}</option>`).join('')}</select>
+    </div>
+    <p><button class="p" onclick="addV()">${tr('Save Village','ఊరును భద్రపరుచు')}</button></p>
+  </div>
+  <div class="card sc">
+    <h2>${tr('Villages & Collection Days','ఊర్లు & వసూలు రోజులు')}</h2>
+    <table>
+      <tr>
+        <th>${tr('Village','ఊరు')}</th>
+        <th>${tr('Day','రోజు')}</th>
+        <th>${tr('Members','సభ్యులు')}</th>
+        <th>${tr('Action','చర్య')}</th>
+      </tr>
+      ${V.map((v,i)=>`
+      <tr>
+        <td>
+          <b>${esc(nm(v))}</b>
+          <input value="${esc(v.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" onchange="setVTe(${i},this.value)" style="width:100%;margin-top:4px">
+        </td>
+        <td>
+          <select onchange="setDay(${i},this.value)">
+            ${v.day==null?`<option>${tr('Set day','రోజు ఎంచుకోండి')}</option>`:''}
+            ${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${isTe()?DT[j]:DE[j]}</option>`).join('')}
+          </select>
+        </td>
+        <td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td>
+        <td>
+          <button class="sm d" onclick="delV('${v.id}')" title="${tr('Delete Village','ఊరు తొలగించు')}">${tr('Delete','తొలగించు')}</button>
+        </td>
+      </tr>
+      `).join('')||'<tr><td colspan=4 class="m">'+tr('No villages yet','ఇంకా ఊర్లు లేవు')+'</td></tr>'}
+    </table>
+  </div>`;
+}
+
+function delV(id){
+  if(!owner) return;
+  const v = V.find(x => x.id == id);
+  if(!v) return;
+  const mems = M.filter(m => m.village == v.name);
+  const mCount = mems.length;
+  if(mCount === 0){
+    ask(tr('Delete village "' + v.name + '"?', '"' + v.name + '" ఊరును తొలగించాలా?'), tr('Delete','తొలగించు'), () => {
+      w(async () => {
+        await db.doc('villages/' + id).delete();
+        toast(tr('Village deleted ✓', 'ఊరు తొలగించబడింది ✓'));
+      });
+    });
+  } else {
+    ask(
+      tr(`"${v.name}" has ${mCount} member(s). Delete this village and clear the village name from these members? (All loan and payment records will be preserved safely).`,
+         `"${v.name}" లో ${mCount} సభ్యులు ఉన్నారు. ఈ ఊరును తొలగించి సభ్యుల నుండి ఊరు పేరు తొలగించాలా? (అప్పులు మరియు చెల్లింపు రికార్డులు సురక్షితంగా ఉంటాయి).`),
+      tr('Delete & Clear Data', 'తొలగించి డేటా క్లియర్ చేయి'),
+      () => {
+        w(async () => {
+          for(const m of mems){
+            try { await db.doc('members/' + m.id).update({ village: '' }); } catch(_) {}
+          }
+          await db.doc('villages/' + id).delete();
+          toast(tr(`Village deleted and ${mCount} member records updated ✓`, `ఊరు తొలగించబడింది, ${mCount} సభ్యుల డేటా క్లియర్ అయింది ✓`));
+        });
+      }
+    );
+  }
+}
 function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n)return toast('Enter the village name');if(V.some(v=>v.name.toLowerCase()==n.toLowerCase()))return toast('This village already exists');
 once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});clr(['nv','vt'])})}
 function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
@@ -1477,7 +1659,7 @@ const tabs=adm?[
   ['mb',tr('Members','సభ్యులు'),null],
   ['vl',tr('Villages','ఊర్లు'),null],
   ['rp',tr('Reports','నివేదికలు'),null],
-  ['ar',tr('Archived','ఆర్కైవ్'),archCount]
+  ['ar',tr('Archived','ఆర్కైవ్'),null]
 ]:[
   ['fa',tr('Collect','వసూలు'),null],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
@@ -1554,5 +1736,5 @@ if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.d
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
 sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=24').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=25').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
