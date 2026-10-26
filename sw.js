@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v27 - enables offline caching and PWA install */
-const CACHE = 'gangaya-v28';
+/* Gangaya Finance Service Worker v29 - enables offline caching, PWA install and push alerts */
+const CACHE = 'gangaya-v29';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -13,6 +13,22 @@ self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+      for (const client of windowClients) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
   );
 });
 
