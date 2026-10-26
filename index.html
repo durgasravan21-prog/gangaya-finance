@@ -321,9 +321,18 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=25"></script>
+<script src="/runtime.js?v=26"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false;
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='';
+function getScannerSrc(){ return customQr || '/scanner.png'; }
+async function getScannerBlob(){
+  if(customQr && customQr.startsWith('data:')){
+    const res = await fetch(customQr);
+    return await res.blob();
+  }
+  const resp = await fetch('/scanner.png');
+  return await resp.blob();
+}
 const V18_ICONS = {
   rc: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg>',
   fa: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
@@ -332,7 +341,8 @@ const V18_ICONS = {
   mb: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
   vl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>',
   rp: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',
-  ar: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>'
+  ar: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>',
+  nl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>'
 };
 function setScheduleDay(d){ const tv = V.filter(v => v.day == d); if(tv.length){ vil = tv[0].name; sel = null; rv = ''; } go('fa'); }
 function openAddMemberDlg(){
@@ -465,9 +475,9 @@ function onNotifsUpdate(newNT){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)&&n.ts>sessionStartTs){
         const isFromAdmin=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector';
-        if(role=='a'&&!isFromAdmin){
-          const txt=`Message from Collector: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
-          toast(txt);playChime();notifyBrowser('Gangaya Finance - Note from Collector',txt);
+        if(role=='a'&&(!isFromAdmin||n.to==='admin'||n.type==='loan')){
+          const txt=n.type==='loan'?n.text:(`Message from Father: ${n.text}`+(n.village?` (${vl(n.village)})`:''));
+          toast(txt);playChime();notifyBrowser('Gangaya Finance - Alert',txt);
         }else if(role=='f'&&isFromAdmin){
           const txt=`Instructions from Admin: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
           toast(txt);playChime();notifyBrowser('Gangaya Finance - Instructions from Admin',txt);
@@ -740,6 +750,7 @@ ${list.map(m=>{
   <div class="acts" style="margin-top:2px">
     ${pToday?`<button class="sm" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('+ Add More','మరోసారి')}</button>`:`<button class="p" onclick="sel={id:'${m.id}'};pmode='cash';draw()">${tr('Collect','వసూలు')}</button>`}
     ${(!pToday && s.due>0)?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}
+    <button class="sm" onclick="openFatherNewLoanDlg('${m.id}')" title="${tr('Issue New Loan to this borrower','కొత్త అప్పు ఇవ్వండి')}">+ ${tr('Loan','అప్పు')}</button>
     <button class="sm" onclick="rv=rv=='${m.id}'?'':'${m.id}';draw()">${tr('Records','రికార్డులు')}</button>
   </div></div>${rv==m.id?memRecs(m):''}`;
 }).join('')||(vil?`<p class="m">${tr('No members in this village.','ఈ ఊరిలో ఎవరూ లేరు.')}</p>`:'')}`
@@ -767,7 +778,7 @@ function save(){
 }
 const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
 fde=d=>{const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
-SCANNER_URL=()=>((typeof location!=='undefined'&&location.origin)?location.origin+'/scanner.png':'https://gangaya-finance.vercel.app/scanner.png'),
+SCANNER_URL=()=>getScannerSrc(),
 rmsg=(m,s,l)=>{
   const isEn=(l==='en'||(!l&&rmLang==='en'));
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
@@ -918,29 +929,90 @@ async function copyScannerImg(){
   }
 }
 function downloadScannerImg(){
-  const a=document.createElement('a');a.href='/scanner.png';a.download='branch-small-finance-bank-scanner.png';
+  const a=document.createElement('a');a.href=getScannerSrc();a.download='gangaya-qr-scanner.png';
   document.body.appendChild(a);a.click();a.remove();
   toast(tr('Scanner downloading…','స్కానర్ డౌన్‌లోడ్ అవుతోంది…'));
 }
 function scannerModal(){
   if(!scannerDlg)return '';
-  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:440px;width:100%;margin:auto;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
-      <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">BRANCH small finance bank</h2>
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:380px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
+      <div class="row" style="margin-bottom:10px">
+        <h2 style="margin:0">${tr('Branch QR Scanner','బ్రాంచ్ QR స్కానర్')}</h2>
         <button class="sm" onclick="closeScannerDlg()">✕</button>
       </div>
-      <p class="m" style="margin:0 0 10px">${tr('Repayment QR Scanner (without personal name / UPI ID)','చెల్లింపుల కోసం అధికారిక QR స్కానర్')}</p>
-      <div style="background:#f5f5f5;padding:10px;border-radius:12px;margin-bottom:12px">
-        <img src="/scanner.png" alt="BRANCH small finance bank QR Scanner" style="max-width:100%;height:auto;max-height:60vh;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:block;margin:auto">
-      </div>
-      <div class="acts" style="justify-content:center;gap:8px;flex-wrap:wrap">
-        <button class="p" onclick="copyScannerImg()">${tr('Copy Scanner','స్కానర్ కాపీ')}</button>
-        <button onclick="downloadScannerImg()">${tr('Download Scanner','డౌన్‌లోడ్')}</button>
+      <img src="${getScannerSrc()}" alt="QR Scanner" style="max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:12px;border:1px solid var(--b);display:block">
+      <div class="acts" style="justify-content:center;gap:8px">
+        <button class="p" onclick="shareScannerPhoto()">${tr('Share QR Photo','QR షేర్ చేయండి')}</button>
+        <button onclick="downloadScanner()">${tr('Download','డౌన్‌లోడ్')}</button>
         <button onclick="closeScannerDlg()">${tr('Close','మూసివేయి')}</button>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--b)">
+        <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--m)">${tr('Customize QR Scanner Photo','QR స్కానర్ ఫోటో మార్చండి')}</div>
+        <div class="acts">
+          <label class="sm p" style="cursor:pointer;display:inline-flex;align-items:center;margin:0">
+            ${tr('Upload New QR Photo','కొత్త QR ఫోటో అప్‌లోడ్ చేయండి')}
+            <input type="file" accept="image/*" onchange="uploadCustomQr(this)" style="display:none">
+          </label>
+          ${customQr?`<button class="sm d" onclick="resetCustomQr()">${tr('Reset to Default','డిఫాల్ట్ పెట్టు')}</button>`:''}
+        </div>
+        <p class="m" style="margin:6px 0 0;font-size:11.5px">${tr('Updating here updates the QR code across reminders, WhatsApp sharing, and Father device automatically.','ఇక్కడ మారిస్తే వాట్సాప్ రిమైండర్లు మరియు తండ్రి గారి ఫోన్‌లో కూడా కొత్త QR ఆటోమేటిక్‌గా అప్‌డేట్ అవుతుంది.')}</p>
       </div>
     </div>
   </div>`;
+}
+
+function uploadCustomQr(input){
+  const file = input && input.files && input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')) return toast(tr('Please select an image file','దయచేసి ఇమేజ్ ఫైల్ ఎంచుకోండి'));
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      const maxDim = 1200;
+      if(w > maxDim || h > maxDim){
+        if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const optDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+
+      customQr = optDataUrl;
+      try { localStorage.setItem('gf_custom_qr', customQr); } catch(_) {}
+      draw();
+
+      try {
+        if(db){
+          await db.doc('settings/qr_scanner').set({
+            image: optDataUrl,
+            updated_at: Date.now(),
+            by: who()
+          });
+        }
+        toast(tr('QR Scanner updated across all devices ✓','QR స్కానర్ అన్ని డివైస్‌లలో అప్‌డేట్ చేయబడింది ✓'));
+      } catch(err){
+        toast(tr('Saved locally ✓','స్థానికంగా సేవ్ చేయబడింది ✓'));
+      }
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function resetCustomQr(){
+  ask(tr('Reset to default Branch QR Scanner?','డిఫాల్ట్ QR స్కానర్‌కి మార్చాలా?'), tr('Reset','రీసెట్ చేయి'), async () => {
+    customQr = '';
+    try { localStorage.removeItem('gf_custom_qr'); } catch(_) {}
+    try { if(db) await db.doc('settings/qr_scanner').delete(); } catch(_) {}
+    toast(tr('Reset to default scanner ✓','డిఫాల్ట్ స్కానర్ సెట్ చేయబడింది ✓'));
+    draw();
+  });
 }
 function openManualRem(mid,lang){
   mremDlg=true;mremLang=lang||rmLang||'te';mremTpl='std';
@@ -1024,7 +1096,7 @@ function manualRemModal(){
       <p class="m" style="margin:0 0 10px">${tr('Select any client and send a reminder in Telugu or English with QR scanner without personal name/UPI ID.','వ్యక్తిగత పేరు మరియు UPI ID లేకుండా QR స్కానర్‌తో రిమైండర్ పంపండి.')}</p>
       
       <div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
-        <img src="/scanner.png" alt="Scanner" style="width:48px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--b);cursor:pointer;flex-shrink:0" onclick="openScannerDlg()" title="${tr('Click to enlarge','పూర్తి స్కానర్ చూడండి')}">
+        <img src="${getScannerSrc()}" alt="Scanner" style="width:48px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--b);cursor:pointer;flex-shrink:0" onclick="openScannerDlg()" title="${tr('Click to enlarge','పూర్తి స్కానర్ చూడండి')}">
         <div style="flex:1">
           <b style="font-size:13px">BRANCH small finance bank</b>
           <div class="m" style="font-size:12px">${tr('QR Scanner attached (no personal name & no UPI ID)','వ్యక్తిగత పేరు & UPI ID లేని స్కానర్ జతచేయబడింది')}</div>
@@ -1388,6 +1460,162 @@ once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.col
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i})})}
+
+function openFatherNewLoanDlg(mid){
+  if(mid) fnlMid = mid;
+  fnlD = today();
+  const d = new Date();
+  fnlT = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+  fnlDlg = true;
+  draw();
+}
+function closeFatherNewLoanDlg(){
+  fnlDlg = false;
+  draw();
+}
+
+function fatherNewLoanTab(){
+  const activeMembers = M.filter(m => !m.archived).sort((a,b) => nm(a).localeCompare(nm(b)));
+  const curTime = fnlT || (new Date().getHours().toString().padStart(2, '0') + ':' + new Date().getMinutes().toString().padStart(2, '0'));
+  const curDate = fnlD || today();
+  const selM = activeMembers.find(m => m.id == fnlMid);
+
+  return `<div class="card" style="max-width:540px;margin:10px auto">
+    <div class="row" style="margin-bottom:8px">
+      <h2 style="margin:0">${tr('Issue New Loan to Existing Borrower','పాత రుణగ్రహీతకు కొత్త అప్పు')}</h2>
+      <span class="chip" style="font-weight:700;color:var(--p)">${role=='a'?'Admin':tr('Father / Collector','తండ్రి / కలెక్టర్')}</span>
+    </div>
+    <p class="m" style="margin:0 0 14px">${tr('Select borrower, amount given, amount to repay, and time. Admin will be intimated immediately for security.','రుణగ్రహీతను ఎంచుకోండి, ఇచ్చిన మొత్తం, తిరిగి చెల్లించాల్సిన మొత్తం మరియు సమయం నమోదు చేయండి. భద్రత కోసం అడ్మిన్‌కి వెంటనే సమాచారం వెళ్తుంది.')}</p>
+
+    <div style="margin-bottom:12px">
+      <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('1. Borrower Name','1. రుణగ్రహీత పేరు')}</label>
+      <select id="fnl_mid" onchange="fnlMid=this.value;const m=M.find(x=>x.id==this.value);if(m){if(!fnlInst)fnlInst=m.inst||'';}draw()" style="font-size:15px;font-weight:600;padding:10px 12px">
+        <option value="">-- ${tr('Select Existing Borrower...','రుణగ్రహీతను ఎంచుకోండి...')} --</option>
+        ${activeMembers.map(m => {
+          const s = st(m);
+          return `<option value="${m.id}" ${m.id==fnlMid?'selected':''}>${esc(nm(m))} · ${esc(vl(m.village))} (${tr('Due','బాకీ')} ${inr(Math.max(0, s.due))})</option>`;
+        }).join('')}
+      </select>
+      ${selM?`<div style="margin-top:6px;font-size:12.5px;color:var(--m)">${tr('Village:','ఊరు:')} <b>${esc(vl(selM.village))}</b> · ${tr('Current Due:','ప్రస్తుత బాకీ:')} <b style="color:${st(selM).due>0?'var(--amber)':'var(--ok)'}">${inr(Math.max(0, st(selM).due))}</b> · ${tr('Phone:','ఫోన్:')} ${ph(selM.phone)}</div>`:''}
+    </div>
+
+    <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('2. Amount Given (₹)','2. ఇచ్చిన నగదు (₹)')}</label>
+        <input id="fnl_amt" type="number" inputmode="numeric" placeholder="${tr('e.g. 10000','ఉదా. 10000')}" value="${esc(fnlAmt)}" oninput="fnlAmt=this.value;if(!fnlRepay&&num(this.value)>0){fnlRepay=Math.round(num(this.value)*1.1);const e=$('#fnl_repay');if(e)e.value=fnlRepay;}" style="font-size:16px;font-weight:700" required>
+      </div>
+      <div>
+        <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('3. Amount to Repay (₹)','3. తిరిగి చెల్లించాల్సిన మొత్తం (₹)')}</label>
+        <input id="fnl_repay" type="number" inputmode="numeric" placeholder="${tr('e.g. 11000','ఉదా. 11000')}" value="${esc(fnlRepay)}" oninput="fnlRepay=this.value" style="font-size:16px;font-weight:700" required>
+      </div>
+    </div>
+
+    <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('4. Date of Loan','4. అప్పు ఇచ్చిన తేదీ')}</label>
+        <input id="fnl_d" type="date" value="${curDate}" max="${today()}" onchange="fnlD=this.value">
+      </div>
+      <div>
+        <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('5. Time of Loan','5. అప్పు ఇచ్చిన సమయం')}</label>
+        <input id="fnl_t" type="time" value="${curTime}" onchange="fnlT=this.value">
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="m" style="font-weight:600;display:block;margin-bottom:4px">${tr('Installment ₹ (optional)','వాయిదా ₹ (ఐచ్ఛికం)')}</label>
+      <input id="fnl_inst" type="number" inputmode="numeric" placeholder="${tr('e.g. 1000 per week','వారానికి 1000')}" value="${esc(fnlInst||(selM&&selM.inst)||'')}" oninput="fnlInst=this.value">
+    </div>
+
+    <div class="card" style="background:var(--s);border-left:4px solid var(--p);padding:10px 14px;margin-bottom:16px">
+      <div style="font-size:12.5px;font-weight:700;color:var(--t);margin-bottom:2px">${tr('Security Intimation:','భద్రతా సమాచారం:')}</div>
+      <div class="m" style="font-size:12px">${tr('Submitting will immediately record the loan and trigger an instant chime & alert to the Admin dashboard.','ఈ వివరాలు నమోదు చేయగానే లెడ్జర్‌లో భద్రపరచబడి, అడ్మిన్ డ్యాష్‌బోర్డ్‌కు తక్షణమే అలర్ట్ అందుతుంది.')}</div>
+    </div>
+
+    <div class="acts">
+      <button class="p" style="flex:1;padding:12px;font-size:15px;font-weight:700" onclick="submitFatherNewLoan()">${tr('Record Loan & Intimate Admin ✓','అప్పు నమోదు చేయి & అడ్మిన్‌కి సమాచారం పంపు ✓')}</button>
+      <button onclick="go('fa');">${tr('Cancel','వద్దు')}</button>
+    </div>
+  </div>`;
+}
+
+function fatherNewLoanModal(){
+  if(!fnlDlg) return '';
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:45;padding:16px;overflow:auto" onclick="if(event.target===this)closeFatherNewLoanDlg()">
+    <div style="max-width:540px;width:100%;margin:auto">
+      ${fatherNewLoanTab()}
+    </div>
+  </div>`;
+}
+
+async function submitFatherNewLoan(){
+  const mid = ($('#fnl_mid')?$('#fnl_mid').value:fnlMid);
+  const amt = num($('#fnl_amt')?$('#fnl_amt').value:fnlAmt);
+  const repay = num($('#fnl_repay')?$('#fnl_repay').value:fnlRepay);
+  const d = ($('#fnl_d')&&$('#fnl_d').value)||fnlD||today();
+  const timeStr = ($('#fnl_t')&&$('#fnl_t').value)||fnlT||'';
+  const m = M.find(x => x.id == mid);
+
+  if(!m) return toast(tr('Please select an existing borrower first','ముందు రుణగ్రహీతను ఎంచుకోండి'));
+  if(!(amt > 0)) return toast(tr('Enter valid loan amount given','ఇచ్చిన అప్పు మొత్తం నమోదు చేయండి'));
+  if(!(repay >= amt)) return toast(tr('Repay amount must be at least loan amount','తిరిగి చెల్లించాల్సిన మొత్తం అప్పు కంటే తక్కువ ఉండకూడదు'));
+
+  let ts = Date.now();
+  if(timeStr && DRE.test(d)){
+    const dt = new Date(d + 'T' + timeStr + ':00+05:30').getTime();
+    if(!isNaN(dt)) ts = dt;
+  }
+
+  const byWho = (role == 'a' && owner) ? 'Admin' : 'Father';
+  const inst = num($('#fnl_inst')?$('#fnl_inst').value:fnlInst) || m.inst || 0;
+
+  busy = true; draw();
+  try{
+    await db.collection('txns').add({
+      mid: m.id,
+      type: 'loan',
+      amt,
+      repay,
+      inst,
+      mode: 'cash',
+      d,
+      ts,
+      sent: false,
+      by: byWho
+    });
+    if(inst > 0){
+      try{ await db.doc('members/' + m.id).update({ inst }); }catch(_){}
+    }
+
+    const noteText = tr(
+      `New loan issued by ${byWho}: ${inr(amt)} (Repay: ${inr(repay)}) to ${nm(m)} (${vl(m.village)}) on ${fd(d)} at ${timeStr||ft(ts)}`,
+      `${byWho} కొత్త అప్పు ఇచ్చారు: ${inr(amt)} (తిరిగి: ${inr(repay)}) - ${nm(m)} (${vl(m.village)}) కి ${fd(d)}, ${timeStr||ft(ts)} వద్ద`
+    );
+
+    await db.collection('notifs').add({
+      type: 'loan',
+      text: noteText,
+      village: m.village || '',
+      mid: m.id,
+      mname: nm(m),
+      by: byWho,
+      to: 'admin',
+      amt,
+      repay,
+      ts: Date.now(),
+      read: false
+    });
+
+    fnlDlg = false;
+    fnlAmt = ''; fnlRepay = ''; fnlInst = ''; fnlMid = '';
+    toast(tr('New loan recorded & Admin intimated immediately ✓','కొత్త అప్పు నమోదయింది & అడ్మిన్‌కి సమాచారం పంపబడింది ✓'));
+    go('fa');
+  }catch(e){
+    toast('Error: ' + (e&&e.message||e));
+  }finally{
+    busy = false; draw();
+  }
+}
+
 function villages(){
   return `<div class="card">
     <h2>${tr('Add Village','కొత్త ఊరు చేర్చు')}</h2>
@@ -1496,7 +1724,9 @@ function heroKpis(preRemList, prePndRc){
   const wd = now.getDay();
   const todayVillages = V.filter(v => v.day == wd);
   const schedM = M.filter(m => !m.archived && todayVillages.some(v => v.name == m.village));
-  const todayPaidCount = schedM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
+  const schedPaidCount = schedM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
+  const allPaidToday = activeM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
+  const hasScheduleToday = schedM.length > 0;
 
   const recents = T.slice(0, 3).map(t => {
     const m = M.find(x => x.id == t.mid);
@@ -1546,7 +1776,7 @@ function heroKpis(preRemList, prePndRc){
         ${activeM.slice(0, 5).map(m => `<div class="avatar" title="${esc(nm(m))}">${(nm(m)||'').charAt(0).toUpperCase()}</div>`).join('')}
       </div>
       <div class="v18-stat-sub">
-        <span>${V.length} ${tr('villages scheduled','ఊర్లలో')}</span>
+        <span>${hasScheduleToday ? `${todayVillages.length} ${tr('villages scheduled today','ఊర్లు ఈ రోజు షెడ్యూల్డ్')}` : `${tr('No village today','ఈ రోజు ఏ ఊరూ లేదు')} · ${V.length} ${tr('total','మొత్తం')}`}</span>
         <span style="margin-left:auto;color:var(--a);font-weight:700">→</span>
       </div>
     </div>
@@ -1586,12 +1816,21 @@ function heroKpis(preRemList, prePndRc){
     <div class="glass-card">
       <div class="v18-card-head">
         <span class="v18-card-title">${tr('Statistics','గణాంకాలు')}</span>
-        <span class="chip">${tr('Today','ఈ రోజు')}</span>
+        <span class="chip">${hasScheduleToday?tr('Scheduled Today','షెడ్యూల్డ్'):tr('Today','ఈ రోజు')}</span>
       </div>
       <div class="v18-dual-stat">
-        <div class="v18-dual-num">${todayPaidCount}</div>
-        <div class="v18-dual-num sec">/ ${schedM.length||activeM.length}</div>
-        <span class="m" style="font-size:13px">${tr('members paid','సభ్యులు చెల్లించారు')}</span>
+        ${hasScheduleToday ? `
+          <div class="v18-dual-num">${schedPaidCount}</div>
+          <div class="v18-dual-num sec">/ ${schedM.length}</div>
+          <span class="m" style="font-size:13px">${tr('scheduled members paid','షెడ్యూల్డ్ సభ్యులు చెల్లించారు')}${allPaidToday>schedPaidCount?` (${allPaidToday} ${tr('total','మొత్తం')})`:''}</span>
+        ` : (allPaidToday > 0 ? `
+          <div class="v18-dual-num ok">${allPaidToday}</div>
+          <div class="v18-dual-num sec" style="font-size:18px;margin-left:4px">(${inr(todayTot)})</div>
+          <span class="m" style="font-size:13px">${tr('collected today (no schedule)','ఈ రోజు వసూలైనవి (షెడ్యూల్ లేదు)')}</span>
+        ` : `
+          <div class="v18-dual-num" style="color:var(--m)">0</div>
+          <span class="m" style="font-size:13px;margin-top:4px">${tr('No payments expected today','ఈ రోజు వసూళ్ల షెడ్యూల్ లేదు')}</span>
+        `)}
       </div>
       <div class="v18-sub-boxes">
         <div class="v18-sub-box">
@@ -1632,6 +1871,7 @@ function heroKpis(preRemList, prePndRc){
 
   <div class="v18-quick-bar">
     <button class="quick-btn" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
+    <button class="quick-btn p" onclick="openFatherNewLoanDlg()">${tr('+ New Loan','+ కొత్త అప్పు')}</button>
     <button class="quick-btn" onclick="openManualRem()">${tr('Send Reminder','రిమైండర్ పంపు')}</button>
     ${adm?`<button class="quick-btn" onclick="openAddMemberDlg()">${tr('New Member','కొత్త సభ్యుడు')}</button>`:''}
     ${adm?`<button class="quick-btn" onclick="openFatherNoteDlg()">${tr('Send Note to Collector','కలెక్టర్‌కి నోట్')}</button>`:''}
@@ -1654,6 +1894,7 @@ const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getR
 const tabs=adm?[
   ['rc',tr('Receipts','రసీదులు'),pndRc],
   ['fa',tr('Collect','వసూలు'),null],
+  ['nl',tr('New Loan','కొత్త అప్పు'),null],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['lg',tr('Ledger','ఖాతాలు'),null],
   ['mb',tr('Members','సభ్యులు'),null],
@@ -1662,13 +1903,14 @@ const tabs=adm?[
   ['ar',tr('Archived','ఆర్కైవ్'),null]
 ]:[
   ['fa',tr('Collect','వసూలు'),null],
+  ['nl',tr('New Loan','కొత్త అప్పు'),null],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['lg',tr('Ledger','ఖాతాలు'),null],
   ['rp',tr('Reports','నివేదికలు'),null]
 ];
 if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
 const showHero=['rc','fa','rp'].includes(tab);
-const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
+const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,nl:fatherNewLoanTab,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
 
 app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
@@ -1727,14 +1969,15 @@ ${dlgHtml()}
 ${notifPanel()}
 ${fatherNoteModal()}
 ${manualRemModal()}
-${scannerModal()}`;
+${scannerModal()}
+${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
 role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
-sub('notifs',a=>onNotifsUpdate(a),cNT);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
+sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=25').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=26').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
