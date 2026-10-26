@@ -321,9 +321,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=27"></script>
+<script src="/runtime.js?v=28"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='';
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='';
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -334,6 +334,7 @@ async function getScannerBlob(){
   return await resp.blob();
 }
 const V18_ICONS = {
+  ac: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
   rc: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg>',
   fa: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
   rm: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
@@ -394,7 +395,7 @@ const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.t
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
 return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
-function go(t){tab=t;sel=null;rv='';draw()}
+function go(t){if(role==='f'&&t==='rc')t='ac';tab=t;sel=null;rv='';draw()}
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
 let cloudStatusText = '';
 async function readCloudStatus(){
@@ -450,7 +451,7 @@ who=()=>str((me&&(me.name||me.id))||(role=='a'?'Durga Sravan':'Gangaya'),40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
-cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true})).sort((x,y)=>y.ts-x.ts);
+cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',requested_by:str(d.requested_by||d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true,amt:num(d.amt),repay:num(d.repay),inst:num(d.inst),status:str(d.status,20)||'pending',d:str(d.d,20),time:str(d.time,20),approved_by:str(d.approved_by,40),approved_at:num(d.approved_at)})).sort((x,y)=>y.ts-x.ts);
 function initAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume()}catch(_){}}
 function playChime(){try{initAudio();if(!audioCtx)return;const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.type='sine';osc.frequency.setValueAtTime(587.33,audioCtx.currentTime);osc.frequency.setValueAtTime(880,audioCtx.currentTime+0.1);gain.gain.setValueAtTime(0.2,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.5);osc.connect(gain);gain.connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+0.5)}catch(_){}}
 function notifyBrowser(t,b){try{if('Notification' in window&&Notification.permission==='granted')new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}}
@@ -471,12 +472,14 @@ function onTxnsUpdate(newT){
   knownTxnIds=new Set(newT.map(x=>x.id));T=newT;
 }
 function onNotifsUpdate(newNT){
+  const reqsFromNT = newNT.filter(n => n.type === 'loan_req' || n.type === 'loan_request');
+  LR = [...reqsFromNT, ...LR.filter(x => !reqsFromNT.some(n => n.id === x.id))];
   if(bootComplete){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)&&n.ts>sessionStartTs){
         const isFromAdmin=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector';
-        if(role=='a'&&(!isFromAdmin||n.to==='admin'||n.type==='loan')){
-          const txt=n.type==='loan'?n.text:(`Message from Gangaya: ${n.text}`+(n.village?` (${vl(n.village)})`:''));
+        if(role=='a'&&(!isFromAdmin||n.to==='admin'||n.type==='loan'||n.type==='loan_req')){
+          const txt=n.type==='loan_req'?`Loan Approval Request: ${inr(n.amt)} for ${n.mname} from Gangaya`:n.text;
           toast(txt);playChime();notifyBrowser('Gangaya Finance - Alert',txt);
         }else if(role=='f'&&isFromAdmin){
           const txt=`Instructions from Durga Sravan: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
@@ -724,6 +727,121 @@ return `<div class="card"><h2>${tr('Records – one by one','రికార్�
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">Download Excel</button>':''}</div>
 <div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
+
+function activityTab(){
+  const td = today(), w = addD(td, -6), mStart = td.slice(0, 8) + '01';
+  const q = actQuery.trim().toLowerCase();
+  const isAdm = (owner && role === 'a');
+
+  const filtered = T.filter(t => {
+    const m = M.find(x => x.id == t.mid);
+    if (!m) return false;
+    if (actVillage && m.village !== actVillage) return false;
+    if (q) {
+      const matchText = (nm(m) + ' ' + (m.te||'') + ' ' + (m.phone||'') + ' ' + (m.village||'')).toLowerCase();
+      if (!matchText.includes(q)) return false;
+    }
+    if (actFilter === 'today' && t.d !== td) return false;
+    if (actFilter === '7' && t.d < w) return false;
+    if (actFilter === 'month' && t.d < mStart) return false;
+    if (actFilter === 'pays' && t.type !== 'pay') return false;
+    if (actFilter === 'loans' && t.type !== 'loan') return false;
+    return true;
+  }).sort((a,b) => (b.ts || 0) - (a.ts || 0));
+
+  const payTxns = filtered.filter(t => t.type === 'pay');
+  const loanTxns = filtered.filter(t => t.type === 'loan');
+  const totCollected = payTxns.reduce((a, t) => a + t.amt, 0);
+  const upiCollected = payTxns.filter(t => t.mode === 'upi').reduce((a, t) => a + t.amt, 0);
+  const cashCollected = totCollected - upiCollected;
+  const totLoansGiven = loanTxns.reduce((a, t) => a + t.amt, 0);
+
+  return `
+    ${pendingLoansHtml()}
+    <div class="card" style="margin-bottom:14px">
+      <div class="row" style="margin-bottom:8px">
+        <div>
+          <h2 style="margin:0">${tr('Recent Activity & Records', 'ఇటీవలి లావాదేవీలు & రికార్డులు')}</h2>
+          <div class="m" style="font-size:12.5px">${tr('Live timeline of collections, payments, and loans.', 'వసూళ్లు, చెల్లింపులు మరియు అప్పుల ప్రత్యక్ష రికార్డులు.')}</div>
+        </div>
+        ${isAdm ? `<button class="p sm" onclick="dl()">${tr('Download Excel', 'ఎక్సెల్ డౌన్‌లోడ్')}</button>` : ''}
+      </div>
+
+      <div class="g" style="margin-top:10px">
+        <input id="act_q" value="${esc(actQuery)}" placeholder="${tr('Search borrower name / phone...','పేరు లేదా ఫోన్ నంబర్ శోధించండి...')}" oninput="actQuery=this.value;draw()">
+        <select onchange="actVillage=this.value;draw()">
+          <option value="">${tr('All Villages','అన్ని ఊర్లు')}</option>
+          ${V.map(v => `<option value="${esc(v.name)}" ${v.name===actVillage?'selected':''}>${esc(nm(v))}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="chips" style="margin-top:10px">
+        <button class="${actFilter==='all'?'p':''}" onclick="actFilter='all';draw()">${tr('All','అన్నీ')} (${T.length})</button>
+        <button class="${actFilter==='today'?'p':''}" onclick="actFilter='today';draw()">${tr('Today','ఈ రోజు')} (${T.filter(t=>t.d===td).length})</button>
+        <button class="${actFilter==='7'?'p':''}" onclick="actFilter='7';draw()">${tr('Last 7 Days','గత 7 రోజులు')}</button>
+        <button class="${actFilter==='month'?'p':''}" onclick="actFilter='month';draw()">${tr('This Month','ఈ నెల')}</button>
+        <button class="${actFilter==='pays'?'p':''}" onclick="actFilter='pays';draw()">${tr('Payments','చెల్లింపులు')} (${payTxns.length})</button>
+        <button class="${actFilter==='loans'?'p':''}" onclick="actFilter='loans';draw()">${tr('Loans','అప్పులు')} (${loanTxns.length})</button>
+      </div>
+
+      <div class="v18-sub-boxes" style="margin-top:12px">
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val ok">${inr(totCollected)}</div>
+          <div class="v18-sub-box-lbl">${tr('Collected','వసూలు')} (${payTxns.length})</div>
+        </div>
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val" style="color:var(--p)">${inr(upiCollected)}</div>
+          <div class="v18-sub-box-lbl">UPI</div>
+        </div>
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val" style="color:var(--t)">${inr(cashCollected)}</div>
+          <div class="v18-sub-box-lbl">${tr('Cash','నగదు')}</div>
+        </div>
+        <div class="v18-sub-box">
+          <div class="v18-sub-box-val" style="color:var(--amber)">${inr(totLoansGiven)}</div>
+          <div class="v18-sub-box-lbl">${tr('Loans Given','అప్పులు')} (${loanTxns.length})</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:10px 14px">
+      ${filtered.slice(0, 150).map(t => {
+        const m = M.find(x => x.id == t.mid);
+        const s = st(m, t.ts, t.d);
+        const isPay = (t.type === 'pay');
+        return `
+          <div class="rec" style="padding:10px 0;border-bottom:1px solid var(--b)">
+            <div style="display:flex;gap:12px;align-items:center;min-width:0;flex:1">
+              <div style="width:38px;height:38px;border-radius:12px;background:${isPay?(t.mode==='upi'?'rgba(99,102,241,0.12)':'rgba(16,185,129,0.12)'):'rgba(245,158,11,0.15)'};color:${isPay?(t.mode==='upi'?'var(--p)':'var(--ok)'):'var(--amber)'};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">
+                ${isPay?(t.mode==='upi'?'UPI':'₹'):'+L'}
+              </div>
+              <div style="min-width:0">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <b style="font-size:14.5px">${esc(nm(m))}</b>
+                  <span class="chip" style="font-size:11px;padding:1px 6px">${esc(vl(m.village))}</span>
+                </div>
+                <div class="m" style="font-size:12px;margin-top:2px">
+                  ${fd(t.d)} · ${tm(t)} ${t.by?`· <span style="color:var(--t)">by ${esc(t.by)}</span>`:''}
+                </div>
+                <div class="m" style="font-size:11.5px;margin-top:2px">
+                  ${isPay ? `${tr('Bal after','మిగిలిన బాకీ')}: ${inr(Math.max(0, s.due))}` : `${tr('To Repay','తిరిగి చెల్లించేది')}: ${inr(t.repay)} · ${tr('Instalment','వాయిదా')}: ${inr(t.inst||m.inst||0)}`}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+              <b class="${isPay?'ok':''}" style="font-size:16px">${isPay?'+':''}${inr(t.amt)}</b>
+              <div class="acts">
+                <button class="sm" onclick="vr='${t.id}';draw()">${tr('Receipt','రసీదు')}</button>
+                <a class="wa sm" style="padding:3px 7px;font-size:11px" target="_blank" rel="noopener" href="${wa({m, text: msg(t)})}">WhatsApp</a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') || `<p class="m" style="text-align:center;padding:30px 0">${tr('No activity found for current filters.','ఎలాంటి రికార్డులు కనుగొనబడలేదు.')}</p>`}
+      ${filtered.length > 150 ? `<p class="m" style="text-align:center;margin-top:10px">${tr(`Showing latest 150 of ${filtered.length} records. Download Excel for full records.`, `తాజా 150 రికార్డులు చూపబడుతున్నాయి (మొత్తం ${filtered.length}).`)}</p>` : ''}
+    </div>
+  `;
+}
 
 function collect(){const td=today(),wd=new Date().getDay(),tv=V.filter(v=>v.day==wd),dn=d=>isTe()?DT[d]:DE[d],isAdm=owner&&role=='a';
 if(!vil&&tv.length)vil=tv[0].name;
@@ -1476,16 +1594,16 @@ function closeFatherNewLoanDlg(){
 
 function pendingLoansHtml(){
   const pending = LR.filter(x => x.status === 'pending');
+  if(!pending.length) return '';
   const isAdm = (owner && role === 'a');
-  if(!pending.length || !isAdm) return '';
   return `<div class="card" style="border-left:4px solid #f59e0b;background:var(--s);margin-bottom:14px;box-shadow:0 4px 18px rgba(0,0,0,0.12)">
     <div class="row" style="margin-bottom:8px">
       <div>
-        <b style="font-size:15px;color:var(--t)">${tr('Pending Loan Approvals from Gangaya','గంగయ్య గారి నుండి అప్పు ఆమోద అభ్యర్థనలు')}</b>
+        <b style="font-size:15px;color:var(--t)">${isAdm ? tr('Pending Loan Approvals from Gangaya','గంగయ్య గారి నుండి అప్పు ఆమోద అభ్యర్థనలు') : tr('Your Pending Loan Requests to Durga Sravan','దుర్గా శ్రావణ్ గారి ఆమోదం కొరకు పంపిన అభ్యర్థనలు')}</b>
         <span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700;margin-left:6px">${pending.length} ${tr('Pending Approval','వేచి ఉంది')}</span>
       </div>
     </div>
-    <p class="m" style="margin:0 0 10px;font-size:12.5px">${tr('Gangaya requested these loans on the field. They are NOT added to records yet. Tap Approve to sanction into active records, or Reject to decline.','గంగయ్య గారు ఫీల్డ్‌లో అప్పు అభ్యర్థన పంపారు. ఇంకా రికార్డుల్లో చేర్చలేదు. ఆమోదిస్తేనే ఖాతాల్లో చేరుతుంది.')}</p>
+    <p class="m" style="margin:0 0 10px;font-size:12.5px">${isAdm ? tr('Gangaya requested these loans on the field. They are NOT added to records yet. Tap Approve to sanction into active records, or Reject to decline.','గంగయ్య గారు ఫీల్డ్‌లో అప్పు అభ్యర్థన పంపారు. ఇంకా రికార్డుల్లో చేర్చలేదు. ఆమోదిస్తేనే ఖాతాల్లో చేరుతుంది.') : tr('These loans were sent to Durga Sravan for authorization. They will be added to records once approved.','ఈ అప్పులు దుర్గా శ్రావణ్ గారి ఆమోదం కొరకు పంపబడ్డాయి. ఆమోదం లభించిన తర్వాతే రికార్డుల్లో చేర్చబడతాయి.')}</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${pending.map(lr => `
         <div class="card" style="margin:0;padding:12px;background:var(--c);border:1px solid var(--b)">
@@ -1497,12 +1615,16 @@ function pendingLoansHtml(){
                 ${lr.inst?` · ${tr('Instalment:','వాయిదా:')} ${inr(lr.inst)}`:''}
               </div>
               <div class="m" style="font-size:12px;margin-top:2px">
-                ${tr('Requested by','కోరినవారు')} <b>${esc(lr.requested_by||'Gangaya')}</b> · ${fd(lr.d)}, ${lr.time||ft(lr.ts)}
+                ${tr('Requested by','కోరినవారు')} <b>${esc(lr.requested_by||lr.by||'Gangaya')}</b> · ${fd(lr.d||today())}, ${lr.time||ft(lr.ts)}
               </div>
             </div>
             <div class="acts" style="flex-shrink:0">
-              <button class="p sm" onclick="approveLoanReq('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700">✓ ${tr('Approve','ఆమోదించు')}</button>
-              <button class="d sm" onclick="rejectLoanReq('${lr.id}')" style="font-weight:700">✕ ${tr('Reject','తిరస్కరించు')}</button>
+              ${isAdm ? `
+                <button class="p sm" onclick="approveLoanReq('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700">✓ ${tr('Approve','ఆమోదించు')}</button>
+                <button class="d sm" onclick="rejectLoanReq('${lr.id}')" style="font-weight:700">✕ ${tr('Reject','తిరస్కరించు')}</button>
+              ` : `
+                <span class="chip" style="background:#fef3c7;color:#92400e;font-weight:700;font-size:12px">${tr('Pending Approval','ఆమోదం కోసం వేచి ఉంది')}</span>
+              `}
             </div>
           </div>
         </div>
@@ -1540,11 +1662,11 @@ function fatherNewLoanTab(){
     <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div>
         <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('2. Amount Given (₹)','2. ఇచ్చిన నగదు (₹)')}</label>
-        <input id="fnl_amt" type="number" inputmode="numeric" placeholder="${tr('e.g. 10000','ఉదా. 10000')}" value="${esc(fnlAmt)}" oninput="fnlAmt=this.value;if(!fnlRepay&&num(this.value)>0){fnlRepay=Math.round(num(this.value)*1.1);const e=$('#fnl_repay');if(e)e.value=fnlRepay;}" style="font-size:16px;font-weight:700" required>
+        <input id="fnl_amt" type="number" inputmode="numeric" placeholder="${tr('e.g. 10000','ఉదా. 10000')}" value="${esc(fnlAmt)}" oninput="this.value=this.value.replace(/^0+(?=\d)/,'');fnlAmt=this.value;if(!fnlRepay&&num(this.value)>0){fnlRepay=Math.round(num(this.value)*1.1);const e=$('#fnl_repay');if(e)e.value=fnlRepay;}" style="font-size:16px;font-weight:700" required>
       </div>
       <div>
         <label class="m" style="font-weight:700;display:block;margin-bottom:4px">${tr('3. Amount to Repay (₹)','3. తిరిగి చెల్లించాల్సిన మొత్తం (₹)')}</label>
-        <input id="fnl_repay" type="number" inputmode="numeric" placeholder="${tr('e.g. 11000','ఉదా. 11000')}" value="${esc(fnlRepay)}" oninput="fnlRepay=this.value" style="font-size:16px;font-weight:700" required>
+        <input id="fnl_repay" type="number" inputmode="numeric" placeholder="${tr('e.g. 11000','ఉదా. 11000')}" value="${esc(fnlRepay)}" oninput="this.value=this.value.replace(/^0+(?=\d)/,'');fnlRepay=this.value" style="font-size:16px;font-weight:700" required>
       </div>
     </div>
 
@@ -1561,7 +1683,7 @@ function fatherNewLoanTab(){
 
     <div style="margin-bottom:14px">
       <label class="m" style="font-weight:600;display:block;margin-bottom:4px">${tr('Installment ₹ (optional)','వాయిదా ₹ (ఐచ్ఛికం)')}</label>
-      <input id="fnl_inst" type="number" inputmode="numeric" placeholder="${tr('e.g. 1000 per week','వారానికి 1000')}" value="${esc(fnlInst||(selM&&selM.inst)||'')}" oninput="fnlInst=this.value">
+      <input id="fnl_inst" type="number" inputmode="numeric" placeholder="${tr('e.g. 1000 per week','వారానికి 1000')}" value="${esc(fnlInst||(selM&&selM.inst)||'')}" oninput="this.value=this.value.replace(/^0+(?=\d)/,'');fnlInst=this.value">
     </div>
 
     <div class="card" style="background:var(--s);border-left:4px solid ${isAdm?'var(--ok)':'var(--amber)'};padding:10px 14px;margin-bottom:16px">
@@ -1626,7 +1748,13 @@ async function submitFatherNewLoan(){
       }
       toast(tr('New loan sanctioned & added to records ✓','కొత్త అప్పు మంజూరు చేయబడింది ✓'));
     } else {
-      const reqDoc = await db.collection('loan_requests').add({
+      const noteText = tr(
+        `Loan Approval Request: Gangaya requested loan of ${inr(amt)} (Repay: ${inr(repay)}) for ${nm(m)} (${vl(m.village)}) at ${timeStr||ft(ts)}. Tap to Approve or Reject.`,
+        `అప్పు అనుమతి అభ్యర్థన: గంగయ్య గారు ${nm(m)} (${vl(m.village)}) కి ${inr(amt)} (తిరిగి: ${inr(repay)}) అప్పు ఇవ్వాలని కోరారు. ఆమోదించడానికి లేదా తిరస్కరించడానికి ఇక్కడ చూడండి.`
+      );
+
+      const reqDoc = await db.collection('notifs').add({
+        type: 'loan_req',
         mid: m.id,
         mname: nm(m),
         village: m.village || '',
@@ -1636,38 +1764,41 @@ async function submitFatherNewLoan(){
         mode: 'cash',
         d,
         time: timeStr || ft(ts),
-        ts,
-        status: 'pending',
-        requested_by: 'Gangaya',
-        created_at: Date.now()
-      });
-
-      const noteText = tr(
-        `Loan Approval Request: Gangaya requested loan of ${inr(amt)} (Repay: ${inr(repay)}) for ${nm(m)} (${vl(m.village)}) at ${timeStr||ft(ts)}. Tap to Approve or Reject.`,
-        `అప్పు అనుమతి అభ్యర్థన: గంగయ్య గారు ${nm(m)} (${vl(m.village)}) కి ${inr(amt)} (తిరిగి: ${inr(repay)}) అప్పు ఇవ్వాలని కోరారు. ఆమోదించడానికి లేదా తిరస్కరించడానికి ఇక్కడ చూడండి.`
-      );
-
-      await db.collection('notifs').add({
-        type: 'loan',
-        req_id: reqDoc.id,
-        text: noteText,
-        village: m.village || '',
-        mid: m.id,
-        mname: nm(m),
-        by: 'Gangaya',
-        to: 'admin',
-        amt,
-        repay,
         ts: Date.now(),
+        status: 'pending',
+        by: 'Gangaya',
+        requested_by: 'Gangaya',
+        to: 'admin',
+        text: noteText,
+        created_at: Date.now(),
         read: false
       });
+
+      try{
+        await db.collection('loan_requests').add({
+          id: reqDoc.id,
+          mid: m.id,
+          mname: nm(m),
+          village: m.village || '',
+          amt,
+          repay,
+          inst,
+          mode: 'cash',
+          d,
+          time: timeStr || ft(ts),
+          ts: Date.now(),
+          status: 'pending',
+          requested_by: 'Gangaya',
+          created_at: Date.now()
+        });
+      }catch(_){}
 
       toast(tr('Loan request sent to Durga Sravan for approval. Will be added to records once approved ✓','అప్పు అనుమతి అభ్యర్థన దుర్గా శ్రావణ్ గారికి పంపబడింది. ఆమోదించిన తర్వాతే రికార్డుల్లో చేరుతుంది ✓'));
     }
 
     fnlDlg = false;
     fnlAmt = ''; fnlRepay = ''; fnlInst = ''; fnlMid = '';
-    go('fa');
+    go('nl');
   }catch(e){
     toast('Error: ' + (e&&e.message||e));
   }finally{
@@ -1677,7 +1808,7 @@ async function submitFatherNewLoan(){
 
 async function approveLoanReq(id){
   if(!owner) return;
-  const lr = LR.find(x => x.id == id);
+  const lr = NT.find(x => x.id == id && (x.type === 'loan_req' || x.type === 'loan')) || LR.find(x => x.id == id);
   if(!lr) return;
   ask(
     tr(`Approve loan of ${inr(lr.amt)} (Repay: ${inr(lr.repay)}) for ${lr.mname}? It will be officially added to active records now.`,
@@ -1693,7 +1824,7 @@ async function approveLoanReq(id){
           repay: lr.repay,
           inst: lr.inst || 0,
           mode: 'cash',
-          d: lr.d,
+          d: lr.d || today(),
           ts: lr.ts || Date.now(),
           sent: true,
           by: 'Gangaya (Approved by Durga Sravan)'
@@ -1702,11 +1833,22 @@ async function approveLoanReq(id){
           try{ await db.doc('members/' + lr.mid).update({ inst: lr.inst }); }catch(_){}
         }
 
-        await db.doc('loan_requests/' + id).update({
-          status: 'approved',
-          approved_at: Date.now(),
-          approved_by: 'Durga Sravan'
-        });
+        try{
+          await db.doc('notifs/' + id).update({
+            status: 'approved',
+            approved_at: Date.now(),
+            approved_by: 'Durga Sravan',
+            read: true
+          });
+        }catch(_){}
+
+        try{
+          await db.doc('loan_requests/' + id).update({
+            status: 'approved',
+            approved_at: Date.now(),
+            approved_by: 'Durga Sravan'
+          });
+        }catch(_){}
 
         await db.collection('notifs').add({
           type: 'note',
@@ -1732,7 +1874,7 @@ async function approveLoanReq(id){
 
 async function rejectLoanReq(id){
   if(!owner) return;
-  const lr = LR.find(x => x.id == id);
+  const lr = NT.find(x => x.id == id && (x.type === 'loan_req' || x.type === 'loan')) || LR.find(x => x.id == id);
   if(!lr) return;
   ask(
     tr(`Reject loan request of ${inr(lr.amt)} for ${lr.mname}? It will NOT be added to records.`,
@@ -1741,11 +1883,22 @@ async function rejectLoanReq(id){
     async () => {
       busy = true; draw();
       try{
-        await db.doc('loan_requests/' + id).update({
-          status: 'rejected',
-          rejected_at: Date.now(),
-          rejected_by: 'Durga Sravan'
-        });
+        try{
+          await db.doc('notifs/' + id).update({
+            status: 'rejected',
+            rejected_at: Date.now(),
+            rejected_by: 'Durga Sravan',
+            read: true
+          });
+        }catch(_){}
+
+        try{
+          await db.doc('loan_requests/' + id).update({
+            status: 'rejected',
+            rejected_at: Date.now(),
+            rejected_by: 'Durga Sravan'
+          });
+        }catch(_){}
 
         await db.collection('notifs').add({
           type: 'note',
@@ -2000,7 +2153,7 @@ function heroKpis(preRemList, prePndRc){
     <div class="glass-card">
       <div class="v18-card-head">
         <span class="v18-card-title">${tr('Recent Activity','ఇటీవలి లావాదేవీలు')}</span>
-        <button class="sm" onclick="go('rc')">${tr('View All','అన్నీ')}</button>
+        <button class="sm" onclick="go('ac')">${tr('View All','అన్నీ')}</button>
       </div>
       <div>
         ${recents.length?recents.map(({t,m})=>`
@@ -2045,25 +2198,27 @@ function _drawInner(){
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
-  ['rc',tr('Receipts','రసీదులు'),pndRc],
   ['fa',tr('Collect','వసూలు'),null],
+  ['ac',tr('Activity','కార్యకలాపాలు'),null],
   ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['lg',tr('Ledger','ఖాతాలు'),null],
+  ['rc',tr('Receipts','రసీదులు'),pndRc],
   ['mb',tr('Members','సభ్యులు'),null],
   ['vl',tr('Villages','ఊర్లు'),null],
   ['rp',tr('Reports','నివేదికలు'),null],
   ['ar',tr('Archived','ఆర్కైవ్'),null]
 ]:[
   ['fa',tr('Collect','వసూలు'),null],
-  ['nl',tr('New Loan','కొత్త అప్పు'),null],
+  ['ac',tr('Activity','కార్యకలాపాలు'),null],
+  ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['lg',tr('Ledger','ఖాతాలు'),null],
   ['rp',tr('Reports','నివేదికలు'),null]
 ];
 if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
-const showHero=['rc','fa','rp'].includes(tab);
-const body={rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,nl:fatherNewLoanTab,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
+const showHero=['fa','rp'].includes(tab);
+const body={ac:activityTab,rc:receipts,mb:members,vl:villages,rp:stats,fa:collect,nl:fatherNewLoanTab,lg:ledgerTab,ar:archivedTab,rm:remindersTab}[tab]();
 
 app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
@@ -2130,7 +2285,7 @@ for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;br
 role=owner?'a':'f';
 if(db){const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
 sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
-sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{LR=a;draw()},cLR);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
+sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=27').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=28').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
