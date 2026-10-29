@@ -114,18 +114,22 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 .v18-dock { position: fixed; left: 24px; top: 24px; bottom: 24px; width: 68px; border-radius: 9999px; background: var(--dock-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
 .v18-dock-brand { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); flex-shrink: 0; letter-spacing: -0.5px; cursor: pointer; }
 .v18-dock-nav { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
-.v18-dock-btn { width: 44px; height: 44px; border-radius: 9999px; border: 0; background: transparent; color: var(--dock-btn); display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all .2s ease; }
+.v18-dock-btn { width: 44px; height: 44px; border-radius: 9999px; border: 0; background: transparent; color: var(--dock-btn); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all .2s ease; gap: 2px; }
 .v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
 .v18-dock-btn.active { background: var(--dock-active); color: #0f172a; box-shadow: 0 4px 16px rgba(255,255,255,0.35); }
+.v18-dock-lbl { display: none; font-size: 9.5px; font-weight: 600; line-height: 1; }
 .v18-dock-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--r); box-shadow: 0 0 0 2px var(--dock-bg); }
 .v18-dock-footer { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
 
-/* Mobile Floating Dock Adjustment */
+/* Mobile Floating Dock Adjustment & Single-Line Navigation */
 @media (max-width: 959px) {
-  .v18-dock { left: 50%; transform: translateX(-50%); top: auto; bottom: 12px; width: calc(100% - 24px); max-width: 520px; height: 60px; flex-direction: row; padding: 0 12px; justify-content: space-around; }
+  .v18-dock { left: 50%; transform: translateX(-50%); top: auto; bottom: 10px; width: calc(100% - 16px); max-width: 520px; height: 62px; flex-direction: row; padding: 0 6px; justify-content: space-around; }
   .v18-dock-brand, .v18-dock-footer { display: none; }
-  .v18-dock-nav { flex-direction: row; justify-content: space-around; width: 100%; gap: 4px; }
-  main { padding: 12px 14px 84px; }
+  .v18-dock-nav { flex-direction: row; justify-content: space-around; width: 100%; gap: 2px; }
+  .v18-dock-btn { width: auto; min-width: 48px; height: 50px; border-radius: 12px; padding: 4px 5px; }
+  .v18-dock-lbl { display: block; }
+  .tabs { display: none !important; }
+  main { padding: 10px 12px 86px; }
 }
 @media (min-width: 960px) {
   main { margin-left: 104px; }
@@ -349,16 +353,19 @@ const V18_ICONS = {
 };
 function setScheduleDay(d){ const tv = V.filter(v => v.day == d); if(tv.length){ vil = tv[0].name; sel = null; rv = ''; } go('fa'); }
 function openAddMemberDlg(){
-  go('mb');
+  tab = 'mb';
+  mbSub = 'members';
   sel = null;
+  rv = '';
   exb = false;
+  draw();
   setTimeout(() => {
     const el = document.getElementById('n');
     if (el) {
       el.focus();
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, 120);
+  }, 80);
 }
 try{const saved=localStorage.getItem('gangaya_lang')||localStorage.getItem('gf-lang');if(saved=='en'||saved=='te')lang=saved}catch(e){}
 try{const savedRmLang=localStorage.getItem('gangaya_rmlang')||localStorage.getItem('gf-rmlang');if(savedRmLang=='en'||savedRmLang=='te')rmLang=savedRmLang}catch(e){}
@@ -401,10 +408,10 @@ let mbSub='members', acSub='timeline', colQuery='';
 function go(t, sub){
   if(t==='vl'){ tab='mb'; mbSub='villages'; }
   else if(t==='ar'){ tab='mb'; mbSub='archived'; }
-  else if(t==='mb'){ tab='mb'; if(sub) mbSub=sub; }
+  else if(t==='mb'){ tab='mb'; mbSub=sub||'members'; }
   else if(t==='rp'){ tab='ac'; acSub='stats'; }
   else if(t==='rc'){ tab='ac'; acSub='receipts'; }
-  else if(t==='ac'){ tab='ac'; if(sub) acSub=sub; }
+  else if(t==='ac'){ tab='ac'; acSub=sub||'timeline'; }
   else { tab=t; }
   sel=null; rv=''; draw();
 }
@@ -467,6 +474,7 @@ cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.typ
 function initAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{})}catch(_){}}
 function playChime(){
   try{
+    if('vibrate' in navigator) try{ navigator.vibrate([200, 100, 200]); }catch(_){}
     initAudio();
     if(!audioCtx)return;
     const play=()=>{
@@ -477,11 +485,11 @@ function playChime(){
         osc.frequency.setValueAtTime(587.33,now);
         osc.frequency.setValueAtTime(880,now+0.1);
         gain.gain.setValueAtTime(0.3,now);
-        gain.gain.exponentialRampToValueAtTime(0.001,now+0.5);
+        gain.gain.exponentialRampToValueAtTime(0.001,now+0.45);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start(now);
-        osc.stop(now+0.5);
+        osc.stop(now+0.45);
       }catch(_){}
     };
     if(audioCtx.state==='suspended'){
@@ -493,21 +501,25 @@ function playChime(){
 }
 function notifyBrowser(t,b){
   try{
-    if(!('Notification' in window))return;
-    if(Notification.permission!=='granted')return;
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
     if('serviceWorker' in navigator&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'notify',title:t,body:b});
+    }
+    if('serviceWorker' in navigator&&navigator.serviceWorker.ready){
       navigator.serviceWorker.ready.then(reg=>{
-        reg.showNotification(t,{
-          body:b,
-          icon:'/favicon.svg',
-          badge:'/favicon.svg',
-          vibrate:[200,100,200]
-        }).catch(()=>{
+        if(reg&&reg.showNotification){
+          reg.showNotification(t,{
+            body:b,
+            icon:'/favicon.svg',
+            badge:'/favicon.svg',
+            vibrate:[250,120,250],
+            tag:'gf-alert-'+Date.now(),
+            renotify:true
+          }).catch(()=>{try{new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}});
+        }else{
           try{new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}
-        });
-      }).catch(()=>{
-        try{new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}
-      });
+        }
+      }).catch(()=>{try{new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}});
     }else{
       try{new Notification(t,{body:b,icon:'/favicon.svg'})}catch(_){}
     }
@@ -619,13 +631,38 @@ function allNotifs(){
 }
 function unreadNotifCount(){
   const targetTo=(role==='a'?'admin':'collector');
-  const unreadNotes=NT.filter(n=>!n.read&&(n.to===targetTo||(role==='a'&&(n.type==='loan_req'||n.type==='loan'||n.status==='pending')))).length;
-  const pendingLoans=(role==='a')?LR.filter(x=>x.status==='pending').length:0;
-  const newTxns=T.filter(t=>t.d===today()&&t.ts>lastReadNotif).length;
+  const unreadNotes=NT.filter(n=>{
+    if(n.read) return false;
+    const m = n.mid ? M.find(x => x.id === n.mid) : null;
+    if(m && m.archived) return false;
+    return (n.to===targetTo||(role==='a'&&(n.type==='loan_req'||n.type==='loan'||n.status==='pending')));
+  }).length;
+  const pendingLoans=(role==='a')?LR.filter(x=>{
+    if(x.status !== 'pending') return false;
+    const m = x.mid ? M.find(y => y.id === x.mid) : null;
+    return !(m && m.archived);
+  }).length:0;
+  const newTxns=T.filter(t=>{
+    if(t.d !== today() || t.ts <= lastReadNotif) return false;
+    const m = M.find(x => x.id === t.mid);
+    return !(m && m.archived);
+  }).length;
   return unreadNotes+pendingLoans+newTxns;
 }
-function toggleNotifs(){notifOpen=!notifOpen;draw()}
-function closeNotifs(){notifOpen=false;draw()}
+function toggleNotifs(){
+  notifOpen=!notifOpen;
+  if(notifOpen){
+    lastReadNotif=Date.now();
+    try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}
+  }
+  draw();
+}
+function closeNotifs(){
+  notifOpen=false;
+  lastReadNotif=Date.now();
+  try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}
+  draw();
+}
 async function markAllNotifsRead(){
   lastReadNotif=Date.now();
   try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}
@@ -2300,7 +2337,7 @@ function heroKpis(preRemList, prePndRc){
 
   const wd = now.getDay();
   const todayVillages = V.filter(v => v.day == wd);
-  const schedM = M.filter(m => !m.archived && todayVillages.some(v => v.name == m.village));
+  const schedM = M.filter(m => !m.archived && todayVillages.some(v => v.name == m.village) && (st(m).due > 0 || T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')));
   const schedPaidCount = schedM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
   const allPaidToday = activeM.filter(m => T.some(t => t.mid == m.id && t.d == today() && t.type == 'pay')).length;
   const hasScheduleToday = schedM.length > 0;
@@ -2503,6 +2540,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
     ${tabs.map(([k, label, cnt]) => `
       <button class="v18-dock-btn ${k==tab?'active':''}" onclick="go('${k}')" title="${esc(label)}">
         ${V18_ICONS[k]||''}
+        <span class="v18-dock-lbl">${esc(label)}</span>
         ${cnt!=null&&cnt>0?`<span class="v18-dock-badge"></span>`:''}
       </button>
     `).join('')}
@@ -2567,5 +2605,5 @@ if(db){
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
   sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=30').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=31').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

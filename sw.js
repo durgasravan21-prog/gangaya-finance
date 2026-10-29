@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v30 - parallel data loading, consolidated navigation & safe sync */
-const CACHE = 'gangaya-v30';
+/* Gangaya Finance Service Worker v31 - parallel data loading, consolidated navigation & safe sync */
+const CACHE = 'gangaya-v31';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -14,6 +14,19 @@ self.addEventListener('activate', e => {
     caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'notify') {
+    self.registration.showNotification(e.data.title || 'Gangaya Finance', {
+      body: e.data.body || '',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [250, 120, 250],
+      tag: 'gf-alert-' + Date.now(),
+      renotify: true
+    });
+  }
 });
 
 self.addEventListener('notificationclick', e => {
