@@ -98,6 +98,74 @@
     }, 250));
   }
 
+  let sharedChannel = null;
+  function initSharedRealtime() {
+    if (sharedChannel || !sb) return;
+    try {
+      sharedChannel = sb.channel('all-docs-realtime')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, p => {
+          const col = (p.new && p.new.collection) || (p.old && p.old.collection);
+          if (!col) return;
+          const s = stores.get(col);
+          if (!s) return;
+          if (p.eventType === 'DELETE') {
+            const delId = (p.old && p.old.id) || (p.new && p.new.id);
+            if (delId) {
+              s.map.delete(delId);
+              schedulePersist(col, s);
+              s.emit();
+            }
+          } else if (p.new && p.new.id && p.new.data) {
+            s.map.set(p.new.id, p.new.data);
+            schedulePersist(col, s);
+            s.emit();
+          }
+        })
+        .subscribe(st => {
+          if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+            setTimeout(() => { if (sharedChannel) sharedChannel.subscribe(); }, 5000);
+          }
+        });
+    } catch (_) {}
+  }
+
+  async function loadAllStores(cols, force) {
+    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests'];
+    initSharedRealtime();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { data, error } = await sb.from('docs')
+          .select('collection,id,data')
+          .in('collection', targetCols)
+          .order('created_at')
+          .limit(10000);
+        if (error) throw err(error);
+        const grouped = {};
+        for (const c of targetCols) grouped[c] = [];
+        for (const row of (data || [])) {
+          if (grouped[row.collection]) {
+            grouped[row.collection].push([row.id, row.data]);
+          }
+        }
+        for (const c of targetCols) {
+          const s = getStore(c);
+          s.map = new Map(grouped[c] || []);
+          s.loaded = true;
+          schedulePersist(c, s);
+          s.emit();
+        }
+        return true;
+      } catch (e) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        } else {
+          console.warn('loadAllStores fallback to parallel single queries:', e);
+          await Promise.all(targetCols.map(c => getStore(c).load(force).catch(() => {})));
+        }
+      }
+    }
+  }
+
   function getStore(c) {
     let s = stores.get(c);
     if (!s) {
@@ -142,31 +210,7 @@
       } catch (_) {}
 
       stores.set(c, s);
-
-      let t = 0;
-      const ch = sb.channel('docs-' + c + '-' + Math.random().toString(36).slice(2))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'docs', filter: 'collection=eq.' + c }, p => {
-          if (p.eventType === 'DELETE') {
-            const delId = (p.old && p.old.id) || (p.new && p.new.id);
-            if (delId) {
-              s.map.delete(delId);
-              schedulePersist(c, s);
-              s.emit();
-            }
-          } else if (p.new && p.new.id && p.new.data) {
-            s.map.set(p.new.id, p.new.data);
-            schedulePersist(c, s);
-            s.emit();
-          }
-        })
-        .subscribe(st => {
-          if (st === 'SUBSCRIBED') {
-            if (!s.loaded || s.map.size === 0) s.load().catch(() => {});
-          } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
-            clearTimeout(t);
-            t = setTimeout(() => s.load(true).catch(() => {}), 6000);
-          }
-        });
+      initSharedRealtime();
     }
     return s;
   }
@@ -176,12 +220,29 @@
     return {
       async add(d) {
         const id = crypto.randomUUID();
-        const { data, error } = await sb.from('docs').insert({ collection: c, id, data: d }).select('id,data').maybeSingle();
-        if (error) throw err(error);
-        s.map.set(id, (data && data.data) || d);
+        // Optimistic update: instantaneous UI feedback
+        s.map.set(id, d);
         schedulePersist(c, s);
         s.emit();
-        return { id };
+        try {
+          const { data, error } = await sb.from('docs').insert({ collection: c, id, data: d }).select('id,data').maybeSingle();
+          if (error) {
+            s.map.delete(id);
+            schedulePersist(c, s);
+            s.emit();
+            throw err(error);
+          }
+          if (data && data.data) {
+            s.map.set(id, data.data);
+            schedulePersist(c, s);
+          }
+          return { id };
+        } catch (e) {
+          s.map.delete(id);
+          schedulePersist(c, s);
+          s.emit();
+          throw e;
+        }
       },
       async addMany(items) {
         if (!items || !items.length) return [];
@@ -190,21 +251,36 @@
           id: crypto.randomUUID(),
           data: d
         }));
-        const chunkSize = 50;
-        const results = [];
-        for (let i = 0; i < rows.length; i += chunkSize) {
-          const chunk = rows.slice(i, i + chunkSize);
-          const { data, error } = await sb.from('docs').insert(chunk).select('id,data');
-          if (error) throw err(error);
-          const returned = data || chunk;
-          for (const r of returned) {
-            s.map.set(r.id, r.data || r);
-            results.push({ id: r.id });
-          }
+        // Optimistic batch update
+        for (const r of rows) {
+          s.map.set(r.id, r.data);
         }
         schedulePersist(c, s);
         s.emit();
-        return results;
+
+        const chunkSize = 50;
+        const results = [];
+        try {
+          for (let i = 0; i < rows.length; i += chunkSize) {
+            const chunk = rows.slice(i, i + chunkSize);
+            const { data, error } = await sb.from('docs').insert(chunk).select('id,data');
+            if (error) throw err(error);
+            const returned = data || chunk;
+            for (const r of returned) {
+              s.map.set(r.id, r.data || r);
+              results.push({ id: r.id });
+            }
+          }
+          schedulePersist(c, s);
+          return results;
+        } catch (e) {
+          for (const r of rows) {
+            s.map.delete(r.id);
+          }
+          schedulePersist(c, s);
+          s.emit();
+          throw e;
+        }
       },
       onSnapshot(next, fail) {
         s.subs.add(next);
@@ -226,31 +302,68 @@
     const s = getStore(c);
     return {
       async update(patch) {
-        const { data, error } = await sb.rpc('doc_update', { c, i: id, patch });
-        if (error) throw err(error);
-        if (!data) throw denied();
-        if (s.map.has(id)) {
-          s.map.set(id, { ...s.map.get(id), ...patch });
+        const prev = s.map.get(id);
+        if (prev) {
+          s.map.set(id, { ...prev, ...patch });
           schedulePersist(c, s);
           s.emit();
-        } else {
-          s.load().catch(() => {});
+        }
+        try {
+          const { data, error } = await sb.rpc('doc_update', { c, i: id, patch });
+          if (error) {
+            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+            throw err(error);
+          }
+          if (!data) {
+            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+            throw denied();
+          }
+        } catch (e) {
+          if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+          throw e;
         }
       },
       async set(d) {
-        const { error } = await sb.from('docs').upsert({ collection: c, id, data: d });
-        if (error) throw err(error);
+        const prev = s.map.get(id);
         s.map.set(id, d);
         schedulePersist(c, s);
         s.emit();
+        try {
+          const { error } = await sb.from('docs').upsert({ collection: c, id, data: d });
+          if (error) {
+            if (prev) s.map.set(id, prev); else s.map.delete(id);
+            schedulePersist(c, s);
+            s.emit();
+            throw err(error);
+          }
+        } catch (e) {
+          if (prev) s.map.set(id, prev); else s.map.delete(id);
+          schedulePersist(c, s);
+          s.emit();
+          throw e;
+        }
       },
       async delete() {
-        const { data, error } = await sb.from('docs').delete().eq('collection', c).eq('id', id).select('id');
-        if (error) throw err(error);
-        if (!data || !data.length) throw denied();
-        s.map.delete(id);
-        schedulePersist(c, s);
-        s.emit();
+        const prev = s.map.get(id);
+        if (prev) {
+          s.map.delete(id);
+          schedulePersist(c, s);
+          s.emit();
+        }
+        try {
+          const { data, error } = await sb.from('docs').delete().eq('collection', c).eq('id', id).select('id');
+          if (error) {
+            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+            throw err(error);
+          }
+          if (!data || !data.length) {
+            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+            throw denied();
+          }
+        } catch (e) {
+          if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
+          throw e;
+        }
       }
     };
   }
@@ -320,11 +433,7 @@
     return true;
   }
   async function reloadAll() {
-    const promises = [];
-    for (const [colName, store] of stores.entries()) {
-      promises.push(store.load(true));
-    }
-    await Promise.all(promises);
+    await loadAllStores(null, true);
     return true;
   }
   async function getStatus() {
@@ -334,7 +443,7 @@
   }
   const caps = {
     user: { async canEdit() { return prof.role === 'admin'; }, async isOwner() { return prof.role === 'admin'; }, async me() { return { id: uid, name: prof.name || email, email }; } },
-    db: { collection: colRef, doc: docRef, clearAll, reloadAll, getStatus }, downloads, sample
+    db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus }, downloads, sample
   };
   window.claude = { use: n => ready.then(() => caps[n] || null) };
 

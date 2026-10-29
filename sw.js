@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v29 - enables offline caching, PWA install and push alerts */
-const CACHE = 'gangaya-v29';
+/* Gangaya Finance Service Worker v30 - parallel data loading, consolidated navigation & safe sync */
+const CACHE = 'gangaya-v30';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
