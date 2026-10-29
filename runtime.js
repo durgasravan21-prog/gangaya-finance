@@ -130,7 +130,7 @@
   }
 
   async function loadAllStores(cols, force) {
-    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests'];
+    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits'];
     initSharedRealtime();
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -443,7 +443,12 @@
   }
   const caps = {
     user: { async canEdit() { return prof.role === 'admin'; }, async isOwner() { return prof.role === 'admin'; }, async me() { return { id: uid, name: prof.name || email, email }; } },
-    db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus }, downloads, sample
+    db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus, assignUpiCredit: async (creditId, mid) => {
+      const { data, error } = await sb.rpc('assign_upi_credit', { p_credit_id: creditId, p_mid: mid });
+      if (error) throw err(error);
+      await loadAllStores(null, true);
+      return data;
+    }}, downloads, sample
   };
   window.claude = { use: n => ready.then(() => caps[n] || null) };
 

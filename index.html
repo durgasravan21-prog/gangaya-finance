@@ -327,9 +327,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=30"></script>
+<script src="/runtime.js?v=31"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='';
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -939,6 +939,7 @@ function activityTab(){
 
   return `
     ${pendingLoansHtml()}
+    ${unmatchedUpiQueueHtml()}
     <div class="card" style="margin-bottom:14px">
       <div class="row" style="margin-bottom:8px">
         <div>
@@ -1000,6 +1001,7 @@ function activityTab(){
                 <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                   <b style="font-size:14.5px">${esc(nm(m))}</b>
                   <span class="chip" style="font-size:11px;padding:1px 6px">${esc(vl(m.village))}</span>
+                  ${t.verified ? `<span class="chip ok" style="font-size:10.5px;padding:1px 6px;background:#dcfce7;color:#15803d;border-color:#86efac;font-weight:700">✓ UPI Verified${t.utr ? ` (${esc(t.utr)})` : ''}</span>` : ''}
                 </div>
                 <div class="m" style="font-size:12px;margin-top:2px">
                   ${fd(t.d)} · ${tm(t)} ${t.by?`· <span style="color:var(--t)">by ${esc(t.by)}</span>`:''}
@@ -1079,11 +1081,13 @@ function collect(){
       </div>
       <div class="acts" style="margin:8px 0">
         <label class="opt" style="flex:1;justify-content:center;font-weight:600">
-          <input type="radio" name="md" value="cash" ${pmode=='upi'?'':'checked'} onchange="pmode='cash'">${tr('Cash','నగదు')}
+          <input type="radio" name="md" value="cash" ${pmode=='upi'?'':'checked'} onchange="pmode='cash';draw()">${tr('Cash','నగదు')}
         </label>
         <label class="opt" style="flex:1;justify-content:center;font-weight:600">
-          <input type="radio" name="md" value="upi" ${pmode=='upi'?'checked':''} onchange="pmode='upi'">UPI
+          <input type="radio" name="md" value="upi" ${pmode=='upi'?'checked':''} onchange="pmode='upi';draw()">UPI
         </label>
+      </div>
+      ${pmode=='upi'?`<div style="margin-bottom:8px"><input id="pay_utr" type="text" inputmode="numeric" maxlength="12" placeholder="${tr('12-digit UPI UTR / Ref (optional)','12 అంకెల UPI UTR నంబర్ (ఐచ్ఛికం)')}" style="font-size:14px;padding:8px"></div>`:''}
       </div>
       <div class="acts">
         <button class="p" style="flex:1;padding:12px;font-size:15px;font-weight:700" onclick="save()">${tr('Record Payment ✓','చెల్లింపు నమోదు చేయి ✓')}</button>
@@ -1094,6 +1098,7 @@ function collect(){
 
   return `
     ${pendingLoansHtml()}
+    ${unmatchedUpiQueueHtml()}
     <div class="card" style="margin-bottom:12px;padding:14px 16px">
       <div class="row" style="margin-bottom:10px;align-items:center">
         <div>
@@ -1189,7 +1194,9 @@ function save(){
   if(!m)return;
   const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0);
   const go2=()=>{
+    const utr = (mode === 'upi' && $('#pay_utr')) ? $('#pay_utr').value.trim() : '';
     const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};
+    if(utr){ t.utr = utr; t.verified = true; }
     sel=null;
     const remId1 = m.id + '_' + today();
     RM.add(remId1);
@@ -1900,6 +1907,83 @@ function closeFatherNewLoanDlg(){
   draw();
 }
 
+
+function unmatchedUpiQueueHtml(){
+  if(!UC || !UC.length) return '';
+  const activeMembers = M.filter(m => !m.archived);
+  return `<div class="card" style="border-left:4px solid #3b82f6;background:var(--s);margin-bottom:14px;box-shadow:0 4px 18px rgba(0,0,0,0.08)">
+    <div class="row" style="margin-bottom:6px">
+      <div>
+        <b style="font-size:15px;color:var(--t)">${tr('Unmatched UPI Payments from Bank','బ్యాంక్ నుండి వచ్చిన UPI చెల్లింపులు')}</b>
+        <span class="chip" style="background:#dbeafe;color:#1e40af;border-color:#93c5fd;font-weight:700;margin-left:6px">${UC.length} ${tr('Needs Assignment','జతచేయాలి')}</span>
+      </div>
+    </div>
+    <p class="m" style="margin:0 0 10px;font-size:12px">${tr('These payments were received via UPI/Bank SMS but not auto-matched. Select borrower and tap Assign to credit their ledger.','ఈ మొత్తాలు బ్యాంక్ ద్వారా క్రెడిట్ అయ్యాయి. సభ్యుడిని ఎంచుకుని "ఖాతాలో చేర్చు" నొక్కండి.')}</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${UC.map(uc => `
+        <div class="card" style="margin:0;padding:10px 12px;background:var(--c);border:1px solid var(--b)">
+          <div class="row" style="align-items:center;flex-wrap:wrap;gap:8px">
+            <div>
+              <span style="font-size:16px;font-weight:800;color:var(--t)">${inr(uc.amt)}</span>
+              <span class="m" style="font-size:12px">· UTR: <b style="color:var(--t)">${esc(uc.utr)}</b> ${uc.payer ? `· Payer: ${esc(uc.payer)}` : ''} · ${fd(uc.d||today())}</span>
+            </div>
+            <div class="acts" style="flex:1;justify-content:flex-end;min-width:240px;gap:6px">
+              <select id="assign_mid_${uc.id}" style="font-size:13px;padding:6px;max-width:200px">
+                <option value="">-- ${tr('Select Borrower...','రుణగ్రహీతను ఎంచుకోండి...')} --</option>
+                ${activeMembers.map(m => `<option value="${m.id}">${esc(nm(m))} (${esc(vl(m.village))})</option>`).join('')}
+              </select>
+              <button class="p sm" onclick="assignUpiCredit('${uc.id}')" style="font-weight:700">✓ ${tr('Assign','చేర్చు')}</button>
+              <button class="sm d" onclick="dismissUpiCredit('${uc.id}')" title="${tr('Dismiss','తీసివేయి')}">✕</button>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+async function assignUpiCredit(id){
+  const selEl = document.getElementById('assign_mid_' + id);
+  const mid = selEl ? selEl.value : '';
+  if(!mid) return toast(tr('Please select a borrower first','ముందు రుణగ్రహీతను ఎంచుకోండి'));
+  busy = true; draw();
+  try {
+    if(db && db.assignUpiCredit){
+      await db.assignUpiCredit(id, mid);
+    } else {
+      await db.doc('upi_credits/' + id).delete();
+      const credit = UC.find(x => x.id == id);
+      const amt = credit ? num(credit.amt) : 0;
+      await db.collection('txns').add({
+        mid,
+        type: 'pay',
+        amt,
+        mode: 'upi',
+        d: today(),
+        ts: Date.now(),
+        sent: true,
+        by: 'UPI Assigned (' + who() + ')',
+        verified: true,
+        utr: credit ? credit.utr : ''
+      });
+    }
+    toast(tr('UPI Payment verified & credited to borrower ledger ✓','UPI చెల్లింపు ధృవీకరించబడింది మరియు ఖాతాలో చేర్చబడింది ✓'));
+  } catch(e) {
+    toast('Error: ' + (e&&e.message||e));
+  } finally {
+    busy = false; draw();
+  }
+}
+
+async function dismissUpiCredit(id){
+  ask(tr('Dismiss this credit from queue?','ఈ రికార్డును క్యూ నుండి తొలగించాలా?'), tr('Dismiss','తొలగించు'), async () => {
+    try {
+      await db.doc('upi_credits/' + id).delete();
+      toast(tr('Credit dismissed','తొలగించబడింది'));
+    } catch(e) { toast('Error: ' + (e&&e.message||e)); }
+  });
+}
+
 function pendingLoansHtml(){
   const pending = LR.filter(x => x.status === 'pending');
   if(!pending.length) return '';
@@ -2603,7 +2687,7 @@ if(db){
   try{if(db.loadAll)await db.loadAll()}catch(_){}
   const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
-  sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
+  sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=31').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
