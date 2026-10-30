@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#059669">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Gangaya Finance - Official smart portal for daily and weekly loan collections, borrower khatas, transparent ledgers, and instant digital receipts in Andhra Pradesh, India.">
+<meta name="description" content="Gangaya Finance is the official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts in Andhra Pradesh.">
 <meta name="keywords" content="Gangaya Finance, daily finance, weekly finance, micro finance Andhra Pradesh, loan collection, borrower khata, digital receipts, Durga Sravan, Gangaya">
 <meta name="author" content="Durga Sravan">
 <meta name="robots" content="index, follow">
@@ -13,7 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://gangaya-finance.vercel.app/">
 <meta property="og:title" content="Gangaya Finance | Daily & Weekly Loan Management">
-<meta property="og:description" content="Official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts.">
+<meta property="og:description" content="Official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts in Andhra Pradesh.">
 <meta property="og:image" content="https://gangaya-finance.vercel.app/icon-512.jpg">
 <meta property="og:site_name" content="Gangaya Finance">
 <meta property="og:locale" content="en_IN">
@@ -23,7 +23,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:url" content="https://gangaya-finance.vercel.app/">
 <meta name="twitter:title" content="Gangaya Finance | Daily & Weekly Loan Management">
-<meta name="twitter:description" content="Official portal for smart daily collections, borrower khatas, and instant digital receipts.">
+<meta name="twitter:description" content="Official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts in Andhra Pradesh.">
 <meta name="twitter:image" content="https://gangaya-finance.vercel.app/icon-512.jpg">
 
 <!-- Web Application Manifest & Icons -->
@@ -232,7 +232,7 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
 .brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); flex-shrink: 0; letter-spacing: -0.5px; }
-.brand-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
+.brand-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; line-height: 1.2; margin: 0; }
 .brand-sub { font-size: 11.5px; color: var(--m); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
 .v18-pill { font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 999px; background: var(--a-subtle); color: var(--a); border: 1px solid var(--a); line-height: 1.3; }
 .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
@@ -413,13 +413,13 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </style></head><body><main id="app">
   <div class="card" style="max-width:380px;margin:80px auto;text-align:center;border-radius:24px;padding:32px 20px">
     <div class="brand-logo" style="margin:0 auto 14px;width:48px;height:48px;font-size:18px;border-radius:14px">GF</div>
-    <div style="font-size:17px;font-weight:800;letter-spacing:-0.01em;margin-bottom:4px">Gangaya Finance</div>
+    <h1 style="font-size:18px;font-weight:800;letter-spacing:-0.01em;margin:0 0 4px">Gangaya Finance</h1>
     <div class="m" style="font-size:12px;margin-bottom:14px">Dashboard V18 • Cloud Ledger</div>
     <div class="bar" style="margin:0 auto;max-width:180px"><i style="width:65%"></i></div>
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=31"></script>
+<script src="/runtime.js?v=34"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),siteMapOpen=false,owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -2881,10 +2881,10 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
     <div class="brand">
       <div class="brand-logo">GF</div>
       <div>
-        <div class="brand-title">
+        <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
           <span class="v18-pill">v18</span>
-        </div>
+        </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
           <span>${tr('Mumbai Edge • Live Sync','ముంబై క్లౌడ్ • ఆన్‌లైన్')}</span>
