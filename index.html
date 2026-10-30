@@ -264,9 +264,31 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 .v18-banner-sub { font-size: 13px; color: var(--m); margin: 0 0 14px; line-height: 1.4; }
 .v18-banner-btn { border-radius: 9999px; padding: 7px 16px; font-size: 12.5px; font-weight: 700; background: var(--t); color: var(--bg); border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: transform .15s; }
 .v18-banner-btn:hover { transform: translateY(-1px); }
-.v18-banner-art { position: relative; width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.v18-orb { width: 90px; height: 90px; border-radius: 50%; background: linear-gradient(135deg, #c084fc, #818cf8, #38bdf8); filter: blur(4px); opacity: 0.85; animation: floatOrb 6s ease-in-out infinite alternate; }
-@keyframes floatOrb { 0% { transform: scale(0.9) rotate(0deg); } 100% { transform: scale(1.08) rotate(30deg); } }
+.v18-banner-art { position: relative; width: 100px; height: 110px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.v18-bill-anim { position: relative; width: 88px; height: 105px; display: flex; flex-direction: column; align-items: center; perspective: 600px; }
+.v18-pos-slot { width: 78px; height: 15px; background: #1e293b; border-radius: 7px 7px 3px 3px; box-shadow: 0 4px 10px rgba(0,0,0,0.35), inset 0 2px 4px rgba(0,0,0,0.6); position: relative; z-index: 4; border: 1px solid rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+.v18-pos-led { width: 5px; height: 5px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; animation: ledPulse 1.8s infinite; }
+.v18-pos-label { font-size: 7px; font-weight: 800; color: #94a3b8; letter-spacing: 0.05em; }
+@keyframes ledPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
+.v18-bill-paper { width: 68px; background: #ffffff; border-radius: 0 0 4px 4px; box-shadow: 0 8px 18px rgba(0,0,0,0.2); padding: 6px 7px; color: #0f172a; position: relative; z-index: 2; margin-top: -3px; animation: printBill 4.5s cubic-bezier(0.25, 1, 0.5, 1) infinite; transform-origin: top center; overflow: hidden; border: 1px solid rgba(0,0,0,0.06); }
+:root[data-theme=dark] .v18-bill-paper { background: #f8fafc; color: #0f172a; }
+@keyframes printBill {
+  0% { transform: translateY(-38px) scaleY(0.2); opacity: 0; }
+  15% { transform: translateY(-12px) scaleY(0.65); opacity: 1; }
+  35%, 82% { transform: translateY(0) scaleY(1); opacity: 1; }
+  92% { transform: translateY(12px) rotate(3deg); opacity: 0.35; }
+  100% { transform: translateY(24px) rotate(6deg); opacity: 0; }
+}
+.v18-bill-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px dashed #cbd5e1; }
+.v18-bill-tag { font-size: 7.5px; font-weight: 800; letter-spacing: 0.05em; color: #6366f1; }
+.v18-bill-curr { font-size: 9px; font-weight: 800; color: #059669; }
+.v18-bill-line { height: 3px; background: #e2e8f0; border-radius: 2px; margin-bottom: 3.5px; }
+.v18-bill-line.l1 { width: 85%; animation: linePrint 4.5s infinite; }
+.v18-bill-line.l2 { width: 60%; animation: linePrint 4.5s infinite 0.2s; }
+.v18-bill-line.l3 { width: 75%; background: #c7d2fe; animation: linePrint 4.5s infinite 0.4s; }
+@keyframes linePrint { 0%, 20% { width: 0; } 35%, 100% { opacity: 1; } }
+.v18-bill-stamp { font-size: 8px; font-weight: 900; color: #059669; border: 1px solid #059669; border-radius: 3px; padding: 1px 3px; text-align: center; margin-top: 5px; letter-spacing: 0.03em; transform: rotate(-5deg); display: block; animation: stampPop 4.5s infinite; }
+@keyframes stampPop { 0%, 40% { transform: scale(0) rotate(-15deg); opacity: 0; } 48% { transform: scale(1.15) rotate(-5deg); opacity: 1; } 52%, 85% { transform: scale(1) rotate(-5deg); opacity: 1; } 100% { opacity: 0; } }
 
 /* Calendar Week Picker ("May, 2023" Mon 15, Tue 16, etc.) */
 .v18-calendar { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; justify-content: space-between; }
@@ -419,22 +441,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=34"></script>
+<script src="/runtime.js?v=36"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),siteMapOpen=false,owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
-try {
-  const _pl = k => { try { const r = localStorage.getItem('gf_c_' + k); if (!r) return []; const a = JSON.parse(r); return Array.isArray(a) ? a.map(x => ({ id: x.id, ...(x.data || {}) })) : []; } catch(_) { return []; } };
-  const _cm = _pl('members');
-  if (_cm.length > 0) {
-    M = cM(_cm);
-    V = cV(_pl('villages'));
-    T = cT(_pl('txns'));
-    NT = cNT(_pl('notifs'));
-    LR = cLR(_pl('loan_requests'));
-    UC = cUC(_pl('upi_credits'));
-    RM = new Set(_pl('rem').map(x => x.id));
-  }
-} catch(_) {}
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -576,11 +585,31 @@ function memRecs(m){const r=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts),s=st
 return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
 function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div class="row"><h2>${esc(nm(m))}</h2><button onclick="rv='';draw()">Close</button></div>${memRecs(m)}</div>`:''}
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
+cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8,
 who=()=>str((me&&(me.name||me.id))||(role=='a'?'Durga Sravan':'Gangaya'),40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
-cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',requested_by:str(d.requested_by||d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true,amt:num(d.amt),repay:num(d.repay),inst:num(d.inst),status:str(d.status,20)||'pending',d:str(d.d,20),time:str(d.time,20),approved_by:str(d.approved_by,40),approved_at:num(d.approved_at)})).sort((x,y)=>y.ts-x.ts);
+cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',requested_by:str(d.requested_by||d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true,amt:num(d.amt),repay:num(d.repay),inst:num(d.inst),status:str(d.status,20)||'pending',d:str(d.d,20),time:str(d.time,20),approved_by:str(d.approved_by,40),approved_at:num(d.approved_at)})).sort((x,y)=>y.ts-x.ts),
+cLR=a=>a.filter(d=>OKID.test(d.id)),
+cUC=a=>a.filter(d=>OKID.test(d.id));
+
+function seedFromCache(){
+  try{
+    const _pl=k=>{try{const r=localStorage.getItem('gf_c_'+k);if(!r)return [];const a=JSON.parse(r);return Array.isArray(a)?a.map(x=>({id:x.id,...(x.data||{})})):[];}catch(_){return [];}};
+    const _cm=_pl('members');
+    if(_cm.length>0){
+      M=cM(_cm);
+      V=cV(_pl('villages'));
+      T=cT(_pl('txns'));
+      NT=cNT(_pl('notifs'));
+      LR=cLR(_pl('loan_requests'));
+      UC=cUC(_pl('upi_credits'));
+      RM=new Set(_pl('rem').map(x=>x.id));
+    }
+  }catch(_){}
+}
+seedFromCache();
 function initAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{})}catch(_){}}
 function playChime(){
   try{
@@ -746,18 +775,18 @@ function allNotifs(){
 function unreadNotifCount(){
   const targetTo=(role==='a'?'admin':'collector');
   const unreadNotes=NT.filter(n=>{
-    if(n.read) return false;
+    if(n.read || dismissedNotifIds.has('n_'+n.id) || dismissedNotifIds.has(n.id)) return false;
     const m = n.mid ? M.find(x => x.id === n.mid) : null;
     if(m && m.archived) return false;
     return (n.to===targetTo||(role==='a'&&(n.type==='loan_req'||n.type==='loan'||n.status==='pending')));
   }).length;
   const pendingLoans=(role==='a')?LR.filter(x=>{
-    if(x.status !== 'pending') return false;
+    if(x.status !== 'pending' || dismissedNotifIds.has(x.id) || dismissedNotifIds.has('n_'+x.id)) return false;
     const m = x.mid ? M.find(y => y.id === x.mid) : null;
     return !(m && m.archived);
   }).length:0;
   const newTxns=T.filter(t=>{
-    if(t.d !== today() || t.ts <= lastReadNotif) return false;
+    if(t.d !== today() || t.ts <= lastReadNotif || dismissedNotifIds.has('t_'+t.id) || dismissedNotifIds.has(t.id)) return false;
     const m = M.find(x => x.id === t.mid);
     return !(m && m.archived);
   }).length;
@@ -800,9 +829,13 @@ function notifBellBtn(inDock){
 }
 async function deleteSingleNotif(id, rawId){
   dismissedNotifIds.add(id);
-  if(rawId) dismissedNotifIds.add(rawId);
-  try{localStorage.setItem('gf_dismissed_notifs',JSON.stringify([...dismissedNotifIds]))}catch(_){}
   if(rawId){
+    dismissedNotifIds.add(rawId);
+    dismissedNotifIds.add('n_'+rawId);
+    dismissedNotifIds.add('t_'+rawId);
+  }
+  try{localStorage.setItem('gf_dismissed_notifs',JSON.stringify([...dismissedNotifIds]))}catch(_){}
+  if(rawId && String(id).startsWith('n_')){
     NT = NT.filter(n => n.id !== rawId);
     try{ if(db) await db.doc('notifs/' + rawId).delete(); }catch(_){}
   }
@@ -820,6 +853,7 @@ async function clearNotifHistory(){
         try{await db.doc('notifs/'+n.id).delete()}catch(_){}
       }
       for(const t of T){
+        dismissedNotifIds.add(t.id);
         dismissedNotifIds.add('t_'+t.id);
       }
       NT=[];
@@ -1978,7 +2012,7 @@ return `${impBanner()}${f}${rvCard()}<div class="card"><h2>Add member</h2><div c
 <label class="opt" style="margin-top:10px"><input type="checkbox" ${exb?'checked':''} onchange="exb=this.checked;draw()"> Existing borrower: already has a running loan and has paid some instalments</label>${exb?histSection():''}
 <p><button class="p" onclick="addM()">${exb?'Save member with history':'Save member'}</button></p></div>
 <div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}<div class="m">${esc(m.te||'— no Telugu name —')}</div></td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
-const cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8,clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
+const clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
 function saveEdit(){if(!owner||!sel)return;const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value),v=$('#ev').value,i=num($('#ei').value);
 if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');if(!amtOk(i))return toast('Check the installment');
 const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(()=>db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq}))}
@@ -2678,7 +2712,22 @@ function heroKpis(preRemList, prePndRc){
         </div>
       </div>
       <div class="v18-banner-art">
-        <div class="v18-orb"></div>
+        <div class="v18-bill-anim" title="${tr('Live Digital Billing','లైవ్ డిజిటల్ బిల్లింగ్')}">
+          <div class="v18-pos-slot">
+            <span class="v18-pos-label">GF POS</span>
+            <div class="v18-pos-led"></div>
+          </div>
+          <div class="v18-bill-paper">
+            <div class="v18-bill-header">
+              <span class="v18-bill-tag">GF RECEIPT</span>
+              <span class="v18-bill-curr">₹</span>
+            </div>
+            <div class="v18-bill-line l1"></div>
+            <div class="v18-bill-line l2"></div>
+            <div class="v18-bill-line l3"></div>
+            <div class="v18-bill-stamp">PAID ✓</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2837,6 +2886,7 @@ function _drawInner(){
   }
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
+const showHero = (tab === 'fa' || (!tab && tabs[0] && tabs[0][0] === 'fa'));
 const tabs=adm?[
   ['fa',tr('Collect','వసూలు'),null],
   ['lg',tr('Ledger','ఖాతాలు'),null],
@@ -2942,14 +2992,43 @@ ${manualRemModal()}
 ${scannerModal()}
 ${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
-(async()=>{try{user=await claude.use('user');db=await claude.use('db');
-for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
-role=owner?'a':'f';
-if(db){
-  try{if(db.loadAll)await db.loadAll()}catch(_){}
-  const sub=(c,fn,cl)=>db.collection(c).onSnapshot(sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},e=>{dbErr=(e&&(e.message||e.code))||'Cannot read the data';draw()});
-  sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
-  sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
+(async()=>{
+  try{
+    db = await claude.use('db');
+    if(db){
+      const sub=(c,fn,cl)=>db.collection(c).onSnapshot(
+        sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},
+        e=>{console.warn('Subscription warning for '+c,e);if(M.length===0){dbErr=(e&&(e.message||e.code))||'Cannot read data';draw()}}
+      );
+      sub('members',a=>M=a,cM);
+      sub('villages',a=>V=a,cV);
+      sub('txns',a=>onTxnsUpdate(a),cT);
+      sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
+      sub('notifs',a=>onNotifsUpdate(a),cNT);
+      sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);
+      sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);
+      sub('upi_credits',a=>{UC=a;draw()},cUC);
+
+      if(db.loadAll){
+        db.loadAll().then(()=>{bootComplete=true;draw();}).catch(()=>{bootComplete=true;});
+      }else{
+        setTimeout(()=>{bootComplete=true;},1500);
+      }
+    }
+
+    user = await claude.use('user');
+    if(user){
+      for(const f of['canEdit','isOwner']){try{if(await user[f]()){owner=true;break}}catch(e){}}
+      try{me=await user.me()}catch(e){}
+      role=owner?'a':'f';
+      draw();
+    }
+  }catch(e){
+    console.error('Startup error:', e);
+    if(M.length===0) dbErr='Could not start: '+((e&&e.message)||e);
+  }
+  draw();
+})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=35').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=36').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

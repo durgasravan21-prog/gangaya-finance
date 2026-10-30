@@ -492,7 +492,7 @@
 
 
     const fetchWithTimeout = (url, options = {}) => {
-      const timeoutMs = (options && options.timeout) || 10000;
+      const timeoutMs = (options && options.timeout) || 15000;
       if (!options.signal && typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
         return fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
       }
@@ -520,7 +520,7 @@
       const cp = localStorage.getItem('gf_prof');
       if (cp) {
         prof = JSON.parse(cp);
-        if (s) { uid = s.user.id; email = s.user.email || ''; }
+        if (s && s.user) { uid = s.user.id; email = s.user.email || ''; }
         hasCachedProf = true;
       }
     } catch (_) {}
@@ -540,8 +540,8 @@
     }
 
     let msg = '';
-    // If cached or derived profile exists, unblock page IMMEDIATELY (0ms startup)
-    if (hasCachedProf && prof && prof.role) {
+    // If authenticated session and profile exist, unblock page IMMEDIATELY (0ms startup)
+    if (s && hasCachedProf && prof && prof.role) {
       const o = document.getElementById('rt-ov'); if (o) o.remove();
       sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); });
       window.__signout = async () => {
@@ -551,13 +551,15 @@
       };
       finish();
       // Background-validate profile without blocking
-      sb.from('profiles').select('role,name').eq('id', s.user.id).maybeSingle()
-        .then(res => {
-          if (res.data && res.data.role) {
-            prof = res.data;
-            try { localStorage.setItem('gf_prof', JSON.stringify(res.data)); } catch (_) {}
-          }
-        }).catch(() => {});
+      if (s.user && s.user.id) {
+        sb.from('profiles').select('role,name').eq('id', s.user.id).maybeSingle()
+          .then(res => {
+            if (res.data && res.data.role) {
+              prof = res.data;
+              try { localStorage.setItem('gf_prof', JSON.stringify(res.data)); } catch (_) {}
+            }
+          }).catch(() => {});
+      }
       return;
     }
     for (;;) {

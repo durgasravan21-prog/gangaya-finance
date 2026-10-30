@@ -7,12 +7,15 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.docs (
-  collection text not null check (collection in ('members','villages','txns','rem','notifs')),
+  collection text not null check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits')),
   id         text not null check (id ~ '^[A-Za-z0-9_-]{1,128}$'),
   data       jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   primary key (collection, id)
 );
+alter table public.docs drop constraint if exists docs_collection_check;
+alter table public.docs add constraint docs_collection_check check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits'));
+
 create index if not exists docs_collection_created on public.docs (collection, created_at);
 
 alter table public.profiles enable row level security;
@@ -43,7 +46,7 @@ create policy docs_read on public.docs for select to authenticated
 create policy docs_insert_admin on public.docs for insert to authenticated
   with check (public.my_role() = 'admin');
 create policy docs_insert_collector on public.docs for insert to authenticated
-  with check (public.my_role() = 'collector' and collection in ('txns','notifs','rem'));
+  with check (public.my_role() = 'collector' and collection in ('txns','notifs','rem','loan_requests'));
 create policy docs_update_collector on public.docs for update to authenticated
   using (public.my_role() = 'collector' and collection = 'rem')
   with check (public.my_role() = 'collector' and collection = 'rem');
