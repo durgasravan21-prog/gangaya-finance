@@ -385,7 +385,8 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   animation: receiptFeedIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes receiptFeedIn {
-  0% { transform: translateY(-45px) scale(0.94); opacity: 0; }
+  0% { transform: translateY(-75px) scale(0.92); opacity: 0; }
+  60% { transform: translateY(6px) scale(1.01); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .gf-receipt-paper {
@@ -632,7 +633,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=42"></script>
+<script src="/runtime.js?v=43"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -926,17 +927,38 @@ function testAlertSound(){
 window.addEventListener('click',()=>{initAudio();reqNotifPerm()},{once:true});
 window.addEventListener('touchstart',()=>{initAudio();reqNotifPerm()},{once:true});
 function relTime(ts){if(!ts)return'';const diff=Date.now()-ts;if(diff<45000)return isTe()?'ఇప్పుడే':'Just now';if(diff<3600000)return Math.floor(diff/60000)+(isTe()?' నిమిషాల క్రితం':'m ago');if(diff<86400000)return Math.floor(diff/3600000)+(isTe()?' గంటల క్రితం':'h ago');const d=new Date(ts);return d.toLocaleDateString(isTe()?'te-IN':'en-IN',{month:'short',day:'numeric'})+', '+ft(ts)}
+let liveReceiptQueue = [];
+function isFatherTxn(t){
+  if(!t || !t.by) return false;
+  const b = String(t.by).toLowerCase();
+  return (b.includes('father') || b.includes('gangaya') || b.includes('sridevi') || b.includes('collector')) && !b.includes('durga sravan') && !b.includes('approved by durga sravan');
+}
+
 function onTxnsUpdate(newT){
-  if(bootComplete&&role=='a'){
+  if(bootComplete && role == 'a'){
     for(const t of newT){
       if(!knownTxnIds.has(t.id)){
-        const m=M.find(x=>x.id==t.mid)||{},mn=nm(m)||tr('Member','సభ్యుడు');
-        const txt=t.type=='pay'?`Payment: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'Cash'}) from ${mn} (by ${t.by||'Father'})`:`New Loan: ${inr(t.amt)} to ${mn}`;
-        toast(txt);playChime();notifyBrowser('Gangaya Finance',txt);
+        const m = M.find(x => x.id == t.mid) || {}, mn = nm(m) || tr('Member','సభ్యుడు');
+        const isFromFather = isFatherTxn(t);
+        const txt = t.type == 'pay'
+          ? (isFromFather ? tr(`Father collected: ${inr(t.amt)} from ${mn} (${t.mode == 'upi' ? 'UPI' : 'Cash'})`, `గంగయ్య గారు ${mn} నుండి ${inr(t.amt)} వసూలు చేశారు (${t.mode == 'upi' ? 'UPI' : 'నగదు'})`) : `Payment: ${inr(t.amt)} from ${mn}`)
+          : `New Loan: ${inr(t.amt)} to ${mn}`;
+        toast(txt);
+        playChime();
+        notifyBrowser('Gangaya Finance', txt);
+
+        // When Father records a payment, automatically draw down the receipt modal live on Admin's dashboard:
+        if(isFromFather && t.type === 'pay'){
+          if(!liveReceiptQueue.includes(t.id)) liveReceiptQueue.push(t.id);
+          if(!vr){
+            openReceipt(t.id);
+          }
+        }
       }
     }
   }
-  knownTxnIds=new Set(newT.map(x=>x.id));T=newT;
+  knownTxnIds = new Set(newT.map(x => x.id));
+  T = newT;
 }
 function onNotifsUpdate(newNT){
   const reqsFromNT = newNT.filter(n => n.type === 'loan_req' || n.type === 'loan_request');
@@ -1094,13 +1116,42 @@ async function markSingleReceiptSent(id, nextId){
     try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
     try{ await db.doc('txns/' + id).update({ sent: true }); }catch(_){}
   }
+  liveReceiptQueue = liveReceiptQueue.filter(x => x !== id);
   if(nextId){
     openReceipt(nextId);
   } else {
     vr = '';
-    toast(tr('Receipt marked as read & processed ✓', 'రసీదు చదివినట్లు గుర్తించబడింది ✓'));
+    toast(tr('Receipt marked as seen & processed ✓', 'రసీదు చూసినట్లు గుర్తించబడింది ✓'));
     draw();
   }
+}
+
+async function markAllSeenReceipts(){
+  ask(
+    tr('Mark all queued receipts as seen and clear them from dashboard?', 'అన్ని రసీదులను చూసినట్లు గుర్తించి డ్యాష్‌బోర్డ్ నుండి తొలగించాలా?'),
+    tr('Mark All Seen', 'అన్నీ చూసినట్లు తొలగించు'),
+    async () => {
+      busy = true; draw();
+      try {
+        const waiting = T.filter(t => !t.sent && !t.past);
+        for(const t of waiting){
+          t.sent = true;
+          dismissedNotifIds.add('t_' + t.id);
+          dismissedNotifIds.add(t.id);
+          try{ await db.doc('txns/' + t.id).update({ sent: true }); }catch(_){}
+        }
+        liveReceiptQueue = [];
+        vr = '';
+        lastReadNotif = Date.now();
+        try{ localStorage.setItem('gf_notif_read', lastReadNotif); }catch(_){}
+        try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+        toast(tr('All receipts marked as seen and cleared ✓', 'అన్ని రసీదులు చూసినట్లు గుర్తించబడి తొలగించబడ్డాయి ✓'));
+      } finally {
+        busy = false;
+        draw();
+      }
+    }
+  );
 }
 
 async function markAllReceiptsSent(){
@@ -1575,13 +1626,18 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
         ${isPay?'PAID ✓':'SANCTIONED ✓'}
       </div>
 
-      <div class="gf-receipt-acts">
+      <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
         <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
           ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
         </a>
         ${!t.sent ? `
           <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
-            ${nextId ? tr('Mark Read & Next →','చదివాను & తదుపరిది →') : tr('Mark as Read ✓','చదివినట్లు గుర్తించు ✓')}
+            ${nextId ? tr('Seen & Next →','చూశాను & తదుపరిది →') : tr('Mark as Seen ✓','చూసినట్లు గుర్తించు ✓')}
+          </button>
+        ` : ''}
+        ${unreadWaiting.length > 0 && !t.sent ? `
+          <button class="sm d" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700" onclick="markAllSeenReceipts()">
+            ${tr('Mark All Seen ✕','అన్నీ చూసినట్లు తొలగించు ✕')}
           </button>
         ` : ''}
         <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
@@ -1896,7 +1952,7 @@ function save(){
     try{db.doc('rem/'+remId1).set({mid:m.id,d:today(),sent:true,paid:true,ts:Date.now()})}catch(_){}
     once(async()=>{
       const res = await db.collection('txns').add(t);
-      if(res && res.id){
+      if(res && res.id && collector !== 'Durga Sravan'){
         vr = res.id;
       }
     });
@@ -3461,5 +3517,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=42').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=43').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
