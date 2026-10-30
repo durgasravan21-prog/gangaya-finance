@@ -422,6 +422,19 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/runtime.js?v=34"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),siteMapOpen=false,owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
+try {
+  const _pl = k => { try { const r = localStorage.getItem('gf_c_' + k); if (!r) return []; const a = JSON.parse(r); return Array.isArray(a) ? a.map(x => ({ id: x.id, ...(x.data || {}) })) : []; } catch(_) { return []; } };
+  const _cm = _pl('members');
+  if (_cm.length > 0) {
+    M = cM(_cm);
+    V = cV(_pl('villages'));
+    T = cT(_pl('txns'));
+    NT = cNT(_pl('notifs'));
+    LR = cLR(_pl('loan_requests'));
+    UC = cUC(_pl('upi_credits'));
+    RM = new Set(_pl('rem').map(x => x.id));
+  }
+} catch(_) {}
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -2808,8 +2821,8 @@ function draw(){
 function _drawInner(){
   _drawPending = false;
   const app=$('#app');
-  if(!db){
-    if(dbErr || dbInitTimeout) return app.innerHTML = renderErrorState('db', dbErr);
+  if(!db && M.length === 0){
+    if(dbErr) return app.innerHTML = renderErrorState('db', dbErr);
     return app.innerHTML = `<div class="card" style="max-width:380px;margin:40px auto;text-align:center;padding:28px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.25)">
       <div style="width:48px;height:48px;border-radius:14px;background:var(--s);color:var(--a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
         <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
@@ -2929,7 +2942,6 @@ ${manualRemModal()}
 ${scannerModal()}
 ${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
-setTimeout(() => { if (!db) { dbInitTimeout = true; draw(); } }, 4500);
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
 role=owner?'a':'f';
@@ -2939,5 +2951,5 @@ if(db){
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
   sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=34').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=35').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

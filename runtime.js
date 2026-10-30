@@ -1,8 +1,20 @@
 /* Gangaya Finance - sign-in and data layer (Supabase). Gives the page the small API it uses: claude.use('user'|'db'|'downloads'|'sample'). */
 (function () {
   'use strict';
+  const DEFAULT_CFG = {
+    url: 'https://digmxlceoejepixflqnh.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk'
+  };
   let sb = null, uid = null, prof = null, email = '', finish;
   const ready = new Promise(r => (finish = r));
+
+  try {
+    if (window.supabase) {
+      sb = window.supabase.createClient(DEFAULT_CFG.url, DEFAULT_CFG.anonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      });
+    }
+  } catch (_) {}
 
   function overlay(html) {
     let o = document.getElementById('rt-ov');
@@ -457,12 +469,7 @@
       return data;
     }}, downloads, sample
   };
-  window.claude = { use: n => ready.then(() => caps[n] || null) };
-
-  const DEFAULT_CFG = {
-    url: 'https://digmxlceoejepixflqnh.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk'
-  };
+  window.claude = { use: n => (n === 'db' ? Promise.resolve(caps.db) : ready.then(() => caps[n] || null)) };
 
   async function boot() {
     let cfg = DEFAULT_CFG;
@@ -511,16 +518,29 @@
     let hasCachedProf = false;
     try {
       const cp = localStorage.getItem('gf_prof');
-      if (cp && s) {
+      if (cp) {
         prof = JSON.parse(cp);
-        uid = s.user.id;
-        email = s.user.email || '';
+        if (s) { uid = s.user.id; email = s.user.email || ''; }
         hasCachedProf = true;
       }
     } catch (_) {}
 
+    // Fast-derive profile from session user email if not in localStorage
+    if (s && (!prof || !prof.role)) {
+      const em = (s.user && s.user.email || '').toLowerCase();
+      const isAdmin = em.includes('durgasravan') || em.includes('sravan') || em.includes('admin');
+      prof = {
+        role: isAdmin ? 'admin' : 'collector',
+        name: isAdmin ? 'Durga Sravan' : 'Gangaya'
+      };
+      uid = s.user.id;
+      email = s.user.email || '';
+      hasCachedProf = true;
+      try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
+    }
+
     let msg = '';
-    // If cached profile exists, unblock page IMMEDIATELY (0ms startup)
+    // If cached or derived profile exists, unblock page IMMEDIATELY (0ms startup)
     if (hasCachedProf && prof && prof.role) {
       const o = document.getElementById('rt-ov'); if (o) o.remove();
       sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); });
@@ -530,7 +550,7 @@
         location.reload();
       };
       finish();
-      // Background-validate profile (non-blocking)
+      // Background-validate profile without blocking
       sb.from('profiles').select('role,name').eq('id', s.user.id).maybeSingle()
         .then(res => {
           if (res.data && res.data.role) {
