@@ -385,8 +385,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   animation: receiptFeedIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes receiptFeedIn {
-  0% { transform: translateY(-75px) scale(0.92); opacity: 0; }
-  60% { transform: translateY(6px) scale(1.01); opacity: 1; }
+  0% { transform: translateY(-80px) scale(0.92); opacity: 0; }
+  65% { transform: translateY(8px) scale(1.01); opacity: 1; }
+  85% { transform: translateY(-3px) scale(0.995); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 .gf-receipt-paper {
@@ -633,7 +634,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=43"></script>
+<script src="/runtime.js?v=44"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -935,9 +936,12 @@ function isFatherTxn(t){
 }
 
 function onTxnsUpdate(newT){
+  const prevKnown = knownTxnIds;
+  knownTxnIds = new Set(newT.map(x => x.id));
+  T = newT;
   if(bootComplete && role == 'a'){
     for(const t of newT){
-      if(!knownTxnIds.has(t.id)){
+      if(!prevKnown.has(t.id)){
         const m = M.find(x => x.id == t.mid) || {}, mn = nm(m) || tr('Member','సభ్యుడు');
         const isFromFather = isFatherTxn(t);
         const txt = t.type == 'pay'
@@ -957,8 +961,6 @@ function onTxnsUpdate(newT){
       }
     }
   }
-  knownTxnIds = new Set(newT.map(x => x.id));
-  T = newT;
 }
 function onNotifsUpdate(newNT){
   const reqsFromNT = newNT.filter(n => n.type === 'loan_req' || n.type === 'loan_request');
@@ -1117,8 +1119,10 @@ async function markSingleReceiptSent(id, nextId){
     try{ await db.doc('txns/' + id).update({ sent: true }); }catch(_){}
   }
   liveReceiptQueue = liveReceiptQueue.filter(x => x !== id);
-  if(nextId){
-    openReceipt(nextId);
+  const remaining = T.filter(x => !x.sent && !x.past && isFatherTxn(x)).sort((a,b)=>b.ts-a.ts);
+  const targetNext = nextId || (remaining.length > 0 ? remaining[0].id : null);
+  if(targetNext && targetNext !== id){
+    openReceipt(targetNext);
   } else {
     vr = '';
     toast(tr('Receipt marked as seen & processed ✓', 'రసీదు చూసినట్లు గుర్తించబడింది ✓'));
@@ -1133,7 +1137,7 @@ async function markAllSeenReceipts(){
     async () => {
       busy = true; draw();
       try {
-        const waiting = T.filter(t => !t.sent && !t.past);
+        const waiting = T.filter(t => !t.sent && !t.past && isFatherTxn(t));
         for(const t of waiting){
           t.sent = true;
           dismissedNotifIds.add('t_' + t.id);
@@ -1561,14 +1565,15 @@ function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),isPay=t.type=='pay';
 const recNo='GF-'+t.id.slice(0,8).toUpperCase();
-const unreadWaiting = T.filter(x => !x.sent && !x.past).sort((a,b)=>b.ts-a.ts);
+const isAdm = (owner && role === 'a');
+const unreadWaiting = isAdm ? T.filter(x => !x.sent && !x.past && isFatherTxn(x)).sort((a,b)=>b.ts-a.ts) : [];
 const curIdx = unreadWaiting.findIndex(x => x.id === t.id);
 const prevId = (curIdx > 0) ? unreadWaiting[curIdx - 1].id : null;
 const nextId = (curIdx !== -1 && curIdx < unreadWaiting.length - 1) ? unreadWaiting[curIdx + 1].id : null;
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-modal" role="dialog" aria-modal="true">
     <div class="gf-receipt-paper">
-      ${curIdx !== -1 ? `
+      ${(isAdm && curIdx !== -1) ? `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
         <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
         <div style="display:flex;gap:6px">
@@ -1630,12 +1635,12 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
         <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
           ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
         </a>
-        ${!t.sent ? `
+        ${(isAdm && !t.sent) ? `
           <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
             ${nextId ? tr('Seen & Next →','చూశాను & తదుపరిది →') : tr('Mark as Seen ✓','చూసినట్లు గుర్తించు ✓')}
           </button>
         ` : ''}
-        ${unreadWaiting.length > 0 && !t.sent ? `
+        ${(isAdm && unreadWaiting.length > 0 && !t.sent) ? `
           <button class="sm d" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700" onclick="markAllSeenReceipts()">
             ${tr('Mark All Seen ✕','అన్నీ చూసినట్లు తొలగించు ✕')}
           </button>
@@ -1942,7 +1947,8 @@ function save(){
   const collector = who();
   const go2=()=>{
     const utr = (mode === 'upi' && $('#pay_utr')) ? $('#pay_utr').value.trim() : '';
-    const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:collector};
+    const isFather = (collector !== 'Durga Sravan');
+    const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:!isFather,by:collector};
     if(utr){ t.utr = utr; t.verified = true; }
     sel=null;
     const remId1 = m.id + '_' + today();
@@ -1952,7 +1958,7 @@ function save(){
     try{db.doc('rem/'+remId1).set({mid:m.id,d:today(),sent:true,paid:true,ts:Date.now()})}catch(_){}
     once(async()=>{
       const res = await db.collection('txns').add(t);
-      if(res && res.id && collector !== 'Durga Sravan'){
+      if(res && res.id && isFather){
         vr = res.id;
       }
     });
@@ -3185,20 +3191,28 @@ function heroKpis(preRemList, prePndRc){
     return { t, m };
   }).filter(x => x.m);
 
+  const waitingFatherReceipts = adm ? T.filter(x => !x.sent && !x.past && isFatherTxn(x)) : [];
+
   return `${pendingLoansHtml()}<div class="v18-bento-top">
     <div class="v18-banner glass-card">
       <div class="v18-banner-content">
         <div class="v18-banner-tag">Dashboard V18 • Modern & Minimal</div>
         <h1 class="v18-banner-title">${adm?'Gangaya Finance · Durga Sravan (Admin)':(isTe()?'గంగయ్య ఫైనాన్స్ · గంగయ్య (కలెక్టర్)':'Gangaya Finance · Gangaya (Collector)')}</h1>
         <p class="v18-banner-sub">${tr('Smart daily collections, member ledgers, and zero-latency cloud database.','స్మార్ట్ రోజువారీ వసూళ్లు, సభ్యుల ఖాతాలు మరియు వేగవంతమైన క్లౌడ్ లెడ్జర్.')}</p>
+        ${(adm && waitingFatherReceipts.length > 0) ? `
+          <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;padding:6px 14px;border-radius:12px;font-size:12.5px;font-weight:700;margin-bottom:12px;cursor:pointer" onclick="openReceipt('${waitingFatherReceipts[0].id}')">
+            <span class="pulse-dot" style="background:#ef4444"></span>
+            <span>${waitingFatherReceipts.length} ${tr('New Collection Receipts from Father','గంగయ్య గారి నుండి కొత్త వసూలు రసీదులు')} · <u>${tr('Review Receipts →','రసీదులు చూడండి →')}</u></span>
+          </div>
+        ` : ''}
         <div class="acts" style="margin-top:12px">
           ${adm?`<button class="v18-banner-btn" onclick="openAddMemberDlg()">+ ${tr('Add Member','సభ్యుడిని చేర్చు')}</button>`:''}
           <button class="v18-banner-btn" style="background:var(--c2);color:var(--t)" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
           ${adm?`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Send Note to Gangaya','గంగయ్య గారికి నోట్')}</button>`:`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Message Durga Sravan','దుర్గా శ్రావణ్ కి మెసేజ్')}</button>`}
         </div>
       </div>
-      <div class="v18-banner-art">
-        <div class="v18-bill-anim" title="${tr('Live Digital Billing','లైవ్ డిజిటల్ బిల్లింగ్')}">
+      <div class="v18-banner-art" style="cursor:pointer" onclick="${adm ? `const w=T.filter(x=>!x.sent&&!x.past&&isFatherTxn(x));if(w.length>0)openReceipt(w[0].id);else if(T.length>0)openReceipt(T[0].id);` : ''}">
+        <div class="v18-bill-anim" title="${tr('Live Digital Billing – Click to inspect receipt','లైవ్ డిజిటల్ బిల్లింగ్ – రసీదు చూడటానికి క్లిక్ చేయండి')}">
           <div class="v18-pos-slot">
             <span class="v18-pos-label">GF POS</span>
             <div class="v18-pos-led"></div>
@@ -3517,5 +3531,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=43').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=44').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
