@@ -8,14 +8,6 @@
   let sb = null, uid = null, prof = null, email = '', finish;
   const ready = new Promise(r => (finish = r));
 
-  try {
-    if (window.supabase) {
-      sb = window.supabase.createClient(DEFAULT_CFG.url, DEFAULT_CFG.anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-      });
-    }
-  } catch (_) {}
-
   function overlay(html) {
     let o = document.getElementById('rt-ov');
     if (!o) {

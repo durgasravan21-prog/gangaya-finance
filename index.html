@@ -441,7 +441,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=36"></script>
+<script src="/runtime.js?v=37"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -2886,7 +2886,6 @@ function _drawInner(){
   }
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
-const showHero = (tab === 'fa' || (!tab && tabs[0] && tabs[0][0] === 'fa'));
 const tabs=adm?[
   ['fa',tr('Collect','వసూలు'),null],
   ['lg',tr('Ledger','ఖాతాలు'),null],
@@ -2901,6 +2900,7 @@ const tabs=adm?[
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['ac',tr('Activity','లావాదేవీలు'),null]
 ];
+const showHero = (tab === 'fa' || !tab || (tabs[0] && tabs[0][0] === tab));
 let body = '';
 if (tab === 'mb' && !adm) {
   body = renderErrorState('403', tr('Administrator permissions required to access Members Master.', 'సభ్యుల మాస్టర్ చూడటానికి అడ్మిన్ అనుమతులు అవసరం.'));
@@ -3030,5 +3030,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=36').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=37').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
