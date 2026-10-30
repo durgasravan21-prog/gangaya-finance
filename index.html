@@ -632,9 +632,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=38"></script>
+<script src="/runtime.js?v=39"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
+let thm='auto',lang='te',pmode='cash',payCollector=localStorage.getItem('gf_pay_collector')||'Gangaya (Father)',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -707,7 +707,8 @@ const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','�
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
 const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
-return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
+const col=getCollectorDisplay(t.by),byLine=t.type=='pay'?`వసూలు చేసినవారు: ${col}`:`మంజూరు చేసినవారు: ${col}`;
+return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\n${byLine}\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 let mbSub='members', acSub='timeline', colQuery='';
 function go(t, sub){
@@ -725,7 +726,7 @@ function go(t, sub){
   }catch(_){}
   sel=null; rv=''; draw();
 }
-function setRole(r){role=r;tab='';sel=null;rv='';draw()}
+function setRole(r){role=r;tab='';sel=null;rv='';if(!localStorage.getItem('gf_pay_collector'))payCollector=(r==='a'?'Durga Sravan':'Gangaya (Father)');draw()}
 let cloudStatusText = '';
 async function readCloudStatus(){
   try{
@@ -773,11 +774,34 @@ function pick(i){vil=V[i].name;sel=null;rv='';draw()}
 function lastRec(m){const l=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts)[0];if(!l)return '';
 return `<div class="${l.d==today()?'ok':'m'}" style="font-size:13px">${tr('Last','చివరి')}: ${inr(l.amt)} · ${l.type=='pay'?(l.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${fd(l.d)}, ${tm(l)} <button class="sm" onclick="vr='${l.id}';draw()">${tr('View','చూడండి')}</button></div>`}
 function memRecs(m){const r=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts),s=st(m);
-return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
+return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · <b style="color:var(--t)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
 function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div class="row"><h2>${esc(nm(m))}</h2><button onclick="rv='';draw()">Close</button></div>${memRecs(m)}</div>`:''}
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
-cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8,
-who=()=>str((me&&(me.name||me.id))||(role=='a'?'Durga Sravan':'Gangaya'),40);
+cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8;
+
+function setPayCollector(name){
+  payCollector = name;
+  try{ localStorage.setItem('gf_pay_collector', name); }catch(_){}
+  draw();
+}
+function getCollectorName(by){
+  if(!by) return role === 'a' ? 'Durga Sravan' : 'Gangaya (Father)';
+  const b = String(by).toLowerCase();
+  if(b.includes('approved by durga sravan')) return 'Gangaya (Approved by Durga Sravan)';
+  if(b.includes('assigned by durga sravan')) return 'UPI (Assigned by Durga Sravan)';
+  if(b.includes('sravan') || b.includes('durga') || b.includes('admin')) return 'Durga Sravan';
+  if(b.includes('gangaya') || b.includes('father') || b.includes('sridevi') || b.includes('collector')) return 'Gangaya (Father)';
+  return by;
+}
+function getCollectorDisplay(by){
+  const n = getCollectorName(by);
+  if(n === 'Durga Sravan') return tr('Durga Sravan', 'దుర్గా శ్రావణ్');
+  if(n === 'Gangaya (Father)') return tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)');
+  if(n === 'Gangaya (Approved by Durga Sravan)') return tr('Gangaya (Approved by Durga Sravan)', 'గంగయ్య (దుర్గా శ్రావణ్ ఆమోదం)');
+  if(n === 'UPI (Assigned by Durga Sravan)') return tr('UPI (Assigned by Durga Sravan)', 'UPI (దుర్గా శ్రావణ్)');
+  return n;
+}
+const who=()=>str(payCollector || (role=='a'?'Durga Sravan':'Gangaya (Father)'), 40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
@@ -1403,8 +1427,8 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
           <span class="gf-receipt-v" style="color:${b.due>0?'var(--t)':'var(--ok)'}">${inr(Math.max(b.due,0))}</span>
         </div>
         <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Issued By','జారీ చేసినవారు')}</span>
-          <span class="gf-receipt-v">${esc(t.by || (role=='a'?'Durga Sravan':'Gangaya'))}</span>
+          <span class="gf-receipt-k">${isPay?tr('Collected By','వసూలు చేసినవారు'):tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
+          <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(getCollectorDisplay(t.by))}</span>
         </div>
       </div>
 
@@ -1525,7 +1549,7 @@ function activityTab(){
                   ${t.verified ? `<span class="chip ok" style="font-size:10.5px;padding:1px 6px;background:#dcfce7;color:#15803d;border-color:#86efac;font-weight:700">✓ UPI Verified${t.utr ? ` (${esc(t.utr)})` : ''}</span>` : ''}
                 </div>
                 <div class="m" style="font-size:12px;margin-top:2px">
-                  ${fd(t.d)} · ${tm(t)} ${t.by?`· <span style="color:var(--t)">by ${esc(t.by)}</span>`:''}
+                  ${fd(t.d)} · ${tm(t)} · <b style="color:var(--p)">${esc(getCollectorDisplay(t.by))}</b>
                 </div>
                 <div class="m" style="font-size:11.5px;margin-top:2px">
                   ${isPay ? `${tr('Bal after','మిగిలిన బాకీ')}: ${inr(Math.max(0, s.due))}` : `${tr('To Repay','తిరిగి చెల్లించేది')}: ${inr(t.repay)} · ${tr('Instalment','వాయిదా')}: ${inr(t.inst||m.inst||0)}`}
@@ -1609,6 +1633,16 @@ function collect(){
         </label>
       </div>
       ${pmode=='upi'?`<div style="margin-bottom:8px"><input id="pay_utr" type="text" inputmode="numeric" maxlength="12" placeholder="${tr('12-digit UPI UTR / Ref (optional)','12 అంకెల UPI UTR నంబర్ (ఐచ్ఛికం)')}" style="font-size:14px;padding:8px"></div>`:''}
+      <div style="margin:10px 0 12px">
+        <div class="m" style="font-size:12px;font-weight:700;margin-bottom:6px">${tr('Payment Collected By:','వసూలు చేసినవారు:')}</div>
+        <div class="acts" style="display:flex;gap:8px">
+          <button type="button" class="sm ${payCollector==='Gangaya (Father)'?'p':''}" onclick="setPayCollector('Gangaya (Father)')" style="flex:1;padding:8px 6px;font-weight:700;font-size:13px;border-radius:10px">
+            ${tr('Gangaya (Father)','గంగయ్య (తండ్రి)')}
+          </button>
+          <button type="button" class="sm ${payCollector==='Durga Sravan'?'p':''}" onclick="setPayCollector('Durga Sravan')" style="flex:1;padding:8px 6px;font-weight:700;font-size:13px;border-radius:10px">
+            ${tr('Durga Sravan','దుర్గా శ్రావణ్')}
+          </button>
+        </div>
       </div>
       <div class="acts">
         <button class="p" style="flex:1;padding:12px;font-size:15px;font-weight:700" onclick="save()">${tr('Record Payment ✓','చెల్లింపు నమోదు చేయి ✓')}</button>
@@ -1713,9 +1747,10 @@ function save(){
   const m=M.find(x=>x.id==sel.id);
   if(!m)return;
   const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0);
+  const collector = payCollector === 'Durga Sravan' ? 'Durga Sravan' : 'Gangaya (Father)';
   const go2=()=>{
     const utr = (mode === 'upi' && $('#pay_utr')) ? $('#pay_utr').value.trim() : '';
-    const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:who()};
+    const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:collector};
     if(utr){ t.utr = utr; t.verified = true; }
     sel=null;
     const remId1 = m.id + '_' + today();
@@ -1729,7 +1764,7 @@ function save(){
         vr = res.id;
       }
     });
-    toast(tr('Payment of '+inr(a)+' recorded ✓',inr(a)+' చెల్లింపు నమోదు చేయబడింది ✓'));
+    toast(tr(`Payment of ${inr(a)} recorded (${getCollectorDisplay(collector)}) ✓`, `${inr(a)} చెల్లింపు (${getCollectorDisplay(collector)}) నమోదు చేయబడింది ✓`));
   };
   if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
   go2();
@@ -1770,7 +1805,7 @@ rmsg=(m,s,l)=>{
 };
 function qitems(h){const o=[],td=today();
 for(const t of T){if(t.past||!!t.sent!=!!h)continue;const m=M.find(x=>x.id==t.mid);if(!m||m.archived)continue;
-o.push({k:'t'+t.id,m,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
+o.push({k:'t'+t.id,m,t,d:t.d,ts:t.ts,tag:t.type=='pay'?`Payment ${inr(t.amt)} · ${t.mode=='upi'?'UPI':'Cash'}${loanClosed(m,t)?' · Loan closed ✓':''}`:`New loan ${inr(t.amt)}`,text:msg(t),mk:()=>db.doc('txns/'+t.id).update({sent:true})})}
 if(!h)for(const m of M){
   if(m.archived)continue;
   const s=st(m);
@@ -2243,13 +2278,13 @@ function copyMsg(k){const i=Q.find(x=>x.k==k);if(!i)return;(navigator.clipboard&
 function receipts(){const q=qitems(hist).sort((a,b)=>hist?b.ts-a.ts:a.d.localeCompare(b.d)||a.ts-b.ts).slice(0,hist?40:500);if(!hist)Q=q;if(qi>=q.length)qi=0;const nx=!hist&&q[qi];
 return `<div class="card"><div class="row"><b>${hist?'Sent (latest 40)':q.length+' waiting'}</b><div class="acts">${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?'Show waiting':'Show sent'}</button></div></div>
 ${hist?'':'<p class="m" style="margin:6px 0 0">One receipt per payment or loan, plus reminders for dues in the next 2 days. Tap the green bar at the bottom: WhatsApp opens with the message ready, press Send there, come back and tap again. If WhatsApp does not open, use Copy, paste it in WhatsApp, then tap ✓ Sent. The Messages file works with bulk-sending tools.</p>'}</div>`
-+(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm" onclick="vr='${i.k.slice(1)}';draw()">View</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
++(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''} ${i.t&&i.t.by?`· <b style="color:var(--p)">${esc(getCollectorDisplay(i.t.by))}</b>`:''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm p" onclick="vr='${i.k.slice(1)}';draw()">${tr('Receipt','రసీదు')}</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
 +(nx?`<div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0"><button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendNext()">Send all · next: ${esc(nm(nx.m))} (${q.length} left)</button><button style="padding:14px" onclick="qi++;draw()">Skip</button></div>`:'')}
 async function sv(d,fn,data){try{await d.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')toast('Could not download: '+((e&&(e.message||e.code))||'error'))}}
 async function dlMsgs(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
 await sv(d,'gangaya-messages-'+today()+'.xlsx',xlsx([{name:'Messages',rows:Q.map(i=>({Phone:ph(i.m.phone),Name:i.m.te||i.m.name,Village:i.m.village,Type:i.tag,Date:i.d,Message:i.text,Link:wa(i)}))}]))}
 async function dl(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
-const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:t.by||''}}),
+const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:getCollectorName(t.by)}}),
 ms=M.filter(m=>!m.archived&&(!fv||m.village==fv)),
 mm=ms.map(m=>{const s=st(m);return{Member:m.name,Village:m.village,Phone:m.phone,Loan_given:T.filter(t=>t.mid==m.id&&t.type=='loan').reduce((a,t)=>a+t.amt,0),Total_to_return:s.g,Paid:s.p,Due:s.due,Installment:m.inst||0,Frequency:m.freq==1?'Daily':'Weekly',Next_due:s.next||'',Status:'Active'}}),
 ll=ms.flatMap(m=>ledger(m).map(l=>({Member:m.name,Village:m.village,Loan_no:l.n,Date:l.t.d,Given:l.given,To_return:l.repay,Installment:l.inst,Paid:l.paid,Due:l.due,Status:l.due<=0?'Closed':'Open',Payments:l.pays.length})));
@@ -3289,5 +3324,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=38').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=39').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
