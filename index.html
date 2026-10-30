@@ -632,7 +632,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=41"></script>
+<script src="/runtime.js?v=42"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -1077,6 +1077,101 @@ async function deleteSingleNotif(id, rawId){
   draw();
 }
 
+function openReceipt(id){
+  vr = id;
+  dismissedNotifIds.add(id);
+  dismissedNotifIds.add('t_' + id);
+  try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+  draw();
+}
+
+async function markSingleReceiptSent(id, nextId){
+  const t = T.find(x => x.id == id);
+  if(t){
+    t.sent = true;
+    dismissedNotifIds.add('t_' + id);
+    dismissedNotifIds.add(id);
+    try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+    try{ await db.doc('txns/' + id).update({ sent: true }); }catch(_){}
+  }
+  if(nextId){
+    openReceipt(nextId);
+  } else {
+    vr = '';
+    toast(tr('Receipt marked as read & processed ✓', 'రసీదు చదివినట్లు గుర్తించబడింది ✓'));
+    draw();
+  }
+}
+
+async function markAllReceiptsSent(){
+  const waiting = T.filter(t => !t.sent && !t.past);
+  if(!waiting.length){
+    toast(tr('No waiting receipts to clear ✓', 'క్లియర్ చేయడానికి రసీదులు ఏవీ లేవు ✓'));
+    return;
+  }
+  ask(
+    tr(`Clear all ${waiting.length} waiting receipts and mark as read?`, `అన్ని ${waiting.length} రసీదులను ఒకేసారి చదివినట్లు మార్చి క్లియర్ చేయాలా?`),
+    tr('Clear All Receipts', 'అన్ని రసీదులు క్లియర్ చేయి'),
+    async () => {
+      busy = true; draw();
+      try {
+        const count = waiting.length;
+        for(const t of waiting){
+          t.sent = true;
+          dismissedNotifIds.add('t_' + t.id);
+          dismissedNotifIds.add(t.id);
+          try{ await db.doc('txns/' + t.id).update({ sent: true }); }catch(_){}
+        }
+        lastReadNotif = Date.now();
+        try{ localStorage.setItem('gf_notif_read', lastReadNotif); }catch(_){}
+        try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+        toast(tr(`All ${count} receipts cleared from admin account ✓`, `అన్ని ${count} రసీదులు క్లియర్ చేయబడ్డాయి ✓`));
+      } finally {
+        busy = false;
+        draw();
+      }
+    }
+  );
+}
+
+async function markAllReceiptsAndNotifsRead(){
+  ask(
+    tr('Mark all notifications and waiting receipts as read & cleared live?', 'అన్ని నోటిఫికేషన్లు మరియు రసీదులను ఒకేసారి చదివినట్లు క్లియర్ చేయాలా?'),
+    tr('Clear All Live', 'అన్నీ క్లియర్ చేయి'),
+    async () => {
+      busy = true; draw();
+      try {
+        lastReadNotif = Date.now();
+        try{ localStorage.setItem('gf_notif_read', lastReadNotif); }catch(_){}
+
+        const waiting = T.filter(t => !t.sent && !t.past);
+        for(const t of waiting){
+          t.sent = true;
+          dismissedNotifIds.add('t_' + t.id);
+          dismissedNotifIds.add(t.id);
+          try{ await db.doc('txns/' + t.id).update({ sent: true }); }catch(_){}
+        }
+
+        for(const n of NT){
+          if(!n.read){
+            n.read = true;
+            try{ await db.doc('notifs/' + n.id).update({ read: true }); }catch(_){}
+          }
+          dismissedNotifIds.add(n.id);
+          dismissedNotifIds.add('n_' + n.id);
+        }
+
+        try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+        toast(tr('All live notifications and receipts cleared ✓', 'అన్ని లైవ్ నోటిఫికేషన్లు మరియు రసీదులు క్లియర్ చేయబడ్డాయి ✓'));
+      } finally {
+        busy = false;
+        closeNotifs();
+        draw();
+      }
+    }
+  );
+}
+
 async function clearNotifHistory(){
   ask(tr('Clear all notifications and message history?','అన్ని నోటిఫికేషన్లు మరియు సందేశాలను తొలగించాలా?'),tr('Clear All','అన్నీ తొలగించు'),async()=>{
     busy=true;draw();
@@ -1108,19 +1203,32 @@ function notifPanel(){
     if(notifFilter=='loans')return n.type=='loans'||n.isLoanReq;
     return true;
   });
+  const waitingReceiptCount = T.filter(t => !t.sent && !t.past).length;
   const permGranted = ('Notification' in window && Notification.permission === 'granted');
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target===this){closeNotifs();draw();}">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;margin:20px auto 40px;box-shadow:0 8px 30px rgba(0,0,0,.3)">
-      <div class="row" style="margin-bottom:8px">
-        <h2 style="margin:0">${tr('Notifications & Alerts','నోటిఫికేషన్లు & అలర్ట్స్')}</h2>
-        <div class="acts">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:540px;width:100%;margin:20px auto 40px;box-shadow:0 8px 30px rgba(0,0,0,.3)">
+      <div class="row" style="margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin:0">${tr('Notifications & Alerts','నోటిఫికేషన్లు & అలర్ట్స్')}</h2>
+          <div class="m" style="font-size:11.5px;color:var(--ok);margin-top:2px">● ${tr('Live Database Alerts Active','లైవ్ డేటాబేస్ అలర్ట్స్ సక్రియంగా ఉన్నాయి')}</div>
+        </div>
+        <div class="acts" style="flex-wrap:wrap">
+          <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markAllReceiptsAndNotifsRead()">${tr('Read / Clear All Live ✓','అన్నీ ఒకేసారి క్లియర్ చేయి ✓')}</button>
           <button class="sm" onclick="testAlertSound()">${tr('Test Sound','సౌండ్ టెస్ట్')}</button>
-          <button class="sm p" onclick="openFatherNoteDlg()">${role=='a'?tr('+ Send Note to Collector','+ కలెక్టర్‌కి నోట్'):tr('+ Send Note to Admin','+ అడ్మిన్‌కి మెసేజ్')}</button>
-          <button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
+          <button class="sm p" onclick="openFatherNoteDlg()">${role=='a'?tr('+ Note to Collector','+ కలెక్టర్‌కి నోట్'):tr('+ Message Admin','+ అడ్మిన్‌కి మెసేజ్')}</button>
           <button class="sm d" onclick="clearNotifHistory()">${tr('Clear All','అన్నీ తొలగించు')}</button>
           <button class="sm" onclick="closeNotifs();draw()">✕</button>
         </div>
       </div>
+      ${waitingReceiptCount > 0 ? `
+        <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);padding:10px 14px;border-radius:10px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div>
+            <b style="color:var(--p);font-size:13.5px">${waitingReceiptCount} ${tr('waiting receipts from Father','గంగయ్య గారి నుండి పెండింగ్ రసీదులు')}</b>
+            <div class="m" style="font-size:12px">${tr('Tap to review one by one, or clear all at once','ఒక్కొక్కటిగా చూడండి లేదా ఒకేసారి క్లియర్ చేయండి')}</div>
+          </div>
+          <button class="sm p" onclick="markAllReceiptsSent()">${tr('Clear Receipts ✓','రసీదులు క్లియర్ చేయి ✓')}</button>
+        </div>
+      ` : ''}
       ${!permGranted ? `
         <div style="background:var(--s);padding:8px 12px;border-radius:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px">
           <span>${tr('Enable browser & phone notifications for real-time sound alerts:','రియల్-టైమ్ అలర్ట్ శబ్దాల కోసం నోటిఫికేషన్లను ఆన్ చేయండి:')}</span>
@@ -1154,7 +1262,7 @@ function notifPanel(){
                 ${n.status==='approved'?tr('Status: Approved & Added to records ✓','స్టేటస్: ఆమోదించబడింది ✓'):(n.status==='rejected'?tr('Status: Rejected ✕','స్టేటస్: తిరస్కరించబడింది ✕'):tr('Status: Pending Approval','స్టేటస్: పెండింగ్'))}
               </div>
             ` : '')}
-            ${n.rawId&&n.type=='pay'?`<div class="acts" style="margin-top:6px"><button class="sm" onclick="vr='${n.rawId}';closeNotifs();draw()">${tr('View Receipt','రసీదు చూడండి')}</button></div>`:''}
+            ${n.rawId&&n.type=='pay'?`<div class="acts" style="margin-top:6px;gap:6px"><button class="sm p" onclick="openReceipt('${n.rawId}');closeNotifs();">${tr('View Receipt','రసీదు చూడండి')}</button><button class="sm" onclick="markSingleReceiptSent('${n.rawId}');event.stopPropagation();">${tr('Clear ✓','క్లియర్ ✓')}</button></div>`:''}
           </div>`;
         }).join('')||`<p class="m" style="text-align:center;padding:24px 0">${tr('No notifications yet','ఇంకా నోటిఫికేషన్లు లేవు')}</p>`}
       </div>
@@ -1402,9 +1510,21 @@ function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),isPay=t.type=='pay';
 const recNo='GF-'+t.id.slice(0,8).toUpperCase();
+const unreadWaiting = T.filter(x => !x.sent && !x.past).sort((a,b)=>b.ts-a.ts);
+const curIdx = unreadWaiting.findIndex(x => x.id === t.id);
+const prevId = (curIdx > 0) ? unreadWaiting[curIdx - 1].id : null;
+const nextId = (curIdx !== -1 && curIdx < unreadWaiting.length - 1) ? unreadWaiting[curIdx + 1].id : null;
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-modal" role="dialog" aria-modal="true">
     <div class="gf-receipt-paper">
+      ${curIdx !== -1 ? `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
+        <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
+        <div style="display:flex;gap:6px">
+          ${prevId ? `<button class="sm" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${prevId}')">← ${tr('Prev','మునుపటి')}</button>` : ''}
+          ${nextId ? `<button class="sm p" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${nextId}')">${tr('Next →','తదుపరి →')}</button>` : ''}
+        </div>
+      </div>` : ''}
       <div class="gf-receipt-header">
         <div class="gf-receipt-brand">
           <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
@@ -1459,6 +1579,11 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
         <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
           ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
         </a>
+        ${!t.sent ? `
+          <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
+            ${nextId ? tr('Mark Read & Next →','చదివాను & తదుపరిది →') : tr('Mark as Read ✓','చదివినట్లు గుర్తించు ✓')}
+          </button>
+        ` : ''}
         <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
         <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
       </div>
@@ -2287,9 +2412,9 @@ function sendNext(){if(!owner||pnd)return;const i=Q[qi]||Q[0];if(!i)return;const
 function sentNow(k){if(owner)done(k)}
 function copyMsg(k){const i=Q.find(x=>x.k==k);if(!i)return;(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(i.text):Promise.reject()).then(()=>toast('Message copied. Paste it in the WhatsApp chat of '+i.m.phone)).catch(()=>ask(i.text,'OK',()=>{}))}
 function receipts(){const q=qitems(hist).sort((a,b)=>hist?b.ts-a.ts:a.d.localeCompare(b.d)||a.ts-b.ts).slice(0,hist?40:500);if(!hist)Q=q;if(qi>=q.length)qi=0;const nx=!hist&&q[qi];
-return `<div class="card"><div class="row"><b>${hist?'Sent (latest 40)':q.length+' waiting'}</b><div class="acts">${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?'Show waiting':'Show sent'}</button></div></div>
+return `<div class="card"><div class="row" style="flex-wrap:wrap;gap:8px"><b>${hist?tr('Sent / Processed (latest 40)','పంపినవి / ప్రాసెస్ చేసినవి (తాజా 40)'):q.length+' '+tr('waiting receipts','వేచి ఉన్న రసీదులు')}</b><div class="acts" style="flex-wrap:wrap">${!hist&&q.length>0?`<button class="p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markAllReceiptsSent()">${tr('Read All at a Time ✓','అన్నీ ఒకేసారి క్లియర్ చేయి ✓')}</button>`:''}${hist?'':`<button onclick="dlMsgs()" ${q.length?'':'disabled'}>Messages file</button>`}<button onclick="hist=!hist;draw()">${hist?tr('Show waiting','వేచి ఉన్నవి'):tr('Show sent','పంపినవి')}</button></div></div>
 ${hist?'':'<p class="m" style="margin:6px 0 0">One receipt per payment or loan, plus reminders for dues in the next 2 days. Tap the green bar at the bottom: WhatsApp opens with the message ready, press Send there, come back and tap again. If WhatsApp does not open, use Copy, paste it in WhatsApp, then tap ✓ Sent. The Messages file works with bulk-sending tools.</p>'}</div>`
-+(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''} ${i.t&&i.t.by?`· <b style="color:var(--p)">${esc(getCollectorDisplay(i.t.by))}</b>`:''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm p" onclick="vr='${i.k.slice(1)}';draw()">${tr('Receipt','రసీదు')}</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
++(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''} ${i.t&&i.t.by?`· <b style="color:var(--p)">${esc(getCollectorDisplay(i.t.by))}</b>`:''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm p" onclick="openReceipt('${i.k.slice(1)}')">${tr('Receipt','రసీదు')}</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
 +(nx?`<div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0"><button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendNext()">Send all · next: ${esc(nm(nx.m))} (${q.length} left)</button><button style="padding:14px" onclick="qi++;draw()">Skip</button></div>`:'')}
 async function sv(d,fn,data){try{await d.save({filename:fn,data})}catch(e){if(e&&e.code!='declined')toast('Could not download: '+((e&&(e.message||e.code))||'error'))}}
 async function dlMsgs(){if(!owner)return;const d=await claude.use('downloads');if(!d)return toast('Download is not available in this view');
@@ -3156,6 +3281,7 @@ function heroKpis(preRemList, prePndRc){
   </div>
 
   <div class="v18-quick-bar">
+    <button class="quick-btn ${unreadNotifCount() > 0 ? 'p' : ''}" onclick="toggleNotifs()">${tr('Live Alerts','లైవ్ అలర్ట్స్')} ${unreadNotifCount() > 0 ? `(${unreadNotifCount()})` : ''}</button>
     <button class="quick-btn" onclick="openScannerDlg()">${tr('QR Scanner','QR స్కానర్')}</button>
     <button class="quick-btn p" onclick="openFatherNewLoanDlg()">${tr('+ New Loan','+ కొత్త అప్పు')}</button>
     <button class="quick-btn" onclick="openManualRem()">${tr('Send Reminder','రిమైండర్ పంపు')}</button>
@@ -3335,5 +3461,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=41').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=42').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
