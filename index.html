@@ -399,6 +399,98 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   position: relative;
   border: 1px solid rgba(0,0,0,0.08);
 }
+.gf-receipt-paper.is-pos-dispensed {
+  border-radius: 0;
+  border-top: none;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+}
+.gf-pos-terminal-head {
+  width: 100%;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-radius: 18px 18px 0 0;
+  padding: 12px 18px 10px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-bottom: none;
+  position: relative;
+  z-index: 5;
+}
+.gf-pos-terminal-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.gf-pos-terminal-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #cbd5e1;
+  text-transform: uppercase;
+}
+.gf-pos-slot-badge {
+  background: #6366f1;
+  color: #ffffff;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 6px rgba(99,102,241,0.4);
+}
+.gf-pos-terminal-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.gf-pos-live-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: ledPulse 1.6s infinite;
+}
+.gf-pos-mouth {
+  height: 7px;
+  background: #020617;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.95);
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.gf-pos-teeth {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, #334155, #334155 3px, #0f172a 3px, #0f172a 7px);
+  opacity: 0.5;
+}
+.gf-pos-barcode {
+  height: 26px;
+  max-width: 200px;
+  margin: 14px auto 4px;
+  background: repeating-linear-gradient(90deg, #0f172a, #0f172a 2px, transparent 2px, transparent 4px, #0f172a 4px, #0f172a 6px, transparent 6px, transparent 7px, #0f172a 7px, #0f172a 10px, transparent 10px, transparent 12px, #0f172a 12px, #0f172a 15px);
+  opacity: 0.8;
+}
+:root[data-theme=dark] .gf-pos-barcode {
+  background: repeating-linear-gradient(90deg, #f8fafc, #f8fafc 2px, transparent 2px, transparent 4px, #f8fafc 4px, #f8fafc 6px, transparent 6px, transparent 7px, #f8fafc 7px, #f8fafc 10px, transparent 10px, transparent 12px, #f8fafc 12px, #f8fafc 15px);
+}
+.gf-pos-barcode-num {
+  font-size: 10px;
+  font-family: monospace;
+  letter-spacing: 0.12em;
+  color: var(--m);
+  text-align: center;
+}
 :root[data-theme=dark] .gf-receipt-paper {
   background: #0f172a;
   color: #f8fafc;
@@ -634,7 +726,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=44"></script>
+<script src="/runtime.js?v=45"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -1572,7 +1664,23 @@ const prevId = (curIdx > 0) ? unreadWaiting[curIdx - 1].id : null;
 const nextId = (curIdx !== -1 && curIdx < unreadWaiting.length - 1) ? unreadWaiting[curIdx + 1].id : null;
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-modal" role="dialog" aria-modal="true">
-    <div class="gf-receipt-paper">
+    ${isAdm ? `
+    <div class="gf-pos-terminal-head">
+      <div class="gf-pos-terminal-body">
+        <div class="gf-pos-terminal-brand">
+          <span class="gf-pos-slot-badge">GF POS</span>
+          <span style="font-weight:800;letter-spacing:0.06em">${tr('COLLECTOR LIVE FEED','కలెక్టర్ లైవ్ ఫీడ్')}</span>
+        </div>
+        <div class="gf-pos-terminal-status">
+          <span class="gf-pos-live-led"></span>
+          <span>${tr('LIVE FROM FIELD','ఫీల్డ్ నుండి లైవ్')}</span>
+        </div>
+      </div>
+      <div class="gf-pos-mouth">
+        <div class="gf-pos-teeth"></div>
+      </div>
+    </div>` : ''}
+    <div class="gf-receipt-paper ${isAdm ? 'is-pos-dispensed' : ''}">
       ${(isAdm && curIdx !== -1) ? `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
         <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
@@ -1630,6 +1738,11 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
       <div class="gf-receipt-stamp">
         ${isPay?'PAID ✓':'SANCTIONED ✓'}
       </div>
+
+      ${isAdm ? `
+      <div class="gf-pos-barcode"></div>
+      <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
+      ` : ''}
 
       <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
         <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
@@ -3531,5 +3644,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=44').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=45').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
