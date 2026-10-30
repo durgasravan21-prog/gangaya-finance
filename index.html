@@ -3,10 +3,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#059669">
 <meta name="referrer" content="no-referrer">
-<meta name="description" content="Gangaya Finance is the official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts in Andhra Pradesh.">
+<meta name="description" content="Official portal for Gangaya Finance daily & weekly loan collections, khatas, and digital receipts in Andhra Pradesh.">
 <meta name="keywords" content="Gangaya Finance, daily finance, weekly finance, micro finance Andhra Pradesh, loan collection, borrower khata, digital receipts, Durga Sravan, Gangaya">
 <meta name="author" content="Durga Sravan">
 <meta name="robots" content="index, follow">
+<meta name="google-site-verification" content="google6a4f06d2a16c2637">
 <link rel="canonical" href="https://gangaya-finance.vercel.app/">
 
 <!-- Open Graph / Facebook -->
@@ -372,6 +373,196 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .chips button { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
 @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.96) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* ========================================================
+   AUTHENTIC ANIMATED DIGITAL THERMAL RECEIPT
+   ======================================================== */
+.gf-receipt-modal {
+  width: 100%;
+  max-width: 440px;
+  margin: 20px auto 40px;
+  position: relative;
+  animation: receiptFeedIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes receiptFeedIn {
+  0% { transform: translateY(-45px) scale(0.94); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.gf-receipt-paper {
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.38);
+  padding: 26px 24px 20px;
+  position: relative;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+:root[data-theme=dark] .gf-receipt-paper {
+  background: #0f172a;
+  color: #f8fafc;
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+}
+.gf-receipt-sawtooth {
+  position: relative;
+  height: 16px;
+  background: #ffffff;
+  background-image: radial-gradient(circle, transparent 70%, #ffffff 75%);
+  background-size: 16px 16px;
+  background-position: 0 -8px;
+  filter: drop-shadow(0 6px 8px rgba(0,0,0,0.15));
+}
+:root[data-theme=dark] .gf-receipt-sawtooth {
+  background: #0f172a;
+  background-image: radial-gradient(circle, transparent 70%, #0f172a 75%);
+}
+.gf-receipt-header {
+  text-align: center;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed rgba(148, 163, 184, 0.4);
+  position: relative;
+}
+.gf-receipt-brand {
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.gf-receipt-sub {
+  font-size: 11.5px;
+  color: var(--m);
+  margin-top: 3px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.gf-receipt-hero {
+  text-align: center;
+  padding: 16px 0;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 14px;
+  margin: 14px 0;
+  border: 1px solid rgba(99, 102, 241, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+.gf-receipt-hero::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+  animation: receiptShimmer 2.8s infinite;
+}
+@keyframes receiptShimmer {
+  0% { left: -100%; }
+  35%, 100% { left: 160%; }
+}
+.gf-receipt-amt-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--m);
+  letter-spacing: 0.05em;
+}
+.gf-receipt-amt-val {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #059669;
+  line-height: 1.15;
+  margin: 4px 0;
+}
+:root[data-theme=dark] .gf-receipt-amt-val {
+  color: #34d399;
+}
+.gf-receipt-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #dcfce7;
+  color: #15803d;
+  letter-spacing: 0.03em;
+}
+:root[data-theme=dark] .gf-receipt-mode-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}
+.gf-receipt-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 16px 0;
+  font-size: 13.5px;
+}
+.gf-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px dotted rgba(148, 163, 184, 0.35);
+}
+.gf-receipt-row:last-child {
+  border-bottom: 0;
+}
+.gf-receipt-k {
+  color: var(--m);
+  font-weight: 600;
+}
+.gf-receipt-v {
+  font-weight: 700;
+  text-align: right;
+}
+.gf-receipt-stamp {
+  position: absolute;
+  right: 24px;
+  bottom: 86px;
+  border: 3px solid #059669;
+  color: #059669;
+  font-size: 14px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 8px;
+  transform: rotate(-12deg);
+  opacity: 0;
+  animation: stampImpact 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.35s forwards;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.2);
+}
+@keyframes stampImpact {
+  0% { transform: scale(2.2) rotate(-28deg); opacity: 0; }
+  100% { transform: scale(1) rotate(-12deg); opacity: 0.95; }
+}
+.gf-receipt-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2px dashed rgba(148, 163, 184, 0.4);
+}
+.gf-receipt-acts button, .gf-receipt-acts a {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+@media print {
+  body * { visibility: hidden; }
+  .gf-receipt-modal, .gf-receipt-modal * { visibility: visible; }
+  .gf-receipt-modal { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; margin: 0; box-shadow: none; }
+  .gf-receipt-acts { display: none !important; }
+}
 @media(prefers-reduced-motion:reduce){ * { transition: none!important; animation: none!important; } }
 
 .hist-grid-head {
@@ -441,7 +632,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=37"></script>
+<script src="/runtime.js?v=38"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -1014,7 +1205,7 @@ function renderErrorState(type, detail) {
       <div style="width:56px;height:56px;border-radius:16px;background:rgba(239,68,68,0.12);color:var(--r);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
         <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
       </div>
-      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Cannot Reach Database', 'డేటాబేస్ అందుబాటులో లేదు')}</h2>
+      <h1 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Cannot Reach Database', 'డేటాబేస్ అందుబాటులో లేదు')}</h1>
       <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 16px">
         ${tr('Unable to establish a live connection to the Mumbai cloud database. This typically occurs due to network timeout, firewall/proxy blocking, or temporary database interruption.', 'ముంబై క్లౌడ్ డేటాబేస్ తో కనెక్షన్ ఏర్పడలేదు. నెట్‌వర్క్ సమస్య లేదా ఫైర్‌వాల్ బ్లాకింగ్ వల్ల ఇది జరగవచ్చు.')}
       </p>
@@ -1036,7 +1227,7 @@ function renderErrorState(type, detail) {
       <div style="width:52px;height:52px;border-radius:16px;background:var(--s);color:var(--a);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
         <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
       </div>
-      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('404 - Section Not Found', '404 - విభాగం కనపడలేదు')}</h2>
+      <h1 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('404 - Section Not Found', '404 - విభాగం కనపడలేదు')}</h1>
       <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 18px">
         ${detail || tr('The requested tab or record could not be found.', 'మీరు కోరిన విభాగం లేదా రికార్డు అందుబాటులో లేదు.')}
       </p>
@@ -1051,7 +1242,7 @@ function renderErrorState(type, detail) {
       <div style="width:52px;height:52px;border-radius:16px;background:rgba(239,68,68,0.12);color:var(--r);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
         <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
       </div>
-      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Access Denied', 'అనుమతి నిరాకరించబడింది')}</h2>
+      <h1 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Access Denied', 'అనుమతి నిరాకరించబడింది')}</h1>
       <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 18px">
         ${detail || tr('You do not have administrative permissions to view or edit this section.', 'ఈ విభాగాన్ని చూడటానికి మీకు అడ్మిన్ అనుమతులు లేవు.')}
       </p>
@@ -1166,11 +1357,72 @@ return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class
 <div class="acts">${d>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
 function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
-b=st(m,t.ts,t.d),R=(k,v)=>`<tr><td class="m">${k}</td><td><b>${v}</b></td></tr>`;
-return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:9" onclick="if(event.target.id=='ov'){vr='';draw()}"><div class="card" role="dialog" aria-modal="true" style="width:100%;max-width:720px;max-height:85vh;overflow:auto;margin:0;border-radius:16px 16px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))">
-<div class="row"><h2 style="margin:0">${esc(nm(m))} <span class="m">${esc(vl(m.village))}</span></h2><button onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button></div>
-<table style="margin:8px 0">${R(tr('Type','రకం'),t.type=='pay'?tr('Payment','చెల్లింపు'):tr('New loan','కొత్త అప్పు'))}${R(tr('Amount','మొత్తం'),inr(t.amt))}${t.type=='pay'?R(tr('Mode','విధానం'),t.mode=='upi'?'UPI':tr('Cash','నగదు')):R(tr('To return','తిరిగి'),inr(t.repay)+' · '+inr(t.inst||m.inst||0)+'/'+(m.freq==1?tr('day','రోజు'):tr('week','వారం')))}${R(tr('Date','తేదీ'),fd(t.d)+', '+tm(t))+(t.past&&t.ent?R(tr('Entered on','నమోదు తేదీ'),fd(new Date(t.ent).toLocaleDateString('en-CA'))):'')}${R(tr('Applied to','వర్తించినది'),on||'-')}${R(tr('Balance after','తరువాత బాకీ'),inr(Math.max(b.due,0)))}${role=='a'?R('Receipt',t.sent?'Sent':'Waiting')+R('Recorded by',esc(t.by||'-')):''}</table>
-${role=='a'?`<pre style="white-space:pre-wrap;font:inherit;background:var(--bg);border-radius:8px;padding:10px;margin:0 0 10px">${esc(msg(t))}</pre><a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">WhatsApp</a>`:''}</div></div>`}
+b=st(m,t.ts,t.d),isPay=t.type=='pay';
+const recNo='GF-'+t.id.slice(0,8).toUpperCase();
+return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+  <div class="gf-receipt-modal" role="dialog" aria-modal="true">
+    <div class="gf-receipt-paper">
+      <div class="gf-receipt-header">
+        <div class="gf-receipt-brand">
+          <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
+          <span>Gangaya Finance</span>
+        </div>
+        <div class="gf-receipt-sub">${isPay?tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు'):tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
+        <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
+      </div>
+
+      <div class="gf-receipt-hero">
+        <div class="gf-receipt-amt-lbl">${isPay?tr('Amount Paid','చెల్లించిన మొత్తం'):tr('Loan Amount','మంజూరైన అప్పు')}</div>
+        <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
+        <div class="gf-receipt-mode-badge">
+          ${isPay?(t.mode=='upi'?'UPI · VERIFIED ✓':tr('CASH PAYMENT','నగదు చెల్లింపు')):(tr('SANCTIONED LOAN','మంజూరైన అప్పు'))}
+        </div>
+      </div>
+
+      <div class="gf-receipt-rows">
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
+          <span class="gf-receipt-v">${esc(nm(m))} <span class="m">(${esc(vl(m.village))})</span></span>
+        </div>
+        ${m.phone?`
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</span>
+          <span class="gf-receipt-v">${esc(m.phone)}</span>
+        </div>`:''}
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
+          <span class="gf-receipt-v">${fd(t.d)}, ${tm(t)}</span>
+        </div>
+        ${on?`
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Applied To','వర్తించినది')}</span>
+          <span class="gf-receipt-v">${esc(on)}</span>
+        </div>`:''}
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
+          <span class="gf-receipt-v" style="color:${b.due>0?'var(--t)':'var(--ok)'}">${inr(Math.max(b.due,0))}</span>
+        </div>
+        <div class="gf-receipt-row">
+          <span class="gf-receipt-k">${tr('Issued By','జారీ చేసినవారు')}</span>
+          <span class="gf-receipt-v">${esc(t.by || (role=='a'?'Durga Sravan':'Gangaya'))}</span>
+        </div>
+      </div>
+
+      <div class="gf-receipt-stamp">
+        ${isPay?'PAID ✓':'SANCTIONED ✓'}
+      </div>
+
+      <div class="gf-receipt-acts">
+        <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
+          ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
+        </a>
+        <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
+        <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
+      </div>
+    </div>
+    <div class="gf-receipt-sawtooth"></div>
+  </div>
+</div>`}
 function recs(){const td=today(),from={t:td,'7':addD(td,-6),m:td.slice(0,8)+'01',a:''}[fp]||'';
 return T.filter(t=>{if(from&&t.d<from)return false;if(fp=='p'&&!t.past)return false;const m=M.find(x=>x.id==t.mid);return m&&!m.archived&&(!fv||m.village==fv)}).sort((a,b)=>b.ts-a.ts)}
 function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce((a,t)=>a+t.amt,0),up=pay.filter(t=>t.mode=='upi').reduce((a,t)=>a+t.amt,0);
@@ -1471,7 +1723,12 @@ function save(){
     const curS = st(m);
     if(curS.next) RM.add(m.id + '_' + curS.next);
     try{db.doc('rem/'+remId1).set({mid:m.id,d:today(),sent:true,paid:true,ts:Date.now()})}catch(_){}
-    once(()=>db.collection('txns').add(t));
+    once(async()=>{
+      const res = await db.collection('txns').add(t);
+      if(res && res.id){
+        vr = res.id;
+      }
+    });
     toast(tr('Payment of '+inr(a)+' recorded ✓',inr(a)+' చెల్లింపు నమోదు చేయబడింది ✓'));
   };
   if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
@@ -2160,7 +2417,7 @@ if(exb)return saveExisting(m,g,r,i,ld);
 once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});clr(['n','nt','p','lg','lr','i','ld'])})}
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
-once(async()=>{await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i})})}
+once(async()=>{const res=await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i});if(res&&res.id)vr=res.id;})}
 
 function openFatherNewLoanDlg(mid){
   if(mid) fnlMid = mid;
@@ -2391,7 +2648,7 @@ async function submitFatherNewLoan(){
   busy = true; draw();
   try{
     if(isAdm){
-      await db.collection('txns').add({
+      const res = await db.collection('txns').add({
         mid: m.id,
         type: 'loan',
         amt,
@@ -2406,6 +2663,7 @@ async function submitFatherNewLoan(){
       if(inst > 0){
         try{ await db.doc('members/' + m.id).update({ inst }); }catch(_){}
       }
+      if(res && res.id) vr = res.id;
       toast(tr('New loan sanctioned & added to records ✓','కొత్త అప్పు మంజూరు చేయబడింది ✓'));
     } else {
       const noteText = tr(
@@ -2477,7 +2735,7 @@ async function approveLoanReq(id){
     async () => {
       busy = true; draw();
       try{
-        await db.collection('txns').add({
+        const res = await db.collection('txns').add({
           mid: lr.mid,
           type: 'loan',
           amt: lr.amt,
@@ -2489,6 +2747,7 @@ async function approveLoanReq(id){
           sent: true,
           by: 'Gangaya (Approved by Durga Sravan)'
         });
+        if(res && res.id) vr = res.id;
         if(lr.inst > 0){
           try{ await db.doc('members/' + lr.mid).update({ inst: lr.inst }); }catch(_){}
         }
@@ -2876,7 +3135,7 @@ function _drawInner(){
       <div style="width:48px;height:48px;border-radius:14px;background:var(--s);color:var(--a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
         <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
       </div>
-      <h3 style="margin:0 0 6px;font-size:18px">${tr('Connecting to Cloud…','క్లౌడ్ కి కనెక్ట్ అవుతోంది…')}</h3>
+      <h1 style="margin:0 0 6px;font-size:18px">${tr('Connecting to Cloud…','క్లౌడ్ కి కనెక్ట్ అవుతోంది…')}</h1>
       <p class="m" style="margin:0 0 16px;font-size:13px">${tr('Connecting to Gangaya Finance Mumbai database. Please wait…','ముంబై డేటాబేస్ తో అనుసంధానిస్తోంది. దయచేసి వేచి ఉండండి…')}</p>
       <div style="display:flex;gap:8px;justify-content:center">
         <button class="sm" onclick="location.reload()">${tr('Reload','రీలోడ్')}</button>
@@ -3030,5 +3289,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=37').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=38').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
