@@ -632,9 +632,9 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=39"></script>
+<script src="/runtime.js?v=40"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',payCollector=localStorage.getItem('gf_pay_collector')||'Gangaya (Father)',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -707,7 +707,7 @@ const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','�
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
 const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
 function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
-const col=getCollectorDisplay(t.by),byLine=t.type=='pay'?`వసూలు చేసినవారు: ${col}`:`మంజూరు చేసినవారు: ${col}`;
+const col=getCollectorDisplay(t.by),byLine=t.type=='pay'?`నమోదు చేసినవారు: ${col}`:`మంజూరు చేసినవారు: ${col}`;
 return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\n${byLine}\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 let mbSub='members', acSub='timeline', colQuery='';
@@ -726,7 +726,7 @@ function go(t, sub){
   }catch(_){}
   sel=null; rv=''; draw();
 }
-function setRole(r){role=r;tab='';sel=null;rv='';if(!localStorage.getItem('gf_pay_collector'))payCollector=(r==='a'?'Durga Sravan':'Gangaya (Father)');draw()}
+function setRole(r){role=r;tab='';sel=null;rv='';draw()}
 let cloudStatusText = '';
 async function readCloudStatus(){
   try{
@@ -779,16 +779,29 @@ function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div c
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
 cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8;
 
-function setPayCollector(name){
-  payCollector = name;
-  try{ localStorage.setItem('gf_pay_collector', name); }catch(_){}
-  draw();
+function getLoggedInUser(){
+  const em = (me && me.email || email || '').toLowerCase();
+  const nm = (me && me.name || '').toLowerCase();
+  const isSravan = (owner || role === 'a' || em.includes('sravan') || em.includes('durga') || nm.includes('sravan') || nm.includes('durga'));
+  if(isSravan){
+    return {
+      id: 'sravan',
+      name: 'Durga Sravan',
+      display: tr('Durga Sravan', 'దుర్గా శ్రావణ్')
+    };
+  }
+  return {
+    id: 'father',
+    name: 'Gangaya (Father)',
+    display: tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)')
+  };
 }
 function getCollectorName(by){
-  if(!by) return role === 'a' ? 'Durga Sravan' : 'Gangaya (Father)';
+  if(!by) return (owner || role === 'a') ? 'Durga Sravan' : 'Gangaya (Father)';
   const b = String(by).toLowerCase();
   if(b.includes('approved by durga sravan')) return 'Gangaya (Approved by Durga Sravan)';
-  if(b.includes('assigned by durga sravan')) return 'UPI (Assigned by Durga Sravan)';
+  if(b.includes('assigned by durga sravan') || b.includes('upi assigned (durga')) return 'UPI (Assigned by Durga Sravan)';
+  if(b.includes('assigned by gangaya') || b.includes('upi assigned (gangaya')) return 'UPI (Assigned by Gangaya)';
   if(b.includes('sravan') || b.includes('durga') || b.includes('admin')) return 'Durga Sravan';
   if(b.includes('gangaya') || b.includes('father') || b.includes('sridevi') || b.includes('collector')) return 'Gangaya (Father)';
   return by;
@@ -799,9 +812,10 @@ function getCollectorDisplay(by){
   if(n === 'Gangaya (Father)') return tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)');
   if(n === 'Gangaya (Approved by Durga Sravan)') return tr('Gangaya (Approved by Durga Sravan)', 'గంగయ్య (దుర్గా శ్రావణ్ ఆమోదం)');
   if(n === 'UPI (Assigned by Durga Sravan)') return tr('UPI (Assigned by Durga Sravan)', 'UPI (దుర్గా శ్రావణ్)');
+  if(n === 'UPI (Assigned by Gangaya)') return tr('UPI (Assigned by Gangaya)', 'UPI (గంగయ్య)');
   return n;
 }
-const who=()=>str(payCollector || (role=='a'?'Durga Sravan':'Gangaya (Father)'), 40);
+const who=()=>str(getLoggedInUser().name, 40);
 const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
@@ -1427,7 +1441,7 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
           <span class="gf-receipt-v" style="color:${b.due>0?'var(--t)':'var(--ok)'}">${inr(Math.max(b.due,0))}</span>
         </div>
         <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${isPay?tr('Collected By','వసూలు చేసినవారు'):tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
+          <span class="gf-receipt-k">${isPay?tr('Logged / Recorded By','నమోదు చేసినవారు'):tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
           <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(getCollectorDisplay(t.by))}</span>
         </div>
       </div>
@@ -1453,7 +1467,7 @@ function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce(
 return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ'],['p','Past records','పాత రికార్డులు']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">Download Excel</button>':''}</div>
-<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
+<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · <b style="color:var(--p)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
 function activityTab(){
   const td = today(), w = addD(td, -6), mStart = td.slice(0, 8) + '01';
@@ -1633,16 +1647,8 @@ function collect(){
         </label>
       </div>
       ${pmode=='upi'?`<div style="margin-bottom:8px"><input id="pay_utr" type="text" inputmode="numeric" maxlength="12" placeholder="${tr('12-digit UPI UTR / Ref (optional)','12 అంకెల UPI UTR నంబర్ (ఐచ్ఛికం)')}" style="font-size:14px;padding:8px"></div>`:''}
-      <div style="margin:10px 0 12px">
-        <div class="m" style="font-size:12px;font-weight:700;margin-bottom:6px">${tr('Payment Collected By:','వసూలు చేసినవారు:')}</div>
-        <div class="acts" style="display:flex;gap:8px">
-          <button type="button" class="sm ${payCollector==='Gangaya (Father)'?'p':''}" onclick="setPayCollector('Gangaya (Father)')" style="flex:1;padding:8px 6px;font-weight:700;font-size:13px;border-radius:10px">
-            ${tr('Gangaya (Father)','గంగయ్య (తండ్రి)')}
-          </button>
-          <button type="button" class="sm ${payCollector==='Durga Sravan'?'p':''}" onclick="setPayCollector('Durga Sravan')" style="flex:1;padding:8px 6px;font-weight:700;font-size:13px;border-radius:10px">
-            ${tr('Durga Sravan','దుర్గా శ్రావణ్')}
-          </button>
-        </div>
+      <div class="m" style="font-size:12px;margin:8px 0 12px;text-align:center">
+        ${tr('Auto-logged by: ','నమోదు చేస్తున్నారు: ')}<b style="color:var(--p)">${getLoggedInUser().display}</b>
       </div>
       <div class="acts">
         <button class="p" style="flex:1;padding:12px;font-size:15px;font-weight:700" onclick="save()">${tr('Record Payment ✓','చెల్లింపు నమోదు చేయి ✓')}</button>
@@ -1747,7 +1753,7 @@ function save(){
   const m=M.find(x=>x.id==sel.id);
   if(!m)return;
   const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0);
-  const collector = payCollector === 'Durga Sravan' ? 'Durga Sravan' : 'Gangaya (Father)';
+  const collector = who();
   const go2=()=>{
     const utr = (mode === 'upi' && $('#pay_utr')) ? $('#pay_utr').value.trim() : '';
     const t={mid:m.id,type:'pay',amt:a,mode,d:today(),ts:Date.now(),sent:false,by:collector};
@@ -1764,7 +1770,7 @@ function save(){
         vr = res.id;
       }
     });
-    toast(tr(`Payment of ${inr(a)} recorded (${getCollectorDisplay(collector)}) ✓`, `${inr(a)} చెల్లింపు (${getCollectorDisplay(collector)}) నమోదు చేయబడింది ✓`));
+    toast(tr(`Payment of ${inr(a)} logged by ${getCollectorDisplay(collector)} ✓`, `${inr(a)} చెల్లింపు (${getCollectorDisplay(collector)}) నమోదు చేయబడింది ✓`));
   };
   if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
   go2();
@@ -3324,5 +3330,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=39').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=40').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
