@@ -70,15 +70,15 @@
   const denied = () => Object.assign(new Error('Not allowed, or the record does not exist'), { code: 'not_granted' });
 
   async function allRows(c) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const { data, error } = await sb.from('docs').select('id,data').eq('collection', c).order('created_at').limit(3000);
         if (error) throw err(error);
         return data || [];
       } catch (e) {
-        if (attempt < 2) {
+        if (attempt < 1) {
           console.warn('allRows attempt ' + (attempt + 1) + ' for ' + c + ' failed, retrying...');
-          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          await new Promise(r => setTimeout(r, 1000));
         } else {
           throw e;
         }
@@ -132,7 +132,7 @@
   async function loadAllStores(cols, force) {
     const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits'];
     initSharedRealtime();
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const { data, error } = await sb.from('docs')
           .select('collection,id,data')
@@ -156,11 +156,18 @@
         }
         return true;
       } catch (e) {
-        if (attempt < 2) {
-          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        if (attempt < 1) {
+          await new Promise(r => setTimeout(r, 1000));
         } else {
-          console.warn('loadAllStores fallback to parallel single queries:', e);
-          await Promise.all(targetCols.map(c => getStore(c).load(force).catch(() => {})));
+          console.warn('loadAllStores network issue, activating local cached stores:', e);
+          for (const c of targetCols) {
+            const s = getStore(c);
+            if (s.map.size > 0) {
+              s.loaded = true;
+              s.emit();
+            }
+          }
+          return false;
         }
       }
     }
@@ -452,36 +459,33 @@
   };
   window.claude = { use: n => ready.then(() => caps[n] || null) };
 
+  const DEFAULT_CFG = {
+    url: 'https://digmxlceoejepixflqnh.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk'
+  };
+
   async function boot() {
-    let cfg = null;
+    let cfg = DEFAULT_CFG;
     try {
       const cached = localStorage.getItem('gf_cfg');
-      if (cached) cfg = JSON.parse(cached);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.url && parsed.anonKey) cfg = parsed;
+      }
     } catch (_) {}
 
-    if (!cfg || !cfg.url || !cfg.anonKey) {
-      try {
-        const r = await fetch('/api/config', { signal: AbortSignal.timeout(6000) });
-        cfg = await r.json();
-        if (!cfg.url || !cfg.anonKey) throw new Error('config');
-        try { localStorage.setItem('gf_cfg', JSON.stringify(cfg)); } catch (_) {}
-      } catch (e) {
-        overlay('<div class="card" style="max-width:360px;margin:0;text-align:center"><h3 style="margin:0 0 8px">Connection Error</h3><p class="m">Could not load app settings. Check internet connection and tap retry.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Retry</button></div>');
-        return;
-      }
-    } else {
-      fetch('/api/config', { signal: AbortSignal.timeout(6000) })
-        .then(r => r.json())
-        .then(fresh => {
-          if (fresh && fresh.url && fresh.anonKey) {
-            try { localStorage.setItem('gf_cfg', JSON.stringify(fresh)); } catch (_) {}
-          }
-        }).catch(() => {});
-    }
+    // Background verify without blocking boot
+    fetch('/api/config', { signal: AbortSignal.timeout(4000) })
+      .then(r => r.json())
+      .then(fresh => {
+        if (fresh && fresh.url && fresh.anonKey) {
+          try { localStorage.setItem('gf_cfg', JSON.stringify(fresh)); } catch (_) {}
+        }
+      }).catch(() => {});
 
 
     const fetchWithTimeout = (url, options = {}) => {
-      const timeoutMs = (options && options.timeout) || 45000;
+      const timeoutMs = (options && options.timeout) || 10000;
       if (!options.signal && typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
         return fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
       }

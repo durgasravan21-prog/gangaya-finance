@@ -216,17 +216,19 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 }
 
 @media (min-width: 960px) {
-  main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 60px; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 60px; }
   .v18-dock { display: none !important; }
   .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0; }
 }
 
-/* Sticky Top Bar for Brand & Controls */
-.hd { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--b); }
-.top { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; flex-wrap: wrap; }
-@media (min-width: 960px) {
-  .hd { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 16px; }
-  .top { width: auto; flex: 0 0 auto; }
+/* Clean Header: Desktop 2-tier layout (Row 1: Brand & Actions full-width; Row 2: Tabs) */
+.hd { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--b); width: 100%; }
+.top { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 12px; flex-wrap: wrap; }
+.acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .brand-title { font-size: 15px; }
+  .acts { gap: 4px; }
+  .acts button.sm { padding: 4px 7px; font-size: 11px; }
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
 .brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); flex-shrink: 0; letter-spacing: -0.5px; }
@@ -922,138 +924,104 @@ function sendFatherNote(){
   });
 }
 
-window.__siteMapJump = function(key){
-  siteMapOpen = false;
-  if(key === 'qr'){ scannerDlg = true; draw(); return; }
-  if(key === 'nt'){ toggleNotifs(); return; }
-  go(key);
-};
 
-function siteMapModal(){
-  if(!siteMapOpen) return '';
-  const adm = owner && role === 'a';
-  const navItems = [
-    {
-      k: 'fa',
-      title: tr('Field Collections', 'వసూలు'),
-      sub: tr('Cash & UPI installment collections, QR code payment', 'నగదు మరియు UPI వసూళ్లు, QR కోడ్ చెల్లింపు'),
-      badge: tr('Daily Field Work', 'ఫీల్డ్ వర్క్')
-    },
-    {
-      k: 'lg',
-      title: tr('Borrower Ledgers & Khatas', 'ఖాతాలు & పాస్‌బుక్'),
-      sub: tr('All active loans, outstanding balance, passbook history', 'అన్ని రుణాలు, మిగిలిన బాకీలు, ఖాతా చరిత్ర'),
-      badge: tr('Passbooks', 'ఖాతా పుస్తకాలు')
-    },
-    {
-      k: 'nl',
-      title: tr('New Loan Sanctions', 'కొత్త అప్పు దరఖాస్తులు'),
-      sub: tr('Collector loan application & Admin approval workflow', 'కొత్త అప్పు నమోదు & అడ్మిన్ ఆమోదం'),
-      badge: tr('Approvals', 'ఆమోదాలు')
-    },
-    {
-      k: 'rm',
-      title: tr('Reminders & Defaulters', 'రిమైండర్లు & బకాయిలు'),
-      sub: tr('Expected collections today, overdue borrowers, WhatsApp templates', 'ఈరోజు రావలసిన వసూళ్లు, బకాయిలు, వాట్సాప్ రిమైండర్లు'),
-      badge: tr('Today / Due', 'ఈరోజు బాకీ')
-    },
-    {
-      k: 'ac',
-      title: tr('Activity & Audit Trail', 'లావాదేవీలు & చరిత్ర'),
-      sub: tr('Chronological ledger of all payments and loan issuances', 'అన్ని చెల్లింపులు, లావాదేవీల పూర్తి వివరాలు'),
-      badge: tr('Timeline', 'చరిత్ర')
-    },
-    {
-      k: 'rc',
-      title: tr('Digital Receipts Archive', 'డిజిటల్ రసీదులు'),
-      sub: tr('View, reprint, or share past thermal receipts via WhatsApp', 'గత రసీదులను చూడండి లేదా వాట్సాప్‌లో పంపండి'),
-      badge: tr('Receipts', 'రసీదులు')
-    },
-    {
-      k: 'rp',
-      title: tr('Financial Summary & Reports', 'ఆర్థిక నివేదికలు'),
-      sub: tr('Daily and weekly collection totals, village-wise distribution', 'రోజువారీ & వారపు వసూళ్ల సారాంశం, గ్రామాల వారీ నివేదిక'),
-      badge: tr('Analytics', 'నివేదికలు')
-    },
-    adm ? {
-      k: 'mb',
-      title: tr('Members & Villages Master', 'సభ్యులు & గ్రామాలు'),
-      sub: tr('Add borrowers, manage villages, archive completed loans', 'సభ్యుల వివరాలు, గ్రామాలు, పాత రికార్డుల నిర్వహణ'),
-      badge: tr('Admin Master', 'మాస్టర్ రికార్డులు')
-    } : null,
-    {
-      k: 'qr',
-      title: tr('Payment QR Scanner', 'చెల్లింపు QR కోడ్'),
-      sub: tr('View PhonePe / Google Pay QR code or upload custom QR', 'ఫోన్‌పే / గూగుల్‌పే QR కోడ్ చూడండి లేదా మార్చండి'),
-      badge: tr('Scanner', 'QR కోడ్')
-    },
-    {
-      k: 'nt',
-      title: tr('Alerts & Messages', 'అలర్ట్స్ & సందేశాలు'),
-      sub: tr('Instant system notifications, borrower requests & direct notes', 'నోటిఫికేషన్లు, అభ్యర్థనలు మరియు సందేశాలు'),
-      badge: tr('Direct Alerts', 'అలర్ట్స్')
-    }
-  ].filter(Boolean);
 
-  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target===this){siteMapOpen=false;draw();}">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:680px;width:100%;margin:20px auto 40px;box-shadow:0 12px 36px rgba(0,0,0,.4)">
-      <div class="row" style="margin-bottom:14px;align-items:center">
-        <div>
-          <h2 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-            <span>${tr('Site Map & Quick Navigation', 'సైట్ మ్యాప్ & త్వరిత డైరెక్టరీ')}</span>
-          </h2>
-          <p class="m" style="margin:3px 0 0;font-size:12.5px">${tr('Tap any card below to jump directly to that section', 'ఏ విభాగానికైనా నేరుగా వెళ్లడానికి క్రింది కార్డును నొక్కండి')}</p>
-        </div>
-        <button class="sm" onclick="siteMapOpen=false;draw()" style="font-size:14px;padding:4px 9px">✕</button>
-      </div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;max-height:65vh;overflow-y:auto;padding-right:4px">
-        ${navItems.map(item => `
-          <div onclick="window.__siteMapJump('${item.k}')" style="background:var(--bg);border:1px solid var(--b);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s ease;display:flex;flex-direction:column;justify-content:space-between;gap:6px" onmouseover="this.style.borderColor='var(--p)'" onmouseout="this.style.borderColor='var(--b)'">
-            <div>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
-                <b style="font-size:14px;color:var(--t)">${esc(item.title)}</b>
-                <span class="v18-pill" style="font-size:10px">${esc(item.badge)}</span>
-              </div>
-              <div class="m" style="font-size:12px;line-height:1.4">${esc(item.sub)}</div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:flex-end;color:var(--p);font-size:12px;font-weight:700;margin-top:6px">
-              ${tr('Open ›', 'ఓపెన్ చేయండి ›')}
-            </div>
-          </div>
-        `).join('')}
-      </div>
+let offlineMode = false;
+let dbInitTimeout = false;
 
-      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px">
-        <a href="/sitemap.html" target="_blank" style="color:var(--p);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
-          ${tr('View Full Web Directory (/sitemap.html) ›', 'పూర్తి వెబ్ డైరెక్టరీ చూడండి ›')}
-        </a>
-        <div style="display:flex;gap:10px;color:var(--m)">
-          <a href="/sitemap.xml" target="_blank" style="color:var(--m);text-decoration:none">sitemap.xml</a>
-          <span>•</span>
-          <a href="/robots.txt" target="_blank" style="color:var(--m);text-decoration:none">robots.txt</a>
-        </div>
-      </div>
-    </div>
-  </div>`;
+function enterOfflineMode() {
+  try {
+    const parse = key => {
+      try {
+        const raw = localStorage.getItem('gf_c_' + key);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr.map(x => ({ id: x.id, ...(x.data || {}) })) : [];
+      } catch(_) { return []; }
+    };
+    M = cM(parse('members'));
+    V = cV(parse('villages'));
+    T = cT(parse('txns'));
+    NT = cNT(parse('notifs'));
+    LR = cLR(parse('loan_requests'));
+    UC = cUC(parse('upi_credits'));
+    RM = new Set(parse('rem').map(x => x.id));
+    db = {
+      collection: () => ({ onSnapshot: fn => fn({ docs: [] }), add: async () => {}, doc: () => ({ update: async () => {}, delete: async () => {} }) }),
+      doc: () => ({ update: async () => {}, delete: async () => {} })
+    };
+    offlineMode = true;
+    dbErr = '';
+    dbInitTimeout = false;
+    toast(tr('Offline Mode Activated: Loaded local cached records ✓', 'ఆఫ్‌లైన్ మోడ్ ప్రారంభించబడింది: స్థానిక రికార్డులు లోడ్ అయ్యాయి ✓'));
+  } catch(e) {
+    toast('Offline error: ' + (e && e.message || e));
+  }
+  draw();
 }
 
-function appFooter(){
-  return `<footer style="margin-top:40px;padding:20px 0 16px;border-top:1px solid var(--b);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--m)">
-    <div>
-      <b style="color:var(--t)">Gangaya Finance</b> • ${tr('Daily & Weekly Collections Portal','రోజువారీ & వారపు వసూళ్ల పోర్టల్')} • Andhra Pradesh
-    </div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-      <button type="button" class="sm" onclick="siteMapOpen=true;draw()" style="background:transparent;border:1px solid var(--b);color:var(--t);border-radius:8px;padding:3px 9px;font-size:11.5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
-        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-        <span>${tr('Site Map','సైట్ మ్యాప్')}</span>
+function renderErrorState(type, detail) {
+  if (type === 'db') {
+    return `<div class="card" role="alert" style="max-width:540px;margin:32px auto;text-align:center;padding:28px 24px;border:1px solid rgba(239,68,68,0.3);box-shadow:0 12px 36px rgba(0,0,0,0.25)">
+      <div style="width:56px;height:56px;border-radius:16px;background:rgba(239,68,68,0.12);color:var(--r);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Cannot Reach Database', 'డేటాబేస్ అందుబాటులో లేదు')}</h2>
+      <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 16px">
+        ${tr('Unable to establish a live connection to the Mumbai cloud database. This typically occurs due to network timeout, firewall/proxy blocking, or temporary database interruption.', 'ముంబై క్లౌడ్ డేటాబేస్ తో కనెక్షన్ ఏర్పడలేదు. నెట్‌వర్క్ సమస్య లేదా ఫైర్‌వాల్ బ్లాకింగ్ వల్ల ఇది జరగవచ్చు.')}
+      </p>
+      ${detail ? `<div style="background:var(--bg);padding:10px 12px;border-radius:8px;border:1px solid var(--b);font-family:monospace;font-size:12px;color:var(--r);text-align:left;word-break:break-all;margin-bottom:18px">${esc(detail)}</div>` : ''}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="p" onclick="location.reload()" style="padding:12px;font-size:14px;font-weight:700">
+          ${tr('Retry Connection', 'మళ్ళీ కనెక్ట్ అవ్వండి')}
+        </button>
+        <button class="sm" onclick="enterOfflineMode()" style="padding:10px;font-size:13.5px;font-weight:600;border:1px solid var(--b)">
+          ${tr('View Cached Records (Offline Mode)', 'ఆఫ్‌లైన్ రికార్డులు చూడండి')}
+        </button>
+        ${window.__signout ? `<button class="sm d" onclick="__signout()" style="padding:8px;font-size:12px;background:transparent">${tr('Sign Out / Reconnect Account', 'సైన్ అవుట్ చేసి మళ్ళీ లాగిన్ అవ్వండి')}</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  if (type === '404') {
+    return `<div class="card" role="alert" style="max-width:500px;margin:32px auto;text-align:center;padding:28px 20px;border:1px solid var(--b);box-shadow:0 12px 36px rgba(0,0,0,0.25)">
+      <div style="width:52px;height:52px;border-radius:16px;background:var(--s);color:var(--a);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+      </div>
+      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('404 - Section Not Found', '404 - విభాగం కనపడలేదు')}</h2>
+      <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 18px">
+        ${detail || tr('The requested tab or record could not be found.', 'మీరు కోరిన విభాగం లేదా రికార్డు అందుబాటులో లేదు.')}
+      </p>
+      <button class="p" onclick="go('fa')" style="padding:10px 18px;font-size:13.5px;font-weight:700">
+        ${tr('Go to Field Collect', 'వసూలు విభాగానికి వెళ్ళండి')}
       </button>
-      <a href="/sitemap.html" target="_blank" style="color:var(--m);text-decoration:none">${tr('Web Directory','వెబ్ డైరెక్టరీ')}</a>
-      <a href="/sitemap.xml" target="_blank" style="color:var(--m);text-decoration:none">Sitemap.xml</a>
-      <a href="/robots.txt" target="_blank" style="color:var(--m);text-decoration:none">Robots.txt</a>
-    </div>
-  </footer>`;
+    </div>`;
+  }
+
+  if (type === '403') {
+    return `<div class="card" role="alert" style="max-width:500px;margin:32px auto;text-align:center;padding:28px 20px;border:1px solid rgba(239,68,68,0.3);box-shadow:0 12px 36px rgba(0,0,0,0.25)">
+      <div style="width:52px;height:52px;border-radius:16px;background:rgba(239,68,68,0.12);color:var(--r);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <h2 style="font-size:20px;margin:0 0 8px;font-weight:800">${tr('Access Denied', 'అనుమతి నిరాకరించబడింది')}</h2>
+      <p class="m" style="font-size:13.5px;line-height:1.5;margin:0 0 18px">
+        ${detail || tr('You do not have administrative permissions to view or edit this section.', 'ఈ విభాగాన్ని చూడటానికి మీకు అడ్మిన్ అనుమతులు లేవు.')}
+      </p>
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+        ${owner ? `<button class="p" onclick="setRole('a')" style="padding:10px 16px;font-size:13.5px;font-weight:700">${tr('Switch to Admin Role', 'అడ్మిన్ మోడ్ మార్చండి')}</button>` : ''}
+        <button class="sm" onclick="go('fa')" style="padding:10px 16px;font-size:13.5px;font-weight:600">
+          ${tr('Back to Field Collect', 'వసూలు విభాగానికి వెళ్ళండి')}
+        </button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="card" role="alert" style="max-width:500px;margin:32px auto;text-align:center;padding:24px">
+    <h3>${tr('Notice', 'గమనిక')}</h3>
+    <p class="m">${esc(detail || 'An unexpected error occurred.')}</p>
+    <button class="p" onclick="location.reload()" style="margin-top:12px">${tr('Reload', 'రీలోడ్')}</button>
+  </div>`;
 }
 
 function fatherNoteModal(){
@@ -2839,7 +2807,21 @@ function draw(){
 }
 function _drawInner(){
   _drawPending = false;
-  const app=$('#app');if(!db)return app.innerHTML='<div class="card" style="max-width:360px;margin:24px auto;text-align:center"><h3>Connecting…</h3><p class="m">Connecting to the database. If this takes more than a few seconds, tap Reload.</p><button class="p" style="margin-top:10px" onclick="location.reload()">Reload</button></div>';
+  const app=$('#app');
+  if(!db){
+    if(dbErr || dbInitTimeout) return app.innerHTML = renderErrorState('db', dbErr);
+    return app.innerHTML = `<div class="card" style="max-width:380px;margin:40px auto;text-align:center;padding:28px 20px;box-shadow:0 8px 30px rgba(0,0,0,0.25)">
+      <div style="width:48px;height:48px;border-radius:14px;background:var(--s);color:var(--a);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+      </div>
+      <h3 style="margin:0 0 6px;font-size:18px">${tr('Connecting to Cloud…','క్లౌడ్ కి కనెక్ట్ అవుతోంది…')}</h3>
+      <p class="m" style="margin:0 0 16px;font-size:13px">${tr('Connecting to Gangaya Finance Mumbai database. Please wait…','ముంబై డేటాబేస్ తో అనుసంధానిస్తోంది. దయచేసి వేచి ఉండండి…')}</p>
+      <div style="display:flex;gap:8px;justify-content:center">
+        <button class="sm" onclick="location.reload()">${tr('Reload','రీలోడ్')}</button>
+        <button class="sm p" onclick="enterOfflineMode()">${tr('Offline Mode','ఆఫ్‌లైన్ మోడ్')}</button>
+      </div>
+    </div>`;
+  }
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
@@ -2856,20 +2838,26 @@ const tabs=adm?[
   ['rm',tr('Reminders','రిమైండర్లు'),remCount],
   ['ac',tr('Activity','లావాదేవీలు'),null]
 ];
-if(!tabs.some(t=>t[0]==tab))tab=tabs[0][0];
-const showHero=false;
-const body={
-  fa:collect,
-  lg:ledgerTab,
-  nl:fatherNewLoanTab,
-  rm:remindersTab,
-  ac:activityReportsTab,
-  mb:membersMasterTab,
-  vl:()=>{mbSub='villages';return membersMasterTab();},
-  ar:()=>{mbSub='archived';return membersMasterTab();},
-  rp:()=>{acSub='stats';return activityReportsTab();},
-  rc:()=>{acSub='receipts';return activityReportsTab();}
-}[tab]();
+let body = '';
+if (tab === 'mb' && !adm) {
+  body = renderErrorState('403', tr('Administrator permissions required to access Members Master.', 'సభ్యుల మాస్టర్ చూడటానికి అడ్మిన్ అనుమతులు అవసరం.'));
+} else if (tab && !tabs.some(t => t[0] === tab) && !['vl','ar','rp','rc'].includes(tab)) {
+  body = renderErrorState('404', tr('Section not found: ', 'విభాగం కనపడలేదు: ') + esc(tab));
+} else {
+  if (!tabs.some(t => t[0] === tab)) tab = tabs[0][0];
+  body = {
+    fa: collect,
+    lg: ledgerTab,
+    nl: fatherNewLoanTab,
+    rm: remindersTab,
+    ac: activityReportsTab,
+    mb: membersMasterTab,
+    vl: () => { mbSub = 'villages'; return membersMasterTab(); },
+    ar: () => { mbSub = 'archived'; return membersMasterTab(); },
+    rp: () => { acSub = 'stats'; return activityReportsTab(); },
+    rc: () => { acSub = 'receipts'; return activityReportsTab(); }
+  }[tab]();
+}
 
 app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
@@ -2905,10 +2893,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
     </div>
     <div class="acts">
       ${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')" style="border-radius:10px;font-size:12px;font-weight:700">${adm?'Admin':'Collector'}</button>`:''}
-      <button class="sm" onclick="siteMapOpen=true;draw()" title="${tr('Site Map & Directory','సైట్ మ్యాప్ & డైరెక్టరీ')}" style="padding:4px 9px;border-radius:10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-        <span>${tr('Site Map','సైట్ మ్యాప్')}</span>
-      </button>
+
       ${notifBellBtn()}
       ${!adm?`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:10px;padding:4px 9px;font-weight:700;font-size:12px">${tr('Message Durga Sravan','దుర్గా శ్రావణ్ కి మెసేజ్')}</button>`:''}
       ${langBtn()}
@@ -2928,17 +2913,23 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
 </div>
 ${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>${esc(dbErr)}</span><button class="sm" onclick="location.reload()">Retry</button></div>`:''}
 ${showHero?heroKpis(remList, pndRc):''}
+${offlineMode ? `<div class="card" style="border-color:#f59e0b;background:rgba(245,158,11,0.08);padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+  <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#d97706">
+    <span class="pulse-dot" style="background:#f59e0b"></span>
+    <span>${tr('Offline Mode Active — Viewing Local Cached Data','ఆఫ్‌లైన్ మోడ్ — స్థానిక కాష్ డేటా చూపబడుతోంది')}</span>
+  </div>
+  <button class="sm p" onclick="location.reload()" style="background:#f59e0b;border-color:#f59e0b;font-weight:700">${tr('Go Online','ఆన్‌లైన్ వెళ్ళు')}</button>
+</div>` : ''}
 ${body}
-${appFooter()}
 ${recView()}
 ${dlgHtml()}
 ${notifPanel()}
-${siteMapModal()}
 ${fatherNoteModal()}
 ${manualRemModal()}
 ${scannerModal()}
 ${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
+setTimeout(() => { if (!db) { dbInitTimeout = true; draw(); } }, 4500);
 (async()=>{try{user=await claude.use('user');db=await claude.use('db');
 for(const f of['canEdit','isOwner']){try{if(user&&await user[f]()){owner=true;break}}catch(e){}}try{me=user?await user.me():null}catch(e){}
 role=owner?'a':'f';
@@ -2948,5 +2939,5 @@ if(db){
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
   sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=33').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=34').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
