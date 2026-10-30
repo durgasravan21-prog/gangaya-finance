@@ -453,7 +453,7 @@
     return { count: count || 0 };
   }
   const caps = {
-    user: { async canEdit() { return prof.role === 'admin'; }, async isOwner() { return prof.role === 'admin'; }, async me() { return { id: uid, name: prof.name || email, email }; } },
+    user: { async canEdit() { return (prof && prof.role === 'admin'); }, async isOwner() { return (prof && prof.role === 'admin'); }, async me() { return { id: uid, name: (prof && prof.name) || email, email, role: (prof && prof.role) || 'collector' }; } },
     db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus, assignUpiCredit: async (creditId, mid) => {
       const { data, error } = await sb.rpc('assign_upi_credit', { p_credit_id: creditId, p_mid: mid });
       if (error) throw err(error);
@@ -506,24 +506,36 @@
       s = (await sb.auth.getSession()).data.session;
     } catch (_) {}
 
-    // Check for cached profile - unblock immediately if available
+    // Check for cached profile - only use if matches current authenticated session
     let hasCachedProf = false;
     try {
       const cp = localStorage.getItem('gf_prof');
       if (cp) {
-        prof = JSON.parse(cp);
-        if (s && s.user) { uid = s.user.id; email = s.user.email || ''; }
-        hasCachedProf = true;
+        const parsed = JSON.parse(cp);
+        if (s && s.user && (parsed.id === s.user.id || parsed.userId === s.user.id || parsed.email === s.user.email)) {
+          prof = parsed;
+          uid = s.user.id;
+          email = s.user.email || '';
+          hasCachedProf = true;
+        } else if (!s) {
+          prof = parsed;
+          hasCachedProf = true;
+        } else {
+          try { localStorage.removeItem('gf_prof'); } catch (_) {}
+        }
       }
     } catch (_) {}
 
-    // Fast-derive profile from session user email if not in localStorage
-    if (s && (!prof || !prof.role)) {
+    // Fast-derive profile from session user email if not in localStorage or stale
+    if (s && (!prof || !prof.role || (s.user && prof.id && prof.id !== s.user.id))) {
       const em = (s.user && s.user.email || '').toLowerCase();
-      const isAdmin = em.includes('durgasravan') || em.includes('sravan') || em.includes('admin');
+      const isAdmin = (em.includes('durgasravan') || em.includes('sravan'));
       prof = {
+        id: s.user.id,
+        userId: s.user.id,
+        email: s.user.email || '',
         role: isAdmin ? 'admin' : 'collector',
-        name: isAdmin ? 'Durga Sravan' : 'Gangaya'
+        name: isAdmin ? 'Durga Sravan' : 'Gangaya (Father)'
       };
       uid = s.user.id;
       email = s.user.email || '';
@@ -544,11 +556,11 @@
       finish();
       // Background-validate profile without blocking
       if (s.user && s.user.id) {
-        sb.from('profiles').select('role,name').eq('id', s.user.id).maybeSingle()
+        sb.from('profiles').select('id,role,name').eq('id', s.user.id).maybeSingle()
           .then(res => {
             if (res.data && res.data.role) {
-              prof = res.data;
-              try { localStorage.setItem('gf_prof', JSON.stringify(res.data)); } catch (_) {}
+              prof = { ...res.data, userId: s.user.id, email: s.user.email };
+              try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
             }
           }).catch(() => {});
       }
@@ -580,10 +592,10 @@
       const data = res && res.data;
       const error = res && res.error;
       if (data && data.role) {
-        prof = data;
+        prof = { ...data, userId: s.user.id, email: s.user.email };
         uid = s.user.id;
         email = s.user.email || '';
-        try { localStorage.setItem('gf_prof', JSON.stringify(data)); } catch (_) {}
+        try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
         break;
       }
 

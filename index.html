@@ -632,7 +632,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=40"></script>
+<script src="/runtime.js?v=41"></script>
 <script>
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
@@ -782,22 +782,27 @@ cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=
 function getLoggedInUser(){
   const em = (me && me.email || email || '').toLowerCase();
   const nm = (me && me.name || '').toLowerCase();
-  const isSravan = (owner || role === 'a' || em.includes('sravan') || em.includes('durga') || nm.includes('sravan') || nm.includes('durga'));
-  if(isSravan){
+  const r = (me && me.role) || (role === 'a' ? 'admin' : 'collector');
+
+  // If in collector role ('f') or collector account (challagollasridevi@gmail.com / Father):
+  const isFather = (role === 'f' || r === 'collector' || r === 'f' || !owner || em.includes('sridevi') || em.includes('challagolla') || nm.includes('father') || nm.includes('gangaya'));
+  const isSravan = !isFather && (r === 'admin' || role === 'a' || em.includes('durgasravan') || em.includes('sravan'));
+
+  if(isFather || !isSravan){
     return {
-      id: 'sravan',
-      name: 'Durga Sravan',
-      display: tr('Durga Sravan', 'దుర్గా శ్రావణ్')
+      id: 'father',
+      name: 'Gangaya (Father)',
+      display: tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)')
     };
   }
   return {
-    id: 'father',
-    name: 'Gangaya (Father)',
-    display: tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)')
+    id: 'sravan',
+    name: 'Durga Sravan',
+    display: tr('Durga Sravan', 'దుర్గా శ్రావణ్')
   };
 }
 function getCollectorName(by){
-  if(!by) return (owner || role === 'a') ? 'Durga Sravan' : 'Gangaya (Father)';
+  if(!by) return (owner && role === 'a') ? 'Durga Sravan' : 'Gangaya (Father)';
   const b = String(by).toLowerCase();
   if(b.includes('approved by durga sravan')) return 'Gangaya (Approved by Durga Sravan)';
   if(b.includes('assigned by durga sravan') || b.includes('upi assigned (durga')) return 'UPI (Assigned by Durga Sravan)';
@@ -3330,5 +3335,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=40').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=41').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
