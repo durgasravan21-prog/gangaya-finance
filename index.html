@@ -1,7 +1,32 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Gangaya Finance · Dashboard v18</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Gangaya Finance | Daily & Weekly Loan Management & Field Collections</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#059669"><meta name="referrer" content="no-referrer">
-<meta name="description" content="Gangaya Finance - Collections, receipts, ledger & reports">
+<meta name="theme-color" content="#059669">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Gangaya Finance - Official smart portal for daily and weekly loan collections, borrower khatas, transparent ledgers, and instant digital receipts in Andhra Pradesh, India.">
+<meta name="keywords" content="Gangaya Finance, daily finance, weekly finance, micro finance Andhra Pradesh, loan collection, borrower khata, digital receipts, Durga Sravan, Gangaya">
+<meta name="author" content="Durga Sravan">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://gangaya-finance.vercel.app/">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://gangaya-finance.vercel.app/">
+<meta property="og:title" content="Gangaya Finance | Daily & Weekly Loan Management">
+<meta property="og:description" content="Official smart portal for daily and weekly loan collections, borrower khatas, and instant digital receipts.">
+<meta property="og:image" content="https://gangaya-finance.vercel.app/icon-512.jpg">
+<meta property="og:site_name" content="Gangaya Finance">
+<meta property="og:locale" content="en_IN">
+<meta property="og:locale:alternate" content="te_IN">
+
+<!-- Twitter Cards -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://gangaya-finance.vercel.app/">
+<meta name="twitter:title" content="Gangaya Finance | Daily & Weekly Loan Management">
+<meta name="twitter:description" content="Official portal for smart daily collections, borrower khatas, and instant digital receipts.">
+<meta name="twitter:image" content="https://gangaya-finance.vercel.app/icon-512.jpg">
+
+<!-- Web Application Manifest & Icons -->
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -11,6 +36,31 @@
 <link rel="apple-touch-icon" href="/icon-512.jpg">
 <link rel="preconnect" href="https://digmxlceoejepixflqnh.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://digmxlceoejepixflqnh.supabase.co">
+
+<!-- Schema.org JSON-LD Structured Data for Google Search Console & SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FinancialService",
+  "name": "Gangaya Finance",
+  "alternateName": "గంగయ్య ఫైనాన్స్",
+  "url": "https://gangaya-finance.vercel.app/",
+  "logo": "https://gangaya-finance.vercel.app/icon-512.jpg",
+  "image": "https://gangaya-finance.vercel.app/icon-512.jpg",
+  "description": "Daily and weekly loan collection and ledger management portal in Andhra Pradesh, India.",
+  "currenciesAccepted": "INR",
+  "paymentAccepted": "Cash, UPI",
+  "priceRange": "₹₹",
+  "areaServed": {
+    "@type": "AdministrativeArea",
+    "name": "Andhra Pradesh, India"
+  },
+  "founder": {
+    "@type": "Person",
+    "name": "Gangaya"
+  }
+}
+</script>
 <script>
 (function(){
   try{
@@ -101,43 +151,83 @@
 html { scroll-padding-top: calc(env(safe-area-inset-top,0px) + 120px); -webkit-text-size-adjust: 100%; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); background-image: var(--bg-gradient); color: var(--t); font: 14.5px/1.55 system-ui, -apple-system, "Segoe UI", "Noto Sans Telugu", "Nirmala UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; transition: background-color .2s, color .2s; -webkit-font-smoothing: antialiased; min-height: 100vh; }
-main { max-width: 1240px; margin: 0 auto; padding: 18px 20px 48px; }
+main { max-width: 1200px; margin: 0 auto; padding: 18px 20px 48px; width: 100%; }
 h1, h2, h3 { letter-spacing: -0.01em; }
 h1 { font-size: 20px; margin: 0; font-weight: 800; }
 h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 
 /* Frosted Glass Cards */
-.card, .glass-card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--sh); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: transform .2s cubic-bezier(0.16,1,0.3,1), box-shadow .2s ease; }
+.card, .glass-card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; box-shadow: var(--sh); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); transition: box-shadow .2s ease; }
 .card:hover, .glass-card:hover { box-shadow: var(--sh-lg); }
 
-/* V18 Floating Dock Capsule (Desktop: Left Vertical, Mobile: Bottom Capsule) */
-.v18-dock { position: fixed; left: 24px; top: 24px; bottom: 24px; width: 68px; border-radius: 9999px; background: var(--dock-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.12); z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 16px 8px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-.v18-dock-brand { width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); flex-shrink: 0; letter-spacing: -0.5px; cursor: pointer; }
-.v18-dock-nav { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
-.v18-dock-btn { width: 44px; height: 44px; border-radius: 9999px; border: 0; background: transparent; color: var(--dock-btn); display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: all .2s ease; gap: 2px; }
-.v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
-.v18-dock-btn.active { background: var(--dock-active); color: #0f172a; box-shadow: 0 4px 16px rgba(255,255,255,0.35); }
-.v18-dock-lbl { display: none; font-size: 9.5px; font-weight: 600; line-height: 1; }
-.v18-dock-badge { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--r); box-shadow: 0 0 0 2px var(--dock-bg); }
-.v18-dock-footer { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 100%; }
+/* Unified Responsive Navigation:
+   - On Desktop/Laptop (>=960px): Clean top navigation, no floating left dock, centered content.
+   - On Phone (<960px): Native bottom capsule dock with icons and clear labels, clean single-line header. */
+.v18-dock { display: none; }
 
-/* Mobile Floating Dock Adjustment & Single-Line Navigation */
 @media (max-width: 959px) {
-  .v18-dock { left: 50%; transform: translateX(-50%); top: auto; bottom: 10px; width: calc(100% - 16px); max-width: 520px; height: 62px; flex-direction: row; padding: 0 6px; justify-content: space-around; }
-  .v18-dock-brand, .v18-dock-footer { display: none; }
-  .v18-dock-nav { flex-direction: row; justify-content: space-around; width: 100%; gap: 2px; }
-  .v18-dock-btn { width: auto; min-width: 48px; height: 50px; border-radius: 12px; padding: 4px 5px; }
-  .v18-dock-lbl { display: block; }
+  .v18-dock {
+    display: flex !important;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 12px;
+    width: calc(100% - 20px);
+    max-width: 500px;
+    height: 60px;
+    border-radius: 18px;
+    background: var(--dock-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.14);
+    z-index: 90;
+    flex-direction: row;
+    padding: 0 4px;
+    justify-content: space-around;
+    align-items: center;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+  }
+  .v18-dock-brand, .v18-dock-footer { display: none !important; }
+  .v18-dock-nav { display: flex; flex-direction: row; justify-content: space-around; width: 100%; gap: 2px; }
+  .v18-dock-btn {
+    flex: 1;
+    min-width: 44px;
+    height: 52px;
+    border-radius: 12px;
+    border: 0;
+    background: transparent;
+    color: var(--dock-btn);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: all .15s ease;
+    gap: 3px;
+    padding: 2px 4px;
+  }
+  .v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
+  .v18-dock-btn.active { background: var(--dock-active); color: #0f172a; box-shadow: 0 4px 14px rgba(255,255,255,0.25); }
+  .v18-dock-lbl { display: block; font-size: 9.5px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; }
+  .v18-dock-badge { position: absolute; top: 4px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--r); box-shadow: 0 0 0 2px var(--dock-bg); }
   .tabs { display: none !important; }
-  main { padding: 10px 12px 86px; }
+  main { padding: 12px 14px 96px; }
 }
+
 @media (min-width: 960px) {
-  main { margin-left: 104px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 22px 24px 60px; }
+  .v18-dock { display: none !important; }
+  .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0; }
 }
 
 /* Sticky Top Bar for Brand & Controls */
-.hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--b); flex-wrap: wrap; gap: 10px; }
-.top { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; }
+.hd { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--b); }
+.top { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 10px; flex-wrap: wrap; }
+@media (min-width: 960px) {
+  .hd { flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: nowrap; gap: 16px; }
+  .top { width: auto; flex: 0 0 auto; }
+}
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
 .brand-logo { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); flex-shrink: 0; letter-spacing: -0.5px; }
 .brand-title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; display: flex; align-items: center; gap: 6px; line-height: 1.2; }
@@ -329,7 +419,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/runtime.js?v=31"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -587,6 +677,7 @@ function onNotifsUpdate(newNT){
 function allNotifs(){
   const list=[];
   for(const n of NT){
+    if(dismissedNotifIds.has('n_'+n.id) || dismissedNotifIds.has(n.id)) continue;
     const isFromAdmin=(n.by&&(n.by.toLowerCase().includes('admin')||n.by.toLowerCase().includes('sravan')))||n.to==='collector';
     const isLoanReq=(n.type==='loan_req'||n.type==='loan'||Boolean(n.amt&&n.status));
     let title='', desc=n.text||'';
@@ -616,15 +707,18 @@ function allNotifs(){
       village:n.village
     });
   }
-  const sortedT=T.slice().sort((a,b)=>b.ts-a.ts).slice(0,100);
-  for(const t of sortedT){
+
+  // Only show active unread / recent transaction alerts, not 100 old historical records
+  const td = today();
+  const recentT = T.filter(t => t.d === td && !dismissedNotifIds.has('t_'+t.id)).sort((a,b)=>b.ts-a.ts).slice(0, 15);
+  for(const t of recentT){
     const m=M.find(x=>x.id==t.mid);
     if(!m||m.archived)continue;
     const memName=nm(m)||tr('Member','సభ్యుడు'),vilName=m.village?vl(m.village):'';
     if(t.type=='pay'){
-      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Collector collected ','కలెక్టర్ వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Collector':'Admin')),extra:'',ts:t.ts,isNew:t.d===today()&&t.ts>lastReadNotif});
+      list.push({id:'t_'+t.id,rawId:t.id,type:'pay',title:(t.by&&t.by.toLowerCase().includes('father')?tr('Collector collected ','కలెక్టర్ వసూలు చేశారు: '):tr('Payment: ','చెల్లింపు: '))+inr(t.amt)+' ('+(t.mode=='upi'?'UPI':tr('Cash','నగదు'))+')',desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Recorded by ','రికార్డు: ')+(t.by||(role=='a'?'Collector':'Admin')),extra:'',ts:t.ts,isNew:t.ts>lastReadNotif});
     }else if(t.type=='loan'){
-      list.push({id:'t_'+t.id,rawId:t.id,type:'loans',title:tr('New Loan: ','కొత్త అప్పు: ')+inr(t.amt)+' → '+tr('Return: ','తిరిగి: ')+inr(t.repay),desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Installment: ','వాయిదా: ')+inr(t.inst||m.inst||0)+' · '+tr('By ','ఇచ్చినవారు: ')+(t.by||'Admin'),extra:'',ts:t.ts,isNew:t.d===today()&&t.ts>lastReadNotif});
+      list.push({id:'t_'+t.id,rawId:t.id,type:'loans',title:tr('New Loan: ','కొత్త అప్పు: ')+inr(t.amt)+' → '+tr('Return: ','తిరిగి: ')+inr(t.repay),desc:memName+(vilName?' · '+vilName:'')+' · '+tr('Installment: ','వాయిదా: ')+inr(t.inst||m.inst||0)+' · '+tr('By ','ఇచ్చినవారు: ')+(t.by||'Admin'),extra:'',ts:t.ts,isNew:t.ts>lastReadNotif});
     }
   }
   return list.sort((a,b)=>b.ts-a.ts);
@@ -684,16 +778,35 @@ function notifBellBtn(inDock){
     ${c>0?`<span class="notif-badge">${c>99?'99+':c}</span>`:''}
   </button>`;
 }
+async function deleteSingleNotif(id, rawId){
+  dismissedNotifIds.add(id);
+  if(rawId) dismissedNotifIds.add(rawId);
+  try{localStorage.setItem('gf_dismissed_notifs',JSON.stringify([...dismissedNotifIds]))}catch(_){}
+  if(rawId){
+    NT = NT.filter(n => n.id !== rawId);
+    try{ if(db) await db.doc('notifs/' + rawId).delete(); }catch(_){}
+  }
+  toast(tr('Notification deleted ✓', 'నోటిఫికేషన్ తొలగించబడింది ✓'));
+  draw();
+}
+
 async function clearNotifHistory(){
-  if(!owner)return;
-  ask(tr('Clear all notifications and message history?','అన్ని నోటిఫికేషన్లు మరియు సందేశాలను తొలగించాలా?'),tr('Clear','తొలగించు'),async()=>{
+  ask(tr('Clear all notifications and message history?','అన్ని నోటిఫికేషన్లు మరియు సందేశాలను తొలగించాలా?'),tr('Clear All','అన్నీ తొలగించు'),async()=>{
     busy=true;draw();
     try{
       for(const n of NT){
+        dismissedNotifIds.add(n.id);
+        dismissedNotifIds.add('n_'+n.id);
         try{await db.doc('notifs/'+n.id).delete()}catch(_){}
       }
+      for(const t of T){
+        dismissedNotifIds.add('t_'+t.id);
+      }
       NT=[];
-      toast(tr('Notification history cleared','నోటిఫికేషన్లు తొలగించబడ్డాయి'));
+      lastReadNotif=Date.now();
+      try{localStorage.setItem('gf_notif_read',lastReadNotif)}catch(_){}
+      try{localStorage.setItem('gf_dismissed_notifs',JSON.stringify([...dismissedNotifIds]))}catch(_){}
+      toast(tr('All notifications cleared ✓','అన్ని నోటిఫికేషన్లు తొలగించబడ్డాయి ✓'));
     }catch(e){toast('Error: '+(e&&e.message||e))}
     finally{busy=false;draw()}
   });
@@ -714,8 +827,9 @@ function notifPanel(){
         <h2 style="margin:0">${tr('Notifications & Alerts','నోటిఫికేషన్లు & అలర్ట్స్')}</h2>
         <div class="acts">
           <button class="sm" onclick="testAlertSound()">${tr('Test Sound','సౌండ్ టెస్ట్')}</button>
-          <button class="sm p" onclick="openFatherNoteDlg()">${role=='a'?tr('+ Send Note to Collector','+ కలెక్టర్‌కి నోట్'):tr('+ Send Note to Admin','+ అడ్మిన్‌కి మెసేజ్')}</button><button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
-          ${owner?`<button class="sm d" onclick="clearNotifHistory()">${tr('Clear History','క్లియర్')}</button>`:''}
+          <button class="sm p" onclick="openFatherNoteDlg()">${role=='a'?tr('+ Send Note to Collector','+ కలెక్టర్‌కి నోట్'):tr('+ Send Note to Admin','+ అడ్మిన్‌కి మెసేజ్')}</button>
+          <button class="sm" onclick="markAllNotifsRead();draw()">${tr('Mark Read','చదివినట్లు మార్చు')}</button>
+          <button class="sm d" onclick="clearNotifHistory()">${tr('Clear All','అన్నీ తొలగించు')}</button>
           <button class="sm" onclick="closeNotifs();draw()">✕</button>
         </div>
       </div>
@@ -735,9 +849,10 @@ function notifPanel(){
         ${list.map(n=>{
           const isNew=n.isNew;
           return `<div class="card" style="margin:0;padding:10px;${isNew?'border-left:4px solid var(--p);background:var(--s)':'background:var(--bg)'}">
-            <div class="row" style="margin-bottom:4px">
-              <b>${esc(n.title)}</b>
-              <span class="m" style="font-size:12px">${relTime(n.ts)}</span>
+            <div class="row" style="margin-bottom:4px;align-items:center">
+              <b style="font-size:13.5px;flex:1">${esc(n.title)}</b>
+              <span class="m" style="font-size:11.5px;margin-right:6px">${relTime(n.ts)}</span>
+              <button class="sm d" onclick="event.stopPropagation();deleteSingleNotif('${n.id}','${n.rawId||''}')" title="${tr('Delete notification','నోటిఫికేషన్ తొలగించు')}" style="padding:2px 7px;border-radius:6px;font-size:11px;line-height:1">✕</button>
             </div>
             <div class="m" style="font-size:13px">${esc(n.desc)}</div>
             ${n.extra?`<div style="margin-top:6px;padding:6px 8px;background:var(--card);border-radius:6px;font-size:13px">${esc(n.extra)}</div>`:''}
@@ -939,7 +1054,6 @@ function activityTab(){
 
   return `
     ${pendingLoansHtml()}
-    ${unmatchedUpiQueueHtml()}
     <div class="card" style="margin-bottom:14px">
       <div class="row" style="margin-bottom:8px">
         <div>
@@ -1098,7 +1212,6 @@ function collect(){
 
   return `
     ${pendingLoansHtml()}
-    ${unmatchedUpiQueueHtml()}
     <div class="card" style="margin-bottom:12px;padding:14px 16px">
       <div class="row" style="margin-bottom:10px;align-items:center">
         <div>
@@ -2689,5 +2802,5 @@ if(db){
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
   sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=31').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=32').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

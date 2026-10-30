@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v31 - parallel data loading, consolidated navigation & safe sync */
-const CACHE = 'gangaya-v31';
+/* Gangaya Finance Service Worker v32 - fast caching, instant alerts & responsive navigation */
+const CACHE = 'gangaya-v32';
 const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -47,8 +47,8 @@ self.addEventListener('notificationclick', e => {
 
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  // API calls and Supabase calls always go to network directly
-  if (u.pathname.startsWith('/api/') || u.hostname.includes('supabase') || u.hostname.includes('google')) return;
+  // API calls, sitemap, robots, and Supabase calls always go to network directly
+  if (u.pathname.startsWith('/api/') || u.pathname === '/sitemap.xml' || u.pathname === '/robots.txt' || u.hostname.includes('supabase') || u.hostname.includes('google')) return;
 
   // For HTML pages and runtime.js: Network First (fetch fresh from server, fallback to cache when offline)
   if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname.endsWith('.html') || u.pathname.endsWith('.js')) {
