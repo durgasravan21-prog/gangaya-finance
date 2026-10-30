@@ -47,8 +47,8 @@ self.addEventListener('notificationclick', e => {
 
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  // API calls, sitemap, robots, and Supabase calls always go to network directly
-  if (u.pathname.startsWith('/api/') || u.pathname === '/sitemap.xml' || u.pathname === '/robots.txt' || u.hostname.includes('supabase') || u.hostname.includes('google')) return;
+  // API calls, sitemap, robots, google verification, and Supabase calls always go to network directly
+  if (u.pathname.startsWith('/api/') || u.pathname === '/sitemap.xml' || u.pathname === '/robots.txt' || u.pathname.startsWith('/google') || u.hostname.includes('supabase') || u.hostname.includes('google')) return;
 
   // For HTML pages and runtime.js: Network First (fetch fresh from server, fallback to cache when offline)
   if (e.request.mode === 'navigate' || u.pathname === '/' || u.pathname.endsWith('.html') || u.pathname.endsWith('.js')) {
