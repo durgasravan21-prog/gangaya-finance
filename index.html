@@ -419,7 +419,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/runtime.js?v=31"></script>
 <script>
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab='',owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),siteMapOpen=false,owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],cLR=a=>a.filter(d=>OKID.test(d.id)),fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],cUC=a=>a.filter(d=>OKID.test(d.id));
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -503,6 +503,11 @@ function go(t, sub){
   else if(t==='rc'){ tab='ac'; acSub='receipts'; }
   else if(t==='ac'){ tab='ac'; acSub=sub||'timeline'; }
   else { tab=t; }
+  try{
+    const u = new URL(window.location);
+    u.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', u.toString());
+  }catch(_){}
   sel=null; rv=''; draw();
 }
 function setRole(r){role=r;tab='';sel=null;rv='';draw()}
@@ -916,6 +921,141 @@ function sendFatherNote(){
     toast(isAdm ? tr('Note sent to Collector ✓','కలెక్టర్‌కి నోట్ పంపబడింది ✓') : tr('Message sent to Admin ✓','అడ్మిన్‌కి మెసేజ్ పంపబడింది ✓'));
   });
 }
+
+window.__siteMapJump = function(key){
+  siteMapOpen = false;
+  if(key === 'qr'){ scannerDlg = true; draw(); return; }
+  if(key === 'nt'){ toggleNotifs(); return; }
+  go(key);
+};
+
+function siteMapModal(){
+  if(!siteMapOpen) return '';
+  const adm = owner && role === 'a';
+  const navItems = [
+    {
+      k: 'fa',
+      title: tr('Field Collections', 'వసూలు'),
+      sub: tr('Cash & UPI installment collections, QR code payment', 'నగదు మరియు UPI వసూళ్లు, QR కోడ్ చెల్లింపు'),
+      badge: tr('Daily Field Work', 'ఫీల్డ్ వర్క్')
+    },
+    {
+      k: 'lg',
+      title: tr('Borrower Ledgers & Khatas', 'ఖాతాలు & పాస్‌బుక్'),
+      sub: tr('All active loans, outstanding balance, passbook history', 'అన్ని రుణాలు, మిగిలిన బాకీలు, ఖాతా చరిత్ర'),
+      badge: tr('Passbooks', 'ఖాతా పుస్తకాలు')
+    },
+    {
+      k: 'nl',
+      title: tr('New Loan Sanctions', 'కొత్త అప్పు దరఖాస్తులు'),
+      sub: tr('Collector loan application & Admin approval workflow', 'కొత్త అప్పు నమోదు & అడ్మిన్ ఆమోదం'),
+      badge: tr('Approvals', 'ఆమోదాలు')
+    },
+    {
+      k: 'rm',
+      title: tr('Reminders & Defaulters', 'రిమైండర్లు & బకాయిలు'),
+      sub: tr('Expected collections today, overdue borrowers, WhatsApp templates', 'ఈరోజు రావలసిన వసూళ్లు, బకాయిలు, వాట్సాప్ రిమైండర్లు'),
+      badge: tr('Today / Due', 'ఈరోజు బాకీ')
+    },
+    {
+      k: 'ac',
+      title: tr('Activity & Audit Trail', 'లావాదేవీలు & చరిత్ర'),
+      sub: tr('Chronological ledger of all payments and loan issuances', 'అన్ని చెల్లింపులు, లావాదేవీల పూర్తి వివరాలు'),
+      badge: tr('Timeline', 'చరిత్ర')
+    },
+    {
+      k: 'rc',
+      title: tr('Digital Receipts Archive', 'డిజిటల్ రసీదులు'),
+      sub: tr('View, reprint, or share past thermal receipts via WhatsApp', 'గత రసీదులను చూడండి లేదా వాట్సాప్‌లో పంపండి'),
+      badge: tr('Receipts', 'రసీదులు')
+    },
+    {
+      k: 'rp',
+      title: tr('Financial Summary & Reports', 'ఆర్థిక నివేదికలు'),
+      sub: tr('Daily and weekly collection totals, village-wise distribution', 'రోజువారీ & వారపు వసూళ్ల సారాంశం, గ్రామాల వారీ నివేదిక'),
+      badge: tr('Analytics', 'నివేదికలు')
+    },
+    adm ? {
+      k: 'mb',
+      title: tr('Members & Villages Master', 'సభ్యులు & గ్రామాలు'),
+      sub: tr('Add borrowers, manage villages, archive completed loans', 'సభ్యుల వివరాలు, గ్రామాలు, పాత రికార్డుల నిర్వహణ'),
+      badge: tr('Admin Master', 'మాస్టర్ రికార్డులు')
+    } : null,
+    {
+      k: 'qr',
+      title: tr('Payment QR Scanner', 'చెల్లింపు QR కోడ్'),
+      sub: tr('View PhonePe / Google Pay QR code or upload custom QR', 'ఫోన్‌పే / గూగుల్‌పే QR కోడ్ చూడండి లేదా మార్చండి'),
+      badge: tr('Scanner', 'QR కోడ్')
+    },
+    {
+      k: 'nt',
+      title: tr('Alerts & Messages', 'అలర్ట్స్ & సందేశాలు'),
+      sub: tr('Instant system notifications, borrower requests & direct notes', 'నోటిఫికేషన్లు, అభ్యర్థనలు మరియు సందేశాలు'),
+      badge: tr('Direct Alerts', 'అలర్ట్స్')
+    }
+  ].filter(Boolean);
+
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target===this){siteMapOpen=false;draw();}">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:680px;width:100%;margin:20px auto 40px;box-shadow:0 12px 36px rgba(0,0,0,.4)">
+      <div class="row" style="margin-bottom:14px;align-items:center">
+        <div>
+          <h2 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+            <span>${tr('Site Map & Quick Navigation', 'సైట్ మ్యాప్ & త్వరిత డైరెక్టరీ')}</span>
+          </h2>
+          <p class="m" style="margin:3px 0 0;font-size:12.5px">${tr('Tap any card below to jump directly to that section', 'ఏ విభాగానికైనా నేరుగా వెళ్లడానికి క్రింది కార్డును నొక్కండి')}</p>
+        </div>
+        <button class="sm" onclick="siteMapOpen=false;draw()" style="font-size:14px;padding:4px 9px">✕</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;max-height:65vh;overflow-y:auto;padding-right:4px">
+        ${navItems.map(item => `
+          <div onclick="window.__siteMapJump('${item.k}')" style="background:var(--bg);border:1px solid var(--b);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .15s ease;display:flex;flex-direction:column;justify-content:space-between;gap:6px" onmouseover="this.style.borderColor='var(--p)'" onmouseout="this.style.borderColor='var(--b)'">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px">
+                <b style="font-size:14px;color:var(--t)">${esc(item.title)}</b>
+                <span class="v18-pill" style="font-size:10px">${esc(item.badge)}</span>
+              </div>
+              <div class="m" style="font-size:12px;line-height:1.4">${esc(item.sub)}</div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;color:var(--p);font-size:12px;font-weight:700;margin-top:6px">
+              ${tr('Open ›', 'ఓపెన్ చేయండి ›')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px">
+        <a href="/sitemap.html" target="_blank" style="color:var(--p);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px">
+          ${tr('View Full Web Directory (/sitemap.html) ›', 'పూర్తి వెబ్ డైరెక్టరీ చూడండి ›')}
+        </a>
+        <div style="display:flex;gap:10px;color:var(--m)">
+          <a href="/sitemap.xml" target="_blank" style="color:var(--m);text-decoration:none">sitemap.xml</a>
+          <span>•</span>
+          <a href="/robots.txt" target="_blank" style="color:var(--m);text-decoration:none">robots.txt</a>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function appFooter(){
+  return `<footer style="margin-top:40px;padding:20px 0 16px;border-top:1px solid var(--b);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;font-size:12px;color:var(--m)">
+    <div>
+      <b style="color:var(--t)">Gangaya Finance</b> • ${tr('Daily & Weekly Collections Portal','రోజువారీ & వారపు వసూళ్ల పోర్టల్')} • Andhra Pradesh
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="sm" onclick="siteMapOpen=true;draw()" style="background:transparent;border:1px solid var(--b);color:var(--t);border-radius:8px;padding:3px 9px;font-size:11.5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+        <span>${tr('Site Map','సైట్ మ్యాప్')}</span>
+      </button>
+      <a href="/sitemap.html" target="_blank" style="color:var(--m);text-decoration:none">${tr('Web Directory','వెబ్ డైరెక్టరీ')}</a>
+      <a href="/sitemap.xml" target="_blank" style="color:var(--m);text-decoration:none">Sitemap.xml</a>
+      <a href="/robots.txt" target="_blank" style="color:var(--m);text-decoration:none">Robots.txt</a>
+    </div>
+  </footer>`;
+}
+
 function fatherNoteModal(){
   if(!fnDlg)return '';
   const isAdm=(role==='a');
@@ -2765,6 +2905,10 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
     </div>
     <div class="acts">
       ${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')" style="border-radius:10px;font-size:12px;font-weight:700">${adm?'Admin':'Collector'}</button>`:''}
+      <button class="sm" onclick="siteMapOpen=true;draw()" title="${tr('Site Map & Directory','సైట్ మ్యాప్ & డైరెక్టరీ')}" style="padding:4px 9px;border-radius:10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+        <span>${tr('Site Map','సైట్ మ్యాప్')}</span>
+      </button>
       ${notifBellBtn()}
       ${!adm?`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:10px;padding:4px 9px;font-weight:700;font-size:12px">${tr('Message Durga Sravan','దుర్గా శ్రావణ్ కి మెసేజ్')}</button>`:''}
       ${langBtn()}
@@ -2785,9 +2929,11 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
 ${dbErr?`<div class="card" style="border-color:var(--r);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>${esc(dbErr)}</span><button class="sm" onclick="location.reload()">Retry</button></div>`:''}
 ${showHero?heroKpis(remList, pndRc):''}
 ${body}
+${appFooter()}
 ${recView()}
 ${dlgHtml()}
 ${notifPanel()}
+${siteMapModal()}
 ${fatherNoteModal()}
 ${manualRemModal()}
 ${scannerModal()}
@@ -2802,5 +2948,5 @@ if(db){
   sub('members',a=>M=a,cM);sub('villages',a=>V=a,cV);sub('txns',a=>onTxnsUpdate(a),cT);sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
   sub('notifs',a=>onNotifsUpdate(a),cNT);sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);sub('upi_credits',a=>{UC=a;draw()},cUC);setTimeout(()=>{bootComplete=true;},2500)}}catch(e){dbErr='Could not start: '+((e&&e.message)||e)}draw()})();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=32').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=33').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

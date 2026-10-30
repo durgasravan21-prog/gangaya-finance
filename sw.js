@@ -1,6 +1,6 @@
-/* Gangaya Finance Service Worker v32 - fast caching, instant alerts & responsive navigation */
-const CACHE = 'gangaya-v32';
-const ASSETS = ['/', '/index.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
+/* Gangaya Finance Service Worker v33 - fast caching, sitemap directory & instant alerts */
+const CACHE = 'gangaya-v33';
+const ASSETS = ['/', '/index.html', '/sitemap.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
