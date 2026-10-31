@@ -190,16 +190,15 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
   }
   .v18-dock-brand, .v18-dock-footer { display: none !important; }
   .v18-dock-nav {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-around;
+    display: grid;
     align-items: center;
     width: 100%;
-    gap: 2px;
+    height: 100%;
+    gap: 1px;
   }
   .v18-dock-btn {
-    flex: 1 1 0;
     min-width: 0;
+    width: 100%;
     height: 52px;
     border-radius: 14px;
     border: 0;
@@ -213,7 +212,8 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     cursor: pointer;
     transition: all .16s ease;
     gap: 2px;
-    padding: 3px 1px;
+    padding: 2px 1px;
+    overflow: hidden;
     -webkit-tap-highlight-color: transparent;
   }
   .v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
@@ -228,7 +228,7 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
   }
   .v18-dock-lbl {
     display: block;
-    font-size: 9px;
+    font-size: 8px;
     font-weight: 700;
     line-height: 1.1;
     text-align: center;
@@ -294,6 +294,7 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
    ======================================================== */
 .v18-bento-top { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
 @media (max-width: 860px) { .v18-bento-top { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .v18-banner-art { display: none !important; } .v18-banner { padding: 16px 18px; } }
 
 /* Hero Banner ("Work's always better together") */
 .v18-banner { background: linear-gradient(135deg, rgba(238, 242, 255, 0.88) 0%, rgba(243, 232, 255, 0.88) 50%, rgba(254, 243, 199, 0.6) 100%); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: var(--radius); padding: 22px 26px; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; min-height: 150px; }
@@ -425,16 +426,19 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   animation: receiptFeedIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .gf-receipt-modal.has-pos-terminal {
-  animation: posTerminalSlideIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  margin: 0 auto;
+  margin-top: 0;
+  max-width: 440px;
+  animation: posTerminalSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes receiptFeedIn {
   0% { transform: translateY(-40px) scale(0.95); opacity: 0; }
   70% { transform: translateY(4px) scale(1.005); opacity: 1; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
-@keyframes posTerminalSlideIn {
-  0% { transform: translateY(-70px) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+@keyframes posTerminalSlideDown {
+  0% { transform: translateY(-100%); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
 }
 
 /* Authentic Physical POS Paper Dispense */
@@ -530,13 +534,13 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 .gf-pos-terminal-head {
   width: 100%;
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  border-radius: 18px 18px 0 0;
-  padding: 12px 18px 10px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  border-radius: 0 0 20px 20px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 12px;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18);
   border: 1px solid rgba(255,255,255,0.14);
-  border-bottom: none;
+  border-top: none;
   position: relative;
-  z-index: 5;
+  z-index: 20;
 }
 .gf-pos-terminal-body {
   display: flex;
@@ -1059,12 +1063,13 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=50"></script>
+<script src="/runtime.js?v=51"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
 window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offlineMode){toast(tr('Internet restored ✓ Reconnecting…','ఇంటర్నెట్ తిరిగి వచ్చింది ✓ రీకనెక్ట్ అవుతోంది…'));location.reload()}else{draw()}});
 const _urlP=new URLSearchParams(window.location.search);
+let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='branch',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
@@ -2095,7 +2100,7 @@ ${l.pays.map(x=>`<div class="rec"><div class="m">${fd(x.t.d)}, ${tm(x.t)} · ${x
 function ledgerTab(){const q=lq.trim().toLowerCase(),ms=M.filter(m=>!m.archived&&(!lv||m.village==lv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
 rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length})),
 S=rows.reduce((a,{L,pc})=>{a.n+=L.length;a.c+=pc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,g:0,r:0,p:0});
-return `<div class="card"><div class="g"><input id="lq" value="${esc(lq)}" placeholder="${tr('Search name','పేరు వెతకండి')}" oninput="lq=this.value;draw()"><select id="lvs" onchange="lv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==lv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
+return `<div class="card"><div class="row" style="margin-bottom:8px"><div><h2 style="margin:0">${tr('Member Ledgers & Passbooks','సభ్యుల ఖాతా పుస్తకాలు')}</h2><div class="m" style="font-size:12px">${tr('Complete loan records, interest and balance tracking','అప్పులు, వడ్డీ మరియు బాకీ వివరాలు')}</div></div><button class="p sm" onclick="dl()">${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button></div><div class="g"><input id="lq" value="${esc(lq)}" placeholder="${tr('Search name','పేరు వెతకండి')}" oninput="lq=this.value;draw()"><select id="lvs" onchange="lv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==lv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0 0">${rows.length} ${tr('borrowers','రుణగ్రహీతలు')} · ${tr('Loans taken','తీసుకున్న అప్పులు')} <b>${S.n}</b> · ${tr('Payments','చెల్లింపులు')} <b>${S.c}</b><br>${tr('Given','ఇచ్చినది')} ${inr(S.g)} · ${tr('To return','తిరిగి')} ${inr(S.r)} · ${tr('Paid','చెల్లించినది')} ${inr(S.p)} · ${tr('Due','బాకీ')} <b>${inr(Math.max(S.r-S.p,0))}</b></p></div>`
 +(rows.map(({m,L,pc})=>{const g=L.reduce((a,l)=>a+l.given,0),r=L.reduce((a,l)=>a+l.repay,0),p=L.reduce((a,l)=>a+l.paid,0),d=r-p,open=lgv==m.id;
 return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}</span>
@@ -2107,7 +2112,7 @@ function recView(){
   const t=T.find(x=>x.id==vr);
   if(!t){
     if(T.length>0){
-      return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+      return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:${showPosTheme ? 'flex-start' : 'center'};justify-content:center;z-index:99;padding:${showPosTheme ? '0 12px 40px' : '16px'};overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
         <div class="card" style="max-width:380px;text-align:center;padding:24px">
           <div style="font-size:32px;margin-bottom:8px">✕</div>
           <h3 style="margin:0 0 8px">${tr('Receipt Not Found','రసీదు కనపడలేదు')}</h3>
@@ -2262,6 +2267,7 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
             </button>
           ` : ''}
           <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
+          <button class="sm" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
           <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
         </div>
       </div>
@@ -2478,6 +2484,7 @@ function collect(){
           <button class="sm p" onclick="openFatherNewLoanDlg()">${tr('+ New Loan','+ కొత్త అప్పు')}</button>
           <button class="sm" onclick="openFatherNoteDlg()">${isAdm ? tr('Note to Gangaya','గంగయ్య గారికి నోట్') : tr('Message Admin','అడ్మిన్‌కి మెసేజ్')}</button>
           ${isAdm ? `<button class="sm" onclick="openAddMemberDlg()">${tr('+ Member','+ సభ్యుడు')}</button>` : ''}
+          <button class="sm" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
         </div>
       </div>
 
@@ -4053,9 +4060,216 @@ function draw(){
   _drawPending = true;
   requestAnimationFrame(_drawInner);
 }
+
+function exitPublicReceiptView(){
+  isPublicScan = false;
+  vr = '';
+  publicReceiptData = null;
+  publicReceiptError = '';
+  _publicFetchStarted = false;
+  const u = new URL(window.location.href);
+  u.searchParams.delete('vr');
+  u.searchParams.delete('r');
+  u.searchParams.delete('receipt');
+  history.replaceState(null, '', u.pathname + (u.search ? u.search : ''));
+  draw();
+}
+
+function renderStandaloneReceiptPage(receiptId){
+  const cleanId = String(receiptId || '').trim();
+  const recNo = 'GF-' + cleanId.replace(/^GF-/i, '').slice(0, 8).toUpperCase();
+
+  // Try finding from loaded memory first
+  let t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo);
+  let m = t ? M.find(x => x.id === t.mid) : null;
+
+  // If not found in memory, use publicReceiptData from API
+  if (!t && publicReceiptData && publicReceiptData.t) {
+    t = publicReceiptData.t;
+    m = publicReceiptData.m || {};
+  }
+
+  // If still not found and fetch hasn't started:
+  if (!t && !publicReceiptError) {
+    if (!_publicFetchStarted) {
+      _publicFetchStarted = true;
+      fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res && res.ok && res.t) {
+            publicReceiptData = res;
+            draw();
+          } else {
+            publicReceiptError = (res && res.error) || 'Receipt not found';
+            draw();
+          }
+        })
+        .catch(err => {
+          publicReceiptError = err.message || 'Verification lookup error';
+          draw();
+        });
+    }
+
+    return `
+      <div style="min-height:100vh;background:var(--bg);color:var(--t);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;text-align:center">
+        <div class="brand-logo" style="width:48px;height:48px;font-size:20px;border-radius:14px;margin:0 auto 16px">GF</div>
+        <div class="pulse-dot" style="margin:0 auto 12px;background:var(--p);width:14px;height:14px"></div>
+        <h2 style="margin:0 0 8px;font-size:18px">${tr('Verifying Receipt on Google…','గూగుల్‌లో రసీదు ధృవీకరించబడుతోంది…')}</h2>
+        <p class="m" style="font-size:13px;max-width:320px;margin:0 auto 16px">${tr('Connecting to Gangaya Finance Mumbai cloud ledger for ','ముంబై క్లౌడ్ లెడ్జర్‌లో తనిఖీ చేస్తోంది: ')}<b>${recNo}</b></p>
+        <button class="sm" onclick="exitPublicReceiptView()">${tr('Open Staff Portal →','స్టాఫ్ పోర్టల్ తెరవండి →')}</button>
+      </div>
+    `;
+  }
+
+  if (publicReceiptError || !t) {
+    return `
+      <div style="min-height:100vh;background:var(--bg);color:var(--t);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;text-align:center">
+        <div style="width:54px;height:54px;border-radius:50%;background:rgba(239,68,68,0.12);color:#ef4444;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;margin:0 auto 16px">✕</div>
+        <h2 style="margin:0 0 8px;font-size:19px">${tr('Receipt Not Found','రసీదు కనుగొనబడలేదు')}</h2>
+        <p class="m" style="font-size:13px;max-width:340px;margin:0 auto 16px">${tr('No verified transaction record exists for receipt ID: ','ఈ రసీదు ID కోసం రికార్డు కనుగొనబడలేదు: ')}<b>${recNo}</b></p>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="p sm" onclick="location.reload()">${tr('Retry','మళ్ళీ ప్రయత్నించు')}</button>
+          <button class="sm" onclick="exitPublicReceiptView()">${tr('Open Staff Portal →','స్టాఫ్ పోర్టల్ తెరవండి →')}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Transaction found! Compute details
+  m = m || {};
+  const isPay = (t.type === 'pay');
+  const borrowerName = m.name || m.te || t.borrower || tr('Customer','ఖాతాదారుడు');
+  const borrowerVillage = m.village || t.village || '';
+  const borrowerPhone = m.phone || t.phone || '';
+  const dateStr = t.d ? fd(t.d) : today();
+  const timeStr = t.ts ? tm(t) : '';
+  const collector = getCollectorDisplay(t.by);
+  const balDue = (typeof t.bal !== 'undefined') ? t.bal : (m.id ? Math.max(0, st(m, t.ts, t.d).due) : 0);
+
+  return `
+    <div style="min-height:100vh;background:var(--bg);color:var(--t);display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px;box-sizing:border-box">
+      <!-- Clean Verification Top Bar -->
+      <div style="width:100%;max-width:440px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="brand-logo" style="width:34px;height:34px;font-size:14px;border-radius:9px">GF</div>
+          <div>
+            <div style="font-size:15px;font-weight:900;letter-spacing:-0.02em">Gangaya Finance</div>
+            <div style="font-size:10.5px;color:var(--m);font-weight:700">${tr('Official Verified Digital Receipt','అధికారిక ధృవీకరించిన డిజిటల్ రసీదు')}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${langBtn()}
+          ${themeBtn()}
+        </div>
+      </div>
+
+      <!-- Verified Google Pill -->
+      <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;margin-bottom:14px;letter-spacing:0.04em">
+        <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981"></span>
+        <span>${tr('AUTHENTIC RECORD · VERIFIED ON GOOGLE','గూగుల్‌లో ధృవీకరించబడిన రసీదు')}</span>
+      </div>
+
+      <!-- Receipt Card -->
+      <div class="gf-receipt-modal" style="margin:0;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,0.22)">
+        <div class="gf-receipt-paper">
+          <div class="gf-receipt-header">
+            <div class="gf-receipt-brand">
+              <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
+              <span>Gangaya Finance</span>
+            </div>
+            <div class="gf-receipt-sub">${isPay ? tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు') : tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
+            <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
+          </div>
+
+          <div class="gf-receipt-hero">
+            <div class="gf-receipt-amt-lbl">${isPay ? tr('Amount Paid','చెల్లించిన మొత్తం') : tr('Loan Amount','మంజూరైన అప్పు')}</div>
+            <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
+            <div class="gf-receipt-mode-badge">
+              ${isPay ? (t.mode === 'upi' ? 'UPI · VERIFIED ✓' : tr('CASH PAYMENT','నగదు చెల్లింపు')) : tr('SANCTIONED LOAN','మంజూరైన అప్పు')}
+            </div>
+          </div>
+
+          <div class="gf-receipt-rows">
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
+              <span class="gf-receipt-v">${esc(borrowerName)} ${borrowerVillage ? `<span class="m">(${esc(borrowerVillage)})</span>` : ''}</span>
+            </div>
+            ${borrowerPhone ? `
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</span>
+              <span class="gf-receipt-v">${esc(borrowerPhone)}</span>
+            </div>` : ''}
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
+              <span class="gf-receipt-v">${dateStr}${timeStr ? `, ${timeStr}` : ''}</span>
+            </div>
+            ${t.utr ? `
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">UPI UTR / Ref</span>
+              <span class="gf-receipt-v" style="font-family:monospace">${esc(t.utr)}</span>
+            </div>` : ''}
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
+              <span class="gf-receipt-v" style="color:${balDue > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(balDue)}</span>
+            </div>
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${isPay ? tr('Logged / Recorded By','నమోదు చేసినవారు') : tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
+              <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(collector)}</span>
+            </div>
+          </div>
+
+          <div class="gf-receipt-stamp">
+            ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
+          </div>
+
+          <!-- Micro QR Box -->
+          <div class="gf-receipt-verify-sec">
+            <div class="gf-receipt-verify-info">
+              <div class="gf-receipt-verify-badge">
+                <span class="gf-receipt-verify-dot"></span>
+                ${tr('DIGITAL VERIFIED RECEIPT','ధృవీకరించిన రసీదు')}
+              </div>
+              <div class="gf-receipt-verify-desc">
+                ${tr('Scanned & verified via official ledger database','అధికారిక లెడ్జర్ ద్వారా ధృవీకరించబడింది')}
+              </div>
+              <div class="gf-receipt-verify-id">${recNo}</div>
+            </div>
+            <div class="gf-receipt-qr-link">
+              <div class="gf-receipt-qr-box">
+                ${getReceiptQrSvg(t.id)}
+              </div>
+              <span class="gf-receipt-qr-hint">${tr('VERIFIED ✓','ధృవీకరించబడింది')}</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+            <a class="wa" target="_blank" rel="noopener" href="${wa({m, text: msg(t)})}">
+              ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
+            </a>
+            <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
+            <button class="sm" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
+          </div>
+        </div>
+        <div class="gf-receipt-sawtooth"></div>
+      </div>
+
+      <!-- Staff Portal Footer Link -->
+      <div style="margin-top:24px;text-align:center">
+        <button class="sm" onclick="exitPublicReceiptView()" style="background:transparent;border:none;color:var(--p);font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline">
+          ${tr('Are you staff or admin? Open Staff Portal →','మీరు స్టాఫ్ లేదా అడ్మినా? స్టాఫ్ పోర్టల్ తెరవండి →')}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function _drawInner(){
   _drawPending = false;
   const app=$('#app');
+  if (isPublicScan && vr) {
+    return app.innerHTML = renderStandaloneReceiptPage(vr);
+  }
   if(!db && !offlineMode){
     if(isNetOffline || (typeof navigator !== 'undefined' && !navigator.onLine)) return app.innerHTML = renderErrorState('no_internet');
     if(isSlowNet) return app.innerHTML = renderErrorState('slow_network');
@@ -4102,7 +4316,7 @@ if (tab === 'mb' && !adm) {
 
 app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
-  <nav class="v18-dock-nav">
+  <nav class="v18-dock-nav" style="grid-template-columns: repeat(${tabs.length}, 1fr)">
     ${tabs.map(([k, label, cnt, shortLabel]) => `
       <button class="v18-dock-btn ${k==tab?'active':''}" onclick="go('${k}')" title="${esc(label)}">
         ${V18_ICONS[k]||''}
@@ -4124,7 +4338,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v50</span>
+          <span class="v18-pill">v51</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4224,5 +4438,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=50').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=51').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
