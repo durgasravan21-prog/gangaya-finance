@@ -172,11 +172,11 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 12px;
-    width: calc(100% - 20px);
-    max-width: 500px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 16px);
+    max-width: 520px;
     height: 60px;
-    border-radius: 18px;
+    border-radius: 20px;
     background: var(--dock-bg);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -184,17 +184,24 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     z-index: 90;
     flex-direction: row;
     padding: 0 4px;
-    justify-content: space-around;
+    justify-content: space-between;
     align-items: center;
-    box-shadow: 0 16px 36px rgba(0,0,0,0.35);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.38);
   }
   .v18-dock-brand, .v18-dock-footer { display: none !important; }
-  .v18-dock-nav { display: flex; flex-direction: row; justify-content: space-around; width: 100%; gap: 2px; }
+  .v18-dock-nav {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    gap: 2px;
+  }
   .v18-dock-btn {
-    flex: 1;
-    min-width: 44px;
+    flex: 1 1 0;
+    min-width: 0;
     height: 52px;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 0;
     background: transparent;
     color: var(--dock-btn);
@@ -204,16 +211,45 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     justify-content: center;
     position: relative;
     cursor: pointer;
-    transition: all .15s ease;
-    gap: 3px;
-    padding: 2px 4px;
+    transition: all .16s ease;
+    gap: 2px;
+    padding: 3px 1px;
+    -webkit-tap-highlight-color: transparent;
   }
   .v18-dock-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
-  .v18-dock-btn.active { background: var(--dock-active); color: #0f172a; box-shadow: 0 4px 14px rgba(255,255,255,0.25); }
-  .v18-dock-lbl { display: block; font-size: 9.5px; font-weight: 700; line-height: 1; text-align: center; white-space: nowrap; }
-  .v18-dock-badge { position: absolute; top: 4px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--r); box-shadow: 0 0 0 2px var(--dock-bg); }
+  .v18-dock-btn.active {
+    background: var(--dock-active);
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(255,255,255,0.25);
+  }
+  .v18-dock-btn.active .v18-dock-lbl {
+    color: #0f172a;
+    font-weight: 800;
+  }
+  .v18-dock-lbl {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    letter-spacing: -0.01em;
+  }
+  .v18-dock-badge {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 13px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--r);
+    box-shadow: 0 0 0 2px var(--dock-bg);
+  }
   .tabs { display: none !important; }
-  main { padding: 12px 14px 96px; }
+  main { padding: 12px 14px calc(115px + env(safe-area-inset-bottom, 0px)); }
 }
 
 @media (min-width: 960px) {
@@ -260,6 +296,7 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 .v18-banner { background: linear-gradient(135deg, rgba(238, 242, 255, 0.88) 0%, rgba(243, 232, 255, 0.88) 50%, rgba(254, 243, 199, 0.6) 100%); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: var(--radius); padding: 22px 26px; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; min-height: 150px; }
 :root[data-theme=dark] .v18-banner { background: linear-gradient(135deg, rgba(30, 27, 75, 0.6) 0%, rgba(46, 16, 101, 0.6) 50%, rgba(15, 23, 42, 0.85) 100%); border-color: rgba(255,255,255,0.08); }
 .v18-banner-content { max-width: 440px; z-index: 2; }
+.v18-banner-content .acts { justify-content: flex-start; gap: 8px; }
 .v18-banner-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--a); margin-bottom: 6px; }
 .v18-banner-title { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 6px; line-height: 1.2; }
 .v18-banner-sub { font-size: 13px; color: var(--m); margin: 0 0 14px; line-height: 1.4; }
@@ -902,7 +939,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=46"></script>
+<script src="/runtime.js?v=47"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -918,10 +955,10 @@ async function getScannerBlob(){
   return await resp.blob();
 }
 const V18_ICONS = {
-  ac: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  ac: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
   rc: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 10h16M10 4v16"/></svg>',
   fa: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
-  rm: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  rm: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>',
   lg: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>',
   mb: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
   vl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>',
@@ -3771,18 +3808,18 @@ function _drawInner(){
 const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
 const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
-  ['fa',tr('Collect','వసూలు'),null],
-  ['lg',tr('Ledger','ఖాతాలు'),null],
-  ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length],
-  ['rm',tr('Reminders','రిమైండర్లు'),remCount],
-  ['ac',tr('Activity & Reports','లావాదేవీలు & నివేదికలు'),null],
-  ['mb',tr('Members & Villages','సభ్యులు & ఊర్లు'),null]
+  ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
+  ['lg',tr('Ledger','ఖాతాలు'),null,tr('Ledger','ఖాతాలు')],
+  ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length,tr('Loans','అప్పులు')],
+  ['rm',tr('Reminders','రిమైండర్లు'),remCount,tr('Remind','రిమైండర్')],
+  ['ac',tr('Activity & Reports','లావాదేవీలు & నివేదికలు'),null,tr('Activity','లావాదేవీలు')],
+  ['mb',tr('Members & Villages','సభ్యులు & ఊర్లు'),null,tr('Members','సభ్యులు')]
 ]:[
-  ['fa',tr('Collect','వసూలు'),null],
-  ['lg',tr('Ledger','ఖాతాలు'),null],
-  ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length],
-  ['rm',tr('Reminders','రిమైండర్లు'),remCount],
-  ['ac',tr('Activity','లావాదేవీలు'),null]
+  ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
+  ['lg',tr('Ledger','ఖాతాలు'),null,tr('Ledger','ఖాతాలు')],
+  ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length,tr('Loans','అప్పులు')],
+  ['rm',tr('Reminders','రిమైండర్లు'),remCount,tr('Remind','రిమైండర్')],
+  ['ac',tr('Activity','లావాదేవీలు'),null,tr('Activity','లావాదేవీలు')]
 ];
 const showHero = (tab === 'fa' || !tab || (tabs[0] && tabs[0][0] === tab));
 let body = '';
@@ -3809,10 +3846,10 @@ if (tab === 'mb' && !adm) {
 app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
   <nav class="v18-dock-nav">
-    ${tabs.map(([k, label, cnt]) => `
+    ${tabs.map(([k, label, cnt, shortLabel]) => `
       <button class="v18-dock-btn ${k==tab?'active':''}" onclick="go('${k}')" title="${esc(label)}">
         ${V18_ICONS[k]||''}
-        <span class="v18-dock-lbl">${esc(label)}</span>
+        <span class="v18-dock-lbl">${esc(shortLabel || label)}</span>
         ${cnt!=null&&cnt>0?`<span class="v18-dock-badge"></span>`:''}
       </button>
     `).join('')}
@@ -3930,5 +3967,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=46').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=47').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

@@ -1,5 +1,5 @@
-/* Gangaya Finance Service Worker v46 - instant pre-seeded load, zero delay & live sync */
-const CACHE = 'gangaya-v46';
+/* Gangaya Finance Service Worker v47 - instant pre-seeded load, zero delay & live sync */
+const CACHE = 'gangaya-v47';
 const ASSETS = ['/', '/index.html', '/sitemap.html', '/runtime.js', '/vendor/supabase.js', '/favicon.svg', '/icon-512.jpg', '/scanner.png', '/manifest.json'];
 
 self.addEventListener('install', e => {
