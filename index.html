@@ -317,15 +317,15 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
   92% { transform: translateY(12px) rotate(3deg); opacity: 0.35; }
   100% { transform: translateY(24px) rotate(6deg); opacity: 0; }
 }
-.v18-bill-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px dashed #cbd5e1; }
-.v18-bill-tag { font-size: 7.5px; font-weight: 800; letter-spacing: 0.05em; color: #6366f1; }
+.v18-bill-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1px dashed #94a3b8; }
+.v18-bill-tag { font-size: 7.5px; font-weight: 800; letter-spacing: 0.05em; color: #4f46e5; }
 .v18-bill-curr { font-size: 9px; font-weight: 800; color: #059669; }
-.v18-bill-line { height: 3px; background: #e2e8f0; border-radius: 2px; margin-bottom: 3.5px; }
+.v18-bill-line { height: 3px; background: #94a3b8; border-radius: 2px; margin-bottom: 3.5px; }
 .v18-bill-line.l1 { width: 85%; animation: linePrint 4.5s infinite; }
 .v18-bill-line.l2 { width: 60%; animation: linePrint 4.5s infinite 0.2s; }
-.v18-bill-line.l3 { width: 75%; background: #c7d2fe; animation: linePrint 4.5s infinite 0.4s; }
+.v18-bill-line.l3 { width: 75%; background: #6366f1; animation: linePrint 4.5s infinite 0.4s; }
 @keyframes linePrint { 0%, 20% { width: 0; } 35%, 100% { opacity: 1; } }
-.v18-bill-stamp { font-size: 8px; font-weight: 900; color: #059669; border: 1px solid #059669; border-radius: 3px; padding: 1px 3px; text-align: center; margin-top: 5px; letter-spacing: 0.03em; transform: rotate(-5deg); display: block; animation: stampPop 4.5s infinite; }
+.v18-bill-stamp { font-size: 8px; font-weight: 900; color: #059669; border: 1.5px solid #059669; border-radius: 3px; padding: 1px 3px; text-align: center; margin-top: 5px; letter-spacing: 0.03em; transform: rotate(-5deg); display: block; animation: stampPop 4.5s infinite; }
 @keyframes stampPop { 0%, 40% { transform: scale(0) rotate(-15deg); opacity: 0; } 48% { transform: scale(1.15) rotate(-5deg); opacity: 1; } 52%, 85% { transform: scale(1) rotate(-5deg); opacity: 1; } 100% { opacity: 0; } }
 
 /* Calendar Week Picker ("May, 2023" Mon 15, Tue 16, etc.) */
@@ -939,7 +939,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=47"></script>
+<script src="/runtime.js?v=48"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1082,9 +1082,9 @@ return `<div class="card" style="border-color:var(--b);margin-top:14px">
 <div class="card sc"><h2>${tr('Village-wise','ఊరి వారీగా')}</h2><table><tr><th>${tr('Village','ఊరు')}</th><th>${tr('Today','ఈ రోజు')}</th><th>${tr('7 days','7 రోజులు')}</th></tr>${Object.entries(r.v).map(([k,v])=>`<tr><td>${esc(vl(k))}</td><td>${inr(v.t)}</td><td>${inr(v.w)}</td></tr>`).join('')||'<tr><td colspan=3 class="m">'+tr('No collections yet','ఇంకా వసూలు లేదు')+'</td></tr>'}</table></div>`+recList()}
 function pick(i){vil=V[i].name;sel=null;rv='';draw()}
 function lastRec(m){const l=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts)[0];if(!l)return '';
-return `<div class="${l.d==today()?'ok':'m'}" style="font-size:13px">${tr('Last','చివరి')}: ${inr(l.amt)} · ${l.type=='pay'?(l.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${fd(l.d)}, ${tm(l)} <button class="sm" onclick="vr='${l.id}';draw()">${tr('View','చూడండి')}</button></div>`}
+return `<div class="${l.d==today()?'ok':'m'}" style="font-size:13px">${tr('Last','చివరి')}: ${inr(l.amt)} · ${l.type=='pay'?(l.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · ${fd(l.d)}, ${tm(l)} <button class="sm" onclick="openReceipt('${l.id}')">${tr('View','చూడండి')}</button></div>`}
 function memRecs(m){const r=T.filter(t=>t.mid==m.id).sort((a,b)=>b.ts-a.ts),s=st(m);
-return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · <b style="color:var(--t)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
+return `<div style="margin-top:10px;border-top:1px solid var(--b);padding-top:6px"><div class="m" style="margin-bottom:4px">${tr('All records','అన్ని రికార్డులు')} (${r.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(s.due,0))}</div>${r.map(t=>{const b=st(m,t.ts,t.d);return `<div class="rec"><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')+' → '+inr(t.repay)} · <b style="color:var(--t)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(b.due,0))}</div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="openReceipt('${t.id}')">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}</div>`}
 function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div class="row"><h2>${esc(nm(m))}</h2><button onclick="rv='';draw()">Close</button></div>${memRecs(m)}</div>`:''}
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
 cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8;
@@ -1432,6 +1432,7 @@ function openReceipt(id){
   dismissedNotifIds.add(id);
   dismissedNotifIds.add('t_' + id);
   try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
+  playPosPrintSound();
   draw();
 }
 
@@ -1947,7 +1948,7 @@ else{let r=t.amt;for(const l of L){if(r<=0)break;const room=l.repay-l.paid;if(ro
 if(r>0&&L.length){const l=L[L.length-1];l.paid+=r;l.pays.push({t,a:r})}}}
 for(const l of L)l.due=l.repay-l.paid;return L}
 function loanClosed(m,t){if(t.type!='pay')return false;const o=ledger(m,t.ts-1);return ledger(m,t.ts).some((l,i)=>l.due<=0&&o[i]&&o[i].due>0)}
-function vb(t){return `<button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button>`}
+function vb(t){return `<button class="sm" onclick="openReceipt('${t.id}')">${tr('View','చూడండి')}</button>`}
 function loanBlocks(m,L){return `<div style="margin-top:10px">${L.map(l=>{const cl=l.due<=0;return `<div style="border-top:1px solid var(--b);padding:8px 0"><div class="row"><b>${tr('Loan','అప్పు')} ${l.n} · ${fd(l.t.d)}</b><span class="chip ${cl?'good':''}">${cl?tr('Closed ✓','పూర్తి ✓'):tr('Open','కొనసాగుతోంది')}</span></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(l.given)} → ${tr('Return','తిరిగి')} ${inr(l.repay)} · ${inr(l.inst)}/${m.freq==1?tr('day','రోజు'):tr('week','వారం')} ${vb(l.t)}</div>
 <div class="m">${tr('Paid','చెల్లించినది')} ${inr(l.paid)} (${l.pays.length}) · ${tr('Due','బాకీ')} ${inr(Math.max(l.due,0))}</div>
@@ -1971,20 +1972,17 @@ const unreadWaiting = isAdm ? T.filter(x => !x.sent && !x.past && isFatherTxn(x)
 const curIdx = unreadWaiting.findIndex(x => x.id === t.id);
 const prevId = (curIdx > 0) ? unreadWaiting[curIdx - 1].id : null;
 const nextId = (curIdx !== -1 && curIdx < unreadWaiting.length - 1) ? unreadWaiting[curIdx + 1].id : null;
-if(isAdm){
-  setTimeout(()=>{
-    const el = document.getElementById('posStatusText');
-    if(el) el.textContent = tr('PRINT DISPENSED ✓', 'ప్రింట్ పూర్తయింది ✓');
-  }, 2350);
-}
+setTimeout(()=>{
+  const el = document.getElementById('posStatusText');
+  if(el) el.textContent = tr('PRINT DISPENSED ✓', 'ప్రింట్ పూర్తయింది ✓');
+}, 2350);
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-modal" role="dialog" aria-modal="true" onclick="const p=this.querySelector('.is-pos-dispensed');if(p)p.classList.add('skip-anim');">
-    ${isAdm ? `
     <div class="gf-pos-terminal-head">
       <div class="gf-pos-terminal-body">
         <div class="gf-pos-terminal-brand">
           <span class="gf-pos-slot-badge">GF POS</span>
-          <span style="font-weight:800;letter-spacing:0.06em">${tr('COLLECTOR LIVE FEED','కలెక్టర్ లైవ్ ఫీడ్')}</span>
+          <span style="font-weight:800;letter-spacing:0.06em">${isAdm ? tr('COLLECTOR LIVE FEED','కలెక్టర్ లైవ్ ఫీడ్') : tr('FIELD COLLECTION TERMINAL','ఫీల్డ్ కలెక్షన్ టెర్మినల్')}</span>
         </div>
         <div class="gf-pos-terminal-status" id="posStatusWrap">
           <span class="gf-pos-live-led"></span>
@@ -1994,8 +1992,8 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
       <div class="gf-pos-mouth">
         <div class="gf-pos-teeth"></div>
       </div>
-    </div>` : ''}
-    <div class="gf-receipt-paper ${isAdm ? 'is-pos-dispensed' : ''}">
+    </div>
+    <div class="gf-receipt-paper is-pos-dispensed">
       ${(isAdm && curIdx !== -1) ? `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
         <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
@@ -2054,10 +2052,8 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
         ${isPay?'PAID ✓':'SANCTIONED ✓'}
       </div>
 
-      ${isAdm ? `
       <div class="gf-pos-barcode"></div>
       <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
-      ` : ''}
 
       <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
         <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
@@ -2086,7 +2082,7 @@ function recList(){const r=recs(),pay=r.filter(t=>t.type=='pay'),tot=pay.reduce(
 return `<div class="card"><h2>${tr('Records – one by one','రికార్డులు – ఒక్కొక్కటిగా')}</h2><div class="g"><select onchange="fp=this.value;draw()">${[['t','Today','ఈ రోజు'],['7','Last 7 days','గత 7 రోజులు'],['m','This month','ఈ నెల'],['a','All','అన్నీ'],['p','Past records','పాత రికార్డులు']].map(([k,e,t])=>`<option value="${k}" ${k==fp?'selected':''}>${tr(e,t)}</option>`).join('')}</select>
 <select onchange="fv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==fv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0">${pay.length} ${tr('payments','చెల్లింపులు')} · <b class="ok">${inr(tot)}</b> · UPI ${inr(up)} · ${tr('Cash','నగదు')} ${inr(tot-up)}</p>${role=='a'?'<button class="p" onclick="dl()">Download Excel</button>':''}</div>
-<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · <b style="color:var(--p)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="vr='${t.id}';draw()">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
+<div class="card">${r.slice(0,300).map(t=>{const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d);return `<div class="rec"><div><b>${esc(nm(m))}</b> <span class="m">${esc(vl(m.village))}</span><div class="m">${fd(t.d)}, ${tm(t)} · ${t.type=='pay'?(t.mode=='upi'?'UPI':tr('Cash','నగదు')):tr('New loan','కొత్త అప్పు')} · <b style="color:var(--p)">${esc(getCollectorDisplay(t.by))}</b> · ${tr('Bal','బాకీ')} ${inr(Math.max(s.due,0))}</div></div><div class="acts" style="flex-shrink:0"><b class="${t.type=='pay'?'ok':''}">${inr(t.amt)}</b><button class="sm" onclick="openReceipt('${t.id}')">${tr('View','చూడండి')}</button></div></div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`}${r.length>300?`<p class="m">Showing latest 300 of ${r.length}. Download Excel for all.</p>`:''}</div>`}
 
 function activityTab(){
   const td = today(), w = addD(td, -6), mStart = td.slice(0, 8) + '01';
@@ -2192,7 +2188,7 @@ function activityTab(){
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
               <b class="${isPay?'ok':''}" style="font-size:16px">${isPay?'+':''}${inr(t.amt)}</b>
               <div class="acts">
-                <button class="sm" onclick="vr='${t.id}';draw()">${tr('Receipt','రసీదు')}</button>
+                <button class="sm" onclick="openReceipt('${t.id}')">${tr('Receipt','రసీదు')}</button>
                 <a class="wa sm" style="padding:3px 7px;font-size:11px" target="_blank" rel="noopener" href="${wa({m, text: msg(t)})}">WhatsApp</a>
               </div>
             </div>
@@ -2386,8 +2382,8 @@ function save(){
     try{db.doc('rem/'+remId1).set({mid:m.id,d:today(),sent:true,paid:true,ts:Date.now()})}catch(_){}
     once(async()=>{
       const res = await db.collection('txns').add(t);
-      if(res && res.id && isFather){
-        vr = res.id;
+      if(res && res.id){
+        openReceipt(res.id);
       }
     });
     toast(tr(`Payment of ${inr(a)} logged by ${getCollectorDisplay(collector)} ✓`, `${inr(a)} చెల్లింపు (${getCollectorDisplay(collector)}) నమోదు చేయబడింది ✓`));
@@ -3078,7 +3074,7 @@ if(exb)return saveExisting(m,g,r,i,ld);
 once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});clr(['n','nt','p','lg','lr','i','ld'])})}
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
-once(async()=>{const res=await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i});if(res&&res.id)vr=res.id;})}
+once(async()=>{const res=await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i});if(res&&res.id)openReceipt(res.id);})}
 
 function openFatherNewLoanDlg(mid){
   if(mid) fnlMid = mid;
@@ -3639,7 +3635,7 @@ function heroKpis(preRemList, prePndRc){
           ${adm?`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Send Note to Gangaya','గంగయ్య గారికి నోట్')}</button>`:`<button class="v18-banner-btn" style="background:var(--p);color:#fff" onclick="openFatherNoteDlg()">${tr('Message Durga Sravan','దుర్గా శ్రావణ్ కి మెసేజ్')}</button>`}
         </div>
       </div>
-      <div class="v18-banner-art" style="cursor:pointer" onclick="${adm ? `const w=T.filter(x=>!x.sent&&!x.past&&isFatherTxn(x));if(w.length>0)openReceipt(w[0].id);else if(T.length>0)openReceipt(T[0].id);` : ''}">
+      <div class="v18-banner-art" style="cursor:pointer" onclick="const w=T.filter(x=>!x.sent&&!x.past&&isFatherTxn(x));if(w.length>0)openReceipt(w[0].id);else if(T.length>0)openReceipt(T[0].id);">
         <div class="v18-bill-anim" title="${tr('Live Digital Billing – Click to inspect receipt','లైవ్ డిజిటల్ బిల్లింగ్ – రసీదు చూడటానికి క్లిక్ చేయండి')}">
           <div class="v18-pos-slot">
             <span class="v18-pos-label">GF POS</span>
@@ -3967,5 +3963,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=47').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=48').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
