@@ -1067,7 +1067,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=54"></script>
+<script src="/runtime.js?v=55"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2272,8 +2272,14 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
         ` : ''}
 
         <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
-          <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
-            ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
+          <button class="p sm" style="background:#25d366;border-color:#25d366;color:#fff;font-weight:700" onclick="shareReceiptPhoto('${t.id}')">
+            ${tr('Share Receipt Photo','రసీదు ఫోటో పంపు')}
+          </button>
+          <button class="sm" onclick="downloadReceiptPhoto('${t.id}')">
+            ${tr('Save Photo','ఫోటో సేవ్')}
+          </button>
+          <a class="wa sm" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">
+            ${tr('WhatsApp Text','వాట్సాప్ టెక్స్ట్')}
           </a>
           ${(isAdm && !t.sent) ? `
             <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
@@ -4080,6 +4086,280 @@ function draw(){
   requestAnimationFrame(_drawInner);
 }
 
+
+async function generateReceiptImageBlob(receiptId){
+  const cleanId = String(receiptId || '').trim();
+  const recNo = 'GF-' + cleanId.replace(/^GF-/i, '').slice(0, 8).toUpperCase();
+
+  let t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo);
+  let m = t ? M.find(x => x.id === t.mid) : null;
+  if (!t && publicReceiptData && publicReceiptData.t) {
+    t = publicReceiptData.t;
+    m = publicReceiptData.m || {};
+  }
+  if (!t) return null;
+  m = m || {};
+
+  const isPay = (t.type === 'pay');
+  const borrowerName = (m.name || m.te || tr('Customer', 'ఖాతాదారుడు'));
+  const borrowerVillage = m.village ? ` (${m.village})` : '';
+  const dateStr = t.d ? fd(t.d) : today();
+  const timeStr = t.ts ? tm(t) : '';
+  const collector = getCollectorDisplay(t.by);
+  const balDue = (typeof t.bal !== 'undefined') ? t.bal : (m.id && T.length > 0 ? Math.max(0, st(m, t.ts, t.d).due) : 0);
+
+  const W = 460;
+  const H = 760;
+  const S = 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W * S;
+  canvas.height = H * S;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(S, S);
+
+  // Background
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, W, H);
+
+  // Card container
+  const cardX = 16, cardY = 16, cardW = W - 32, cardH = H - 32;
+  ctx.save();
+  ctx.shadowColor = 'rgba(15, 23, 42, 0.12)';
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 8;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+  else ctx.rect(cardX, cardY, cardW, cardH);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cardX, cardY, cardW, cardH, 18);
+  else ctx.rect(cardX, cardY, cardW, cardH);
+  ctx.stroke();
+
+  // Header Brand
+  ctx.fillStyle = '#4f46e5';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cardX + 20, cardY + 22, 34, 34, 9);
+  else ctx.rect(cardX + 20, cardY + 22, 34, 34);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('GF', cardX + 37, cardY + 44);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 19px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Gangaya Finance', cardX + 64, cardY + 36);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '700 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(isPay ? 'PAYMENT COLLECTION RECEIPT' : 'NEW LOAN SANCTION RECEIPT', cardX + 64, cardY + 52);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#475569';
+  ctx.font = '700 11px monospace';
+  ctx.fillText(recNo, cardX + cardW - 20, cardY + 42);
+
+  // Dashed divider
+  ctx.beginPath();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.moveTo(cardX + 20, cardY + 70);
+  ctx.lineTo(cardX + cardW - 20, cardY + 70);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Amount Box
+  const heroX = cardX + 20, heroY = cardY + 82, heroW = cardW - 40, heroH = 100;
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(heroX, heroY, heroW, heroH, 14);
+  else ctx.rect(heroX, heroY, heroW, heroH);
+  ctx.fill();
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '800 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(isPay ? 'AMOUNT PAID' : 'LOAN AMOUNT', heroX + heroW / 2, heroY + 24);
+
+  ctx.fillStyle = '#059669';
+  ctx.font = '900 32px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(inr(t.amt), heroX + heroW / 2, heroY + 60);
+
+  const modeText = isPay ? (t.mode === 'upi' ? 'UPI · VERIFIED ✓' : 'CASH PAYMENT') : 'SANCTIONED LOAN';
+  ctx.fillStyle = isPay && t.mode === 'upi' ? 'rgba(99,102,241,0.1)' : 'rgba(16,185,129,0.1)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(heroX + heroW / 2 - 62, heroY + 72, 124, 20, 10);
+  else ctx.rect(heroX + heroW / 2 - 62, heroY + 72, 124, 20);
+  ctx.fill();
+
+  ctx.fillStyle = isPay && t.mode === 'upi' ? '#4f46e5' : '#059669';
+  ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(modeText, heroX + heroW / 2, heroY + 86);
+
+  // Rows Table
+  let rowY = heroY + heroH + 20;
+  const rows = [
+    ['Borrower', borrowerName + borrowerVillage],
+    m.phone ? ['Phone / WhatsApp', m.phone] : null,
+    ['Date & Time', `${dateStr}${timeStr ? `, ${timeStr}` : ''}`],
+    t.utr ? ['UPI UTR / Ref', t.utr] : null,
+    ['Balance Due', inr(balDue)],
+    ['Logged By', collector]
+  ].filter(Boolean);
+
+  for (const [k, v] of rows) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(k, cardX + 22, rowY + 14);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = k === 'Logged By' ? '#4f46e5' : (k === 'Balance Due' ? (balDue > 0 ? '#0f172a' : '#059669') : '#0f172a');
+    ctx.font = '700 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(v, cardX + cardW - 22, rowY + 14);
+
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.beginPath();
+    ctx.moveTo(cardX + 22, rowY + 24);
+    ctx.lineTo(cardX + cardW - 22, rowY + 24);
+    ctx.stroke();
+
+    rowY += 32;
+  }
+
+  // Diagonal Stamp
+  ctx.save();
+  ctx.translate(cardX + cardW - 85, heroY + heroH + 75);
+  ctx.rotate(-12 * Math.PI / 180);
+  ctx.strokeStyle = '#059669';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(-46, -18, 92, 36, 6);
+  else ctx.rect(-46, -18, 92, 36);
+  ctx.stroke();
+  ctx.fillStyle = '#059669';
+  ctx.font = '900 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(isPay ? 'PAID ✓' : 'SANCTIONED ✓', 0, 6);
+  ctx.restore();
+
+  // Verification Box
+  const qrBoxY = cardY + cardH - 145;
+  const qrBoxW = cardW - 40;
+  ctx.fillStyle = '#f8fafc';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cardX + 20, qrBoxY, qrBoxW, 90, 12);
+  else ctx.rect(cardX + 20, qrBoxY, qrBoxW, 90);
+  ctx.fill();
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.setLineDash([4, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#059669';
+  ctx.font = '800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('● DIGITAL VERIFIED RECEIPT', cardX + 34, qrBoxY + 26);
+
+  ctx.fillStyle = '#64748b';
+  ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Scan QR with any phone camera or Google', cardX + 34, qrBoxY + 44);
+  ctx.fillText('to verify official Mumbai cloud record', cardX + 34, qrBoxY + 58);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '700 10.5px monospace';
+  ctx.fillText(recNo, cardX + 34, qrBoxY + 76);
+
+  // Render QR Code onto Canvas
+  try {
+    const qrSvg = getReceiptQrSvg(t.id);
+    const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvg);
+    const qrImg = new Image();
+    qrImg.crossOrigin = 'anonymous';
+    await new Promise((res) => {
+      qrImg.onload = res;
+      qrImg.onerror = res;
+      qrImg.src = svgDataUrl;
+    });
+    ctx.drawImage(qrImg, cardX + qrBoxW - 68, qrBoxY + 11, 68, 68);
+  } catch (_) {}
+
+  // Footer notice
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('Gangaya Finance · Official Customer Receipt · Zero-Latency Cloud', cardX + cardW / 2, cardY + cardH - 18);
+
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+
+async function shareReceiptPhoto(receiptId) {
+  toast(tr('Generating receipt photo…', 'రసీదు ఫోటో సిద్ధమవుతోంది…'));
+  try {
+    const blob = await generateReceiptImageBlob(receiptId);
+    if (!blob) throw new Error('Could not generate receipt image');
+
+    const cleanId = String(receiptId || '').replace(/^GF-/i, '').slice(0, 8).toUpperCase();
+    const fileName = `Gangaya-Finance-Receipt-GF-${cleanId}.png`;
+    const file = new File([blob], fileName, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Gangaya Finance Receipt GF-${cleanId}`,
+        text: `Gangaya Finance Payment Receipt (GF-${cleanId})`
+      });
+      toast(tr('Receipt photo shared ✓', 'రసీదు ఫోటో పంపబడింది ✓'));
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(tr('Receipt photo downloaded ✓ You can send it directly to WhatsApp', 'రసీదు ఫోటో డౌన్‌లోడ్ అయింది ✓ వాట్సాప్‌లో నేరుగా పంపవచ్చు'));
+  } catch (err) {
+    console.error('Share receipt error:', err);
+    toast(tr('Could not share photo: ' + (err.message || ''), 'ఫోటో పంపడం సాధ్యం కాలేదు'));
+  }
+}
+
+async function downloadReceiptPhoto(receiptId) {
+  toast(tr('Downloading receipt photo…', 'రసీదు ఫోటో డౌన్‌లోడ్ అవుతోంది…'));
+  try {
+    const blob = await generateReceiptImageBlob(receiptId);
+    if (!blob) throw new Error('Could not generate image');
+    const cleanId = String(receiptId || '').replace(/^GF-/i, '').slice(0, 8).toUpperCase();
+    const fileName = `Gangaya-Finance-Receipt-GF-${cleanId}.png`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast(tr('Receipt photo saved to gallery/downloads ✓', 'రసీదు ఫోటో సేవ్ అయింది ✓'));
+  } catch (err) {
+    toast(tr('Download error: ' + err.message, 'డౌన్‌లోడ్ లోపం'));
+  }
+}
+
 function exitPublicReceiptView(){
   isPublicScan = false;
   vr = '';
@@ -4294,8 +4574,14 @@ function renderStandaloneReceiptPage(receiptId){
 
           <!-- Actions -->
           <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px;margin-top:14px">
-            <a class="wa" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">
-              ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
+            <button class="p sm" style="background:#25d366;border-color:#25d366;color:#fff;font-weight:700" onclick="shareReceiptPhoto('${t.id}')">
+              ${tr('Share Receipt Photo','రసీదు ఫోటో పంపు')}
+            </button>
+            <button class="sm" onclick="downloadReceiptPhoto('${t.id}')">
+              ${tr('Save Photo','ఫోటో సేవ్')}
+            </button>
+            <a class="wa sm" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">
+              ${tr('WhatsApp Text','వాట్సాప్ టెక్స్ట్')}
             </a>
             <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
             <button class="sm" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
@@ -4389,7 +4675,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v54</span>
+          <span class="v18-pill">v55</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4489,5 +4775,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=54').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=55').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
