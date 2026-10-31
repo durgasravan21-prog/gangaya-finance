@@ -19,32 +19,28 @@ module.exports = async (req, res) => {
 
   try {
     const cleanId = id.replace(/^GF-/i, '');
-    const resp = await fetch(`${url}/rest/v1/docs?collection=eq.txns&select=id,data`, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    const resp = await fetch(`${url}/rest/v1/rpc/get_verified_receipt`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_id: cleanId }),
       signal: AbortSignal.timeout(6000)
     });
-    if (!resp.ok) throw new Error('Database lookup failed');
-    const docs = await resp.json();
-    const match = (Array.isArray(docs) ? docs : []).find(d => d.id === cleanId || d.id.startsWith(cleanId) || (d.data && d.data.id === cleanId));
-    if (!match) {
-      return res.status(404).json({ ok: false, error: 'Receipt not found' });
-    }
-    const t = { id: match.id, ...(match.data || {}) };
 
-    // Fetch member
-    let m = {};
-    if (t.mid) {
-      const mResp = await fetch(`${url}/rest/v1/docs?collection=eq.members&id=eq.${t.mid}&select=id,data`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
-        signal: AbortSignal.timeout(6000)
-      });
-      if (mResp.ok) {
-        const mDocs = await mResp.json();
-        if (mDocs && mDocs[0]) m = { id: mDocs[0].id, ...(mDocs[0].data || {}) };
-      }
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(errText || 'Verification RPC failed');
     }
 
-    return res.status(200).json({ ok: true, t, m });
+    const data = await resp.json();
+    if (!data || !data.ok) {
+      return res.status(404).json(data || { ok: false, error: 'Receipt not found' });
+    }
+
+    return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message || 'Lookup error' });
   }

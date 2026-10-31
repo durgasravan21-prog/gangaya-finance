@@ -1067,7 +1067,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=52"></script>
+<script src="/runtime.js?v=53"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -4087,31 +4087,58 @@ function renderStandaloneReceiptPage(receiptId){
   let t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo);
   let m = t ? M.find(x => x.id === t.mid) : null;
 
-  // If not found in memory, use publicReceiptData from API
+  // If not found in memory, use publicReceiptData from API / RPC
   if (!t && publicReceiptData && publicReceiptData.t) {
     t = publicReceiptData.t;
     m = publicReceiptData.m || {};
   }
 
-  // If still not found and fetch hasn't started:
+  // Dual-path resilient lookup: API first, then direct Supabase RPC fallback
   if (!t && !publicReceiptError) {
     if (!_publicFetchStarted) {
       _publicFetchStarted = true;
-      fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`)
-        .then(r => r.json())
-        .then(res => {
-          if (res && res.ok && res.t) {
-            publicReceiptData = res;
-            draw();
-          } else {
-            publicReceiptError = (res && res.error) || 'Receipt not found';
-            draw();
+      const doLookup = async () => {
+        // Path 1: Serverless API endpoint
+        try {
+          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`, { signal: AbortSignal.timeout(4500) });
+          if (r.ok) {
+            const res = await r.json();
+            if (res && res.ok && res.t) {
+              publicReceiptData = res;
+              publicReceiptError = '';
+              return draw();
+            }
           }
-        })
-        .catch(err => {
-          publicReceiptError = err.message || 'Verification lookup error';
-          draw();
-        });
+        } catch (_) {}
+
+        // Path 2: Direct Supabase RPC query (Zero dependencies, anon permitted)
+        try {
+          const rpcUrl = 'https://digmxlceoejepixflqnh.supabase.co/rest/v1/rpc/get_verified_receipt';
+          const rpcKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
+          const r2 = await fetch(rpcUrl, {
+            method: 'POST',
+            headers: {
+              apikey: rpcKey,
+              Authorization: 'Bearer ' + rpcKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ p_id: cleanId }),
+            signal: AbortSignal.timeout(6000)
+          });
+          if (r2.ok) {
+            const res2 = await r2.json();
+            if (res2 && res2.ok && res2.t) {
+              publicReceiptData = res2;
+              publicReceiptError = '';
+              return draw();
+            }
+          }
+        } catch (_) {}
+
+        publicReceiptError = 'Receipt not found';
+        draw();
+      };
+      doLookup();
     }
 
     return `
@@ -4132,7 +4159,7 @@ function renderStandaloneReceiptPage(receiptId){
         <h2 style="margin:0 0 8px;font-size:19px">${tr('Receipt Not Found','రసీదు కనుగొనబడలేదు')}</h2>
         <p class="m" style="font-size:13px;max-width:340px;margin:0 auto 16px">${tr('No verified transaction record exists for receipt ID: ','ఈ రసీదు ID కోసం రికార్డు కనుగొనబడలేదు: ')}<b>${recNo}</b></p>
         <div style="display:flex;gap:8px;justify-content:center">
-          <button class="p sm" onclick="location.reload()">${tr('Retry','మళ్ళీ ప్రయత్నించు')}</button>
+          <button class="p sm" onclick="publicReceiptError='';_publicFetchStarted=false;draw()">${tr('Retry','మళ్ళీ ప్రయత్నించు')}</button>
           <button class="sm" onclick="exitPublicReceiptView()">${tr('Open Staff Portal →','స్టాఫ్ పోర్టల్ తెరవండి →')}</button>
         </div>
       </div>
@@ -4342,7 +4369,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v52</span>
+          <span class="v18-pill">v53</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4442,5 +4469,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=52').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=53').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
