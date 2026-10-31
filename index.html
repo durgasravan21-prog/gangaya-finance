@@ -426,10 +426,14 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   animation: receiptFeedIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 .gf-receipt-modal.has-pos-terminal {
-  margin: 0 auto;
-  margin-top: 0;
+  margin: 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
   max-width: 440px;
-  animation: posTerminalSlideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: none !important;
+  transform: none !important;
+  position: relative;
+  z-index: 20;
 }
 @keyframes receiptFeedIn {
   0% { transform: translateY(-40px) scale(0.95); opacity: 0; }
@@ -457,19 +461,19 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 @keyframes posViewportRoll {
   0% {
     max-height: 0;
-    opacity: 0.95;
+    opacity: 1;
   }
-  15% {
-    max-height: 120px;
+  12% {
+    max-height: 100px;
   }
-  35% {
-    max-height: 280px;
+  30% {
+    max-height: 240px;
   }
-  60% {
+  55% {
     max-height: 480px;
   }
-  85% {
-    max-height: 720px;
+  80% {
+    max-height: 750px;
   }
   100% {
     max-height: 2500px;
@@ -486,16 +490,16 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 
 @keyframes posPaperDescend {
   0% {
-    transform: translateY(-50px);
+    transform: translateY(-90px);
   }
-  15% {
-    transform: translateY(-30px);
+  20% {
+    transform: translateY(-55px);
   }
-  40% {
-    transform: translateY(-12px);
+  50% {
+    transform: translateY(-20px);
   }
-  75% {
-    transform: translateY(-4px);
+  80% {
+    transform: translateY(-5px);
   }
   100% {
     transform: translateY(0);
@@ -1063,7 +1067,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=51"></script>
+<script src="/runtime.js?v=52"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2112,7 +2116,7 @@ function recView(){
   const t=T.find(x=>x.id==vr);
   if(!t){
     if(T.length>0){
-      return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:${showPosTheme ? 'flex-start' : 'center'};justify-content:center;z-index:99;padding:${showPosTheme ? '0 12px 40px' : '16px'};overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+      return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
         <div class="card" style="max-width:380px;text-align:center;padding:24px">
           <div style="font-size:32px;margin-bottom:8px">✕</div>
           <h3 style="margin:0 0 8px">${tr('Receipt Not Found','రసీదు కనపడలేదు')}</h3>
@@ -2148,7 +2152,7 @@ if(showPosTheme){
     if(el) el.textContent = tr('PRINT DISPENSED ✓', 'ప్రింట్ పూర్తయింది ✓');
   }, 2350);
 }
-return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:${showPosTheme ? 'flex-start' : 'center'};z-index:99;padding:${showPosTheme ? '0 12px 60px' : '16px'};overflow-y:auto;overflow-x:hidden" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-modal ${showPosTheme ? 'has-pos-terminal' : ''}" role="dialog" aria-modal="true" onclick="const p=this.querySelector('.is-pos-dispensed');if(p)p.classList.add('skip-anim');const v=this.querySelector('.gf-pos-paper-viewport');if(v)v.classList.add('skip-anim');">
     ${showPosTheme ? `
     <div class="gf-pos-terminal-head">
@@ -4338,7 +4342,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v51</span>
+          <span class="v18-pill">v52</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4438,5 +4442,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=51').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=52').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
