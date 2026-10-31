@@ -526,6 +526,18 @@
       }
     } catch (_) {}
 
+    // Allow public QR code receipt verification without login barrier
+    const urlParams = new URLSearchParams(window.location.search);
+    const verifyReceiptId = urlParams.get('vr') || urlParams.get('r') || urlParams.get('receipt');
+    if (verifyReceiptId && !s && !hasCachedProf) {
+      prof = { id: 'public-verify', role: 'collector', name: 'Receipt Verification' };
+      uid = 'public-verify';
+      hasCachedProf = true;
+      const o = document.getElementById('rt-ov'); if (o) o.remove();
+      finish();
+      return;
+    }
+
     // Fast-derive profile from session user email if not in localStorage or stale
     if (s && (!prof || !prof.role || (s.user && prof.id && prof.id !== s.user.id))) {
       const em = (s.user && s.user.email || '').toLowerCase();

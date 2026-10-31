@@ -437,54 +437,71 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-/* Authentic Slow POS Bill Generation */
-.gf-receipt-paper.is-pos-dispensed {
-  border-radius: 0;
-  border-top: none;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+/* Authentic Physical POS Paper Dispense */
+.gf-pos-paper-viewport {
+  width: 100%;
   position: relative;
+  overflow: visible;
+}
+.gf-pos-paper-viewport.is-dispensing {
   overflow: hidden;
-  transform-origin: top center;
-  animation: posBillGenerateSlow 2.3s 0.25s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.38);
+  border-radius: 0 0 20px 20px;
+  animation: posViewportRoll 2.3s 0.15s cubic-bezier(0.12, 0.85, 0.28, 1) forwards;
 }
 
-@keyframes posBillGenerateSlow {
+@keyframes posViewportRoll {
   0% {
     max-height: 0;
-    clip-path: inset(0 0 100% 0);
-    transform: translateY(-20px);
-    opacity: 0.85;
+    opacity: 0.95;
   }
   15% {
-    max-height: 90px;
-    clip-path: inset(0 0 85% 0);
+    max-height: 120px;
   }
   35% {
-    max-height: 220px;
-    clip-path: inset(0 0 65% 0);
+    max-height: 280px;
   }
   60% {
-    max-height: 400px;
-    clip-path: inset(0 0 40% 0);
+    max-height: 480px;
   }
   85% {
-    max-height: 650px;
-    clip-path: inset(0 0 15% 0);
-  }
-  96% {
-    max-height: 900px;
-    clip-path: inset(0 0 0% 0);
-    transform: translateY(0);
-    opacity: 1;
+    max-height: 720px;
   }
   100% {
     max-height: 2500px;
-    clip-path: inset(0 0 0% 0);
-    transform: translateY(0);
     opacity: 1;
   }
 }
 
+.gf-pos-paper-viewport.is-dispensing .gf-receipt-paper.is-pos-dispensed {
+  border-radius: 0;
+  border-top: none;
+  box-shadow: none;
+  animation: posPaperDescend 2.3s 0.15s cubic-bezier(0.12, 0.85, 0.28, 1) forwards;
+}
+
+@keyframes posPaperDescend {
+  0% {
+    transform: translateY(-50px);
+  }
+  15% {
+    transform: translateY(-30px);
+  }
+  40% {
+    transform: translateY(-12px);
+  }
+  75% {
+    transform: translateY(-4px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.gf-receipt-modal.skip-anim,
+.gf-receipt-modal.skip-anim .gf-pos-paper-viewport,
+.gf-receipt-modal.skip-anim .gf-receipt-paper,
+.gf-pos-paper-viewport.skip-anim,
 .gf-receipt-paper.skip-anim {
   animation: none !important;
   max-height: none !important;
@@ -566,19 +583,110 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   animation: ledPulse 1.6s infinite;
 }
 .gf-pos-mouth {
-  height: 7px;
+  height: 9px;
   background: #020617;
-  border-radius: 3px;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.95);
+  border-radius: 4px;
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.95), 0 3px 6px rgba(0,0,0,0.4);
   position: relative;
   overflow: hidden;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255,255,255,0.12);
+  margin-top: 4px;
+  z-index: 10;
+}
+.gf-pos-mouth-slot {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #000000 0%, #0f172a 100%);
 }
 .gf-pos-teeth {
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(90deg, #334155, #334155 3px, #0f172a 3px, #0f172a 7px);
-  opacity: 0.5;
+  background: repeating-linear-gradient(90deg, #475569, #475569 3px, #0f172a 3px, #0f172a 7px);
+  opacity: 0.6;
+}
+.gf-receipt-verify-sec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 14px 0 10px;
+  padding: 10px 14px;
+  background: rgba(15,23,42,0.03);
+  border: 1px dashed rgba(15,23,42,0.18);
+  border-radius: 12px;
+}
+:root[data-theme=dark] .gf-receipt-verify-sec {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.18);
+}
+.gf-receipt-verify-info {
+  flex: 1;
+  text-align: left;
+}
+.gf-receipt-verify-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #059669;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.gf-receipt-verify-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #059669;
+  display: inline-block;
+  box-shadow: 0 0 6px #10b981;
+}
+.gf-receipt-verify-desc {
+  font-size: 10px;
+  color: var(--m);
+  line-height: 1.35;
+}
+.gf-receipt-verify-id {
+  font-family: monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--t);
+  margin-top: 3px;
+  letter-spacing: 0.05em;
+}
+.gf-receipt-qr-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.gf-receipt-qr-box {
+  width: 56px;
+  height: 56px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  box-sizing: border-box;
+}
+.gf-receipt-qr-box svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.gf-receipt-qr-hint {
+  font-size: 7.5px;
+  font-weight: 800;
+  color: var(--p);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .gf-pos-barcode {
   height: 26px;
@@ -950,12 +1058,14 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   </div>
 </main>
 <script src="/vendor/supabase.js"></script>
-<script src="/runtime.js?v=49"></script>
+<script src="/vendor/qrcode.js"></script>
+<script src="/runtime.js?v=50"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
 window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offlineMode){toast(tr('Internet restored ✓ Reconnecting…','ఇంటర్నెట్ తిరిగి వచ్చింది ✓ రీకనెక్ట్ అవుతోంది…'));location.reload()}else{draw()}});
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(new URLSearchParams(window.location.search).get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr='',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
+const _urlP=new URLSearchParams(window.location.search);
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='branch',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -964,6 +1074,21 @@ async function getScannerBlob(){
   }
   const resp = await fetch('/scanner.png');
   return await resp.blob();
+}
+function getReceiptQrSvg(receiptId){
+  try{
+    if(typeof QRCode === 'function'){
+      const verifyUrl = `${window.location.origin}/?vr=${encodeURIComponent(receiptId)}`;
+      const node = QRCode({
+        msg: verifyUrl,
+        dim: 52,
+        pad: 1,
+        pal: ['#0f172a', '#ffffff']
+      });
+      if(node && node.outerHTML) return node.outerHTML;
+    }
+  }catch(_){}
+  return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="15" y="15" width="4" height="4"/><path d="M14 10h1M10 14v1M18 10h3M10 18v3"/></svg>`;
 }
 const V18_ICONS = {
   ac: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
@@ -1977,7 +2102,31 @@ return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class
 <div class="m">${tr('Loans taken','తీసుకున్న అప్పులు')}: <b>${L.length}</b> · ${tr('Payments','చెల్లింపులు')}: <b>${pc}</b></div>
 <div class="m">${tr('Given','ఇచ్చినది')} ${inr(g)} · ${tr('To return','తిరిగి')} ${inr(r)} · ${tr('Paid','చెల్లించినది')} ${inr(p)} · ${tr('Due','బాకీ')} <b class="${d>0?'':'ok'}">${inr(Math.max(d,0))}</b></div></div>
 <div class="acts">${d>0?`<button class="sm" onclick="sendRemind('${m.id}')" title="${tr('Send WhatsApp Reminder','వాట్సాప్ రిమైండర్')}">${tr('Remind','గుర్తు చేయి')}</button>`:''}<button onclick="lgv=lgv=='${m.id}'?'':'${m.id}';draw()">${open?tr('Hide','మూసివేయి'):tr('View','చూడండి')}</button></div></div>${open?loanBlocks(m,L):''}</div>`}).join('')||`<p class="m">${tr('No records','రికార్డులు లేవు')}</p>`)}
-function recView(){const t=T.find(x=>x.id==vr),m=t&&M.find(x=>x.id==t.mid);if(!m)return '';
+function recView(){
+  if(!vr) return '';
+  const t=T.find(x=>x.id==vr);
+  if(!t){
+    if(T.length>0){
+      return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+        <div class="card" style="max-width:380px;text-align:center;padding:24px">
+          <div style="font-size:32px;margin-bottom:8px">✕</div>
+          <h3 style="margin:0 0 8px">${tr('Receipt Not Found','రసీదు కనపడలేదు')}</h3>
+          <p class="m" style="font-size:12px">${tr('No record found for ID: ','ఈ నంబర్‌తో రసీదు లేదు: ')}<b>GF-${vr.slice(0,8).toUpperCase()}</b></p>
+          <button class="sm p" onclick="vr='';draw()" style="margin-top:12px">${tr('Close','మూసివేయి')}</button>
+        </div>
+      </div>`;
+    }
+    return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
+      <div class="card" style="max-width:380px;text-align:center;padding:24px">
+        <div class="pulse-dot" style="margin:0 auto 12px;background:var(--p);width:12px;height:12px"></div>
+        <h3 style="margin:0 0 8px">${tr('Verifying Receipt…','రసీదుని ధృవీకరిస్తోంది…')}</h3>
+        <p class="m" style="font-size:12px">${tr('Checking ledger records: ','రికార్డులను తనిఖీ చేస్తోంది: ')}<b>GF-${vr.slice(0,8).toUpperCase()}</b></p>
+        <button class="sm" onclick="vr='';draw()" style="margin-top:12px">${tr('Cancel','రద్దు')}</button>
+      </div>
+    </div>`;
+  }
+  const m=M.find(x=>x.id==t.mid);
+  if(!m)return '';
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),isPay=t.type=='pay';
 const recNo='GF-'+t.id.slice(0,8).toUpperCase();
@@ -1995,7 +2144,7 @@ if(showPosTheme){
   }, 2350);
 }
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px;overflow:auto" onclick="if(event.target.id=='ov'){vr='';draw()}">
-  <div class="gf-receipt-modal ${showPosTheme ? 'has-pos-terminal' : ''}" role="dialog" aria-modal="true" onclick="const p=this.querySelector('.is-pos-dispensed');if(p)p.classList.add('skip-anim');">
+  <div class="gf-receipt-modal ${showPosTheme ? 'has-pos-terminal' : ''}" role="dialog" aria-modal="true" onclick="const p=this.querySelector('.is-pos-dispensed');if(p)p.classList.add('skip-anim');const v=this.querySelector('.gf-pos-paper-viewport');if(v)v.classList.add('skip-anim');">
     ${showPosTheme ? `
     <div class="gf-pos-terminal-head">
       <div class="gf-pos-terminal-body">
@@ -2009,92 +2158,115 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.68);ba
         </div>
       </div>
       <div class="gf-pos-mouth">
+        <div class="gf-pos-mouth-slot"></div>
         <div class="gf-pos-teeth"></div>
       </div>
     </div>` : ''}
-    <div class="gf-receipt-paper ${showPosTheme ? 'is-pos-dispensed' : ''}">
-      ${(isAdm && curIdx !== -1) ? `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
-        <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
-        <div style="display:flex;gap:6px">
-          ${prevId ? `<button class="sm" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${prevId}')">← ${tr('Prev','మునుపటి')}</button>` : ''}
-          ${nextId ? `<button class="sm p" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${nextId}')">${tr('Next →','తదుపరి →')}</button>` : ''}
+    <div class="gf-pos-paper-viewport ${showPosTheme ? 'is-dispensing' : ''}">
+      <div class="gf-receipt-paper ${showPosTheme ? 'is-pos-dispensed' : ''}">
+        ${(isAdm && curIdx !== -1) ? `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
+          <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
+          <div style="display:flex;gap:6px">
+            ${prevId ? `<button class="sm" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${prevId}')">← ${tr('Prev','మునుపటి')}</button>` : ''}
+            ${nextId ? `<button class="sm p" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${nextId}')">${tr('Next →','తదుపరి →')}</button>` : ''}
+          </div>
+        </div>` : ''}
+        <div class="gf-receipt-header">
+          <div class="gf-receipt-brand">
+            <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
+            <span>Gangaya Finance</span>
+          </div>
+          <div class="gf-receipt-sub">${isPay?tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు'):tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
+          <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
         </div>
-      </div>` : ''}
-      <div class="gf-receipt-header">
-        <div class="gf-receipt-brand">
-          <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
-          <span>Gangaya Finance</span>
-        </div>
-        <div class="gf-receipt-sub">${isPay?tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు'):tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
-        <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
-      </div>
 
-      <div class="gf-receipt-hero">
-        <div class="gf-receipt-amt-lbl">${isPay?tr('Amount Paid','చెల్లించిన మొత్తం'):tr('Loan Amount','మంజూరైన అప్పు')}</div>
-        <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
-        <div class="gf-receipt-mode-badge">
-          ${isPay?(t.mode=='upi'?'UPI · VERIFIED ✓':tr('CASH PAYMENT','నగదు చెల్లింపు')):(tr('SANCTIONED LOAN','మంజూరైన అప్పు'))}
+        <div class="gf-receipt-hero">
+          <div class="gf-receipt-amt-lbl">${isPay?tr('Amount Paid','చెల్లించిన మొత్తం'):tr('Loan Amount','మంజూరైన అప్పు')}</div>
+          <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
+          <div class="gf-receipt-mode-badge">
+            ${isPay?(t.mode=='upi'?'UPI · VERIFIED ✓':tr('CASH PAYMENT','నగదు చెల్లింపు')):(tr('SANCTIONED LOAN','మంజూరైన అప్పు'))}
+          </div>
         </div>
-      </div>
 
-      <div class="gf-receipt-rows">
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
-          <span class="gf-receipt-v">${esc(nm(m))} <span class="m">(${esc(vl(m.village))})</span></span>
+        <div class="gf-receipt-rows">
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
+            <span class="gf-receipt-v">${esc(nm(m))} <span class="m">(${esc(vl(m.village))})</span></span>
+          </div>
+          ${m.phone?`
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</span>
+            <span class="gf-receipt-v">${esc(m.phone)}</span>
+          </div>`:''}
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
+            <span class="gf-receipt-v">${fd(t.d)}, ${tm(t)}</span>
+          </div>
+          ${on?`
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${tr('Applied To','వర్తించినది')}</span>
+            <span class="gf-receipt-v">${esc(on)}</span>
+          </div>`:''}
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
+            <span class="gf-receipt-v" style="color:${b.due>0?'var(--t)':'var(--ok)'}">${inr(Math.max(b.due,0))}</span>
+          </div>
+          <div class="gf-receipt-row">
+            <span class="gf-receipt-k">${isPay?tr('Logged / Recorded By','నమోదు చేసినవారు'):tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
+            <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(getCollectorDisplay(t.by))}</span>
+          </div>
         </div>
-        ${m.phone?`
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</span>
-          <span class="gf-receipt-v">${esc(m.phone)}</span>
-        </div>`:''}
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
-          <span class="gf-receipt-v">${fd(t.d)}, ${tm(t)}</span>
-        </div>
-        ${on?`
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Applied To','వర్తించినది')}</span>
-          <span class="gf-receipt-v">${esc(on)}</span>
-        </div>`:''}
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
-          <span class="gf-receipt-v" style="color:${b.due>0?'var(--t)':'var(--ok)'}">${inr(Math.max(b.due,0))}</span>
-        </div>
-        <div class="gf-receipt-row">
-          <span class="gf-receipt-k">${isPay?tr('Logged / Recorded By','నమోదు చేసినవారు'):tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
-          <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(getCollectorDisplay(t.by))}</span>
-        </div>
-      </div>
 
-      <div class="gf-receipt-stamp">
-        ${isPay?'PAID ✓':'SANCTIONED ✓'}
-      </div>
+        <div class="gf-receipt-stamp">
+          ${isPay?'PAID ✓':'SANCTIONED ✓'}
+        </div>
 
-      ${showPosTheme ? `
-      <div class="gf-pos-barcode"></div>
-      <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
-      ` : ''}
+        <!-- Verification Micro QR Code -->
+        <div class="gf-receipt-verify-sec">
+          <div class="gf-receipt-verify-info">
+            <div class="gf-receipt-verify-badge">
+              <span class="gf-receipt-verify-dot"></span>
+              ${tr('DIGITAL VERIFIED RECEIPT','ధృవీకరించిన రసీదు')}
+            </div>
+            <div class="gf-receipt-verify-desc">
+              ${tr('Scan QR with phone camera, Google or in-app to verify ledger record','ధృవీకరణ కోసం ఫోన్ కెమెరా, గూగుల్ లేదా యాప్‌తో స్కాన్ చేయండి')}
+            </div>
+            <div class="gf-receipt-verify-id">${recNo}</div>
+          </div>
+          <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" class="gf-receipt-qr-link" title="${tr('Scan / Click to verify receipt online','ఆన్‌లైన్‌లో రసీదుని ధృవీకరించడానికి స్కాన్ / క్లిక్ చేయండి')}">
+            <div class="gf-receipt-qr-box">
+              ${getReceiptQrSvg(t.id)}
+            </div>
+            <span class="gf-receipt-qr-hint">${tr('SCAN TO VERIFY','స్కాన్ చేయండి')}</span>
+          </a>
+        </div>
 
-      <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
-        <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
-          ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
-        </a>
-        ${(isAdm && !t.sent) ? `
-          <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
-            ${nextId ? tr('Seen & Next →','చూశాను & తదుపరిది →') : tr('Mark as Seen ✓','చూసినట్లు గుర్తించు ✓')}
-          </button>
+        ${showPosTheme ? `
+        <div class="gf-pos-barcode"></div>
+        <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
         ` : ''}
-        ${(isAdm && unreadWaiting.length > 0 && !t.sent) ? `
-          <button class="sm d" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700" onclick="markAllSeenReceipts()">
-            ${tr('Mark All Seen ✕','అన్నీ చూసినట్లు తొలగించు ✕')}
-          </button>
-        ` : ''}
-        <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
-        <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
+
+        <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
+          <a class="wa" target="_blank" rel="noopener" href="${wa({m,text:msg(t)})}">
+            ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
+          </a>
+          ${(isAdm && !t.sent) ? `
+            <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="markSingleReceiptSent('${t.id}'${nextId ? `,'${nextId}'` : ''})">
+              ${nextId ? tr('Seen & Next →','చూశాను & తదుపరిది →') : tr('Mark as Seen ✓','చూసినట్లు గుర్తించు ✓')}
+            </button>
+          ` : ''}
+          ${(isAdm && unreadWaiting.length > 0 && !t.sent) ? `
+            <button class="sm d" style="background:#ef4444;border-color:#ef4444;color:#fff;font-weight:700" onclick="markAllSeenReceipts()">
+              ${tr('Mark All Seen ✕','అన్నీ చూసినట్లు తొలగించు ✕')}
+            </button>
+          ` : ''}
+          <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
+          <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
+        </div>
       </div>
+      <div class="gf-receipt-sawtooth"></div>
     </div>
-    <div class="gf-receipt-sawtooth"></div>
   </div>
 </div>`}
 function recs(){const td=today(),from={t:td,'7':addD(td,-6),m:td.slice(0,8)+'01',a:''}[fp]||'';
@@ -2572,30 +2744,74 @@ function downloadScannerImg(){
 function scannerModal(){
   if(!scannerDlg)return '';
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:380px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
-      <div class="row" style="margin-bottom:10px">
-        <h2 style="margin:0">${tr('Branch QR Scanner','బ్రాంచ్ QR స్కానర్')}</h2>
+    <div class="card" role="dialog" aria-modal="true" style="max-width:400px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
+      <div class="row" style="margin-bottom:12px;align-items:center">
+        <div style="display:flex;gap:6px">
+          <button class="sm ${scannerTab==='branch'?'p':''}" onclick="scannerTab='branch';draw()">${tr('Branch UPI QR','బ్రాంచ్ QR')}</button>
+          <button class="sm ${scannerTab==='verify'?'p':''}" onclick="scannerTab='verify';draw()">${tr('Verify Receipt QR','రసీదు ధృవీకరణ')}</button>
+        </div>
         <button class="sm" onclick="closeScannerDlg()">✕</button>
       </div>
-      <img src="${getScannerSrc()}" alt="QR Scanner" style="max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:12px;border:1px solid var(--b);display:block">
-      <div class="acts" style="justify-content:center;gap:8px">
-        <button class="p" onclick="shareScannerPhoto()">${tr('Share QR Photo','QR షేర్ చేయండి')}</button>
-        <button onclick="downloadScanner()">${tr('Download','డౌన్‌లోడ్')}</button>
-        <button onclick="closeScannerDlg()">${tr('Close','మూసివేయి')}</button>
-      </div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--b)">
-        <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--m)">${tr('Customize QR Scanner Photo','QR స్కానర్ ఫోటో మార్చండి')}</div>
-        <div class="acts">
-          <label class="sm p" style="cursor:pointer;display:inline-flex;align-items:center;margin:0">
-            ${tr('Upload New QR Photo','కొత్త QR ఫోటో అప్‌లోడ్ చేయండి')}
-            <input type="file" accept="image/*" onchange="uploadCustomQr(this)" style="display:none">
-          </label>
-          ${customQr?`<button class="sm d" onclick="resetCustomQr()">${tr('Reset to Default','డిఫాల్ట్ పెట్టు')}</button>`:''}
+
+      ${scannerTab === 'verify' ? `
+        <div style="padding:4px 0">
+          <div style="font-size:13.5px;font-weight:700;margin-bottom:6px">${tr('Verify Receipt by Number or QR','రసీదు నంబర్ లేదా QR ధృవీకరణ')}</div>
+          <p class="m" style="font-size:12px;margin:0 0 10px;line-height:1.4">
+            ${tr('Enter receipt code (e.g. GF-EF6DF8A4 or ID) or scanned QR URL to verify and view official record.','రసీదు నంబర్ లేదా స్కాన్ చేసిన QR లింక్ నమోదు చేసి అధికారిక రికార్డుని చూడండి.')}
+          </p>
+          <div class="g" style="margin-bottom:10px">
+            <input id="verifyReceiptInput" placeholder="${tr('Receipt No. (e.g. GF-EF6DF8A4)','రసీదు నంబర్ (ఉదా: GF-EF6DF8A4)')}" style="font-size:15px;font-weight:700;padding:10px" onkeydown="if(event.key==='Enter')verifyReceiptFromInput()">
+          </div>
+          <div class="acts" style="margin-bottom:12px">
+            <button class="p" style="flex:1;padding:10px;font-size:13.5px;font-weight:700" onclick="verifyReceiptFromInput()">${tr('Verify & Open Receipt ✓','ధృవీకరించి రసీదుని తెరువు ✓')}</button>
+          </div>
+          <div style="background:var(--s);padding:10px 12px;border-radius:10px;border:1px dashed var(--b);font-size:11.5px;line-height:1.4;color:var(--m)">
+            <b style="color:var(--t)">${tr('Google / Camera Verification:','గూగుల్ / కెమెరా ధృవీకరణ:')}</b><br>
+            ${tr('Every receipt prints a micro QR code. Borrowers or staff can point Google Lens, Phone Camera, or Google Search at the QR code to open the verified ledger receipt instantly on any device.','ప్రతి రసీదుపై చిన్న QR కోడ్ ముద్రించబడుతుంది. గూగుల్ లెన్స్ లేదా ఫోన్ కెమెరాతో స్కాన్ చేసి నేరుగా అధికారిక రసీదుని ధృవీకరించవచ్చు.')}
+          </div>
         </div>
-        <p class="m" style="margin:6px 0 0;font-size:11.5px">${tr('Updating here updates the QR code across reminders, WhatsApp sharing, and Father device automatically.','ఇక్కడ మారిస్తే వాట్సాప్ రిమైండర్లు మరియు తండ్రి గారి ఫోన్‌లో కూడా కొత్త QR ఆటోమేటిక్‌గా అప్‌డేట్ అవుతుంది.')}</p>
-      </div>
+      ` : `
+        <img src="${getScannerSrc()}" alt="QR Scanner" style="max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:12px;border:1px solid var(--b);display:block">
+        <div class="acts" style="justify-content:center;gap:8px">
+          <button class="p" onclick="shareScannerPhoto()">${tr('Share QR Photo','QR షేర్ చేయండి')}</button>
+          <button onclick="downloadScanner()">${tr('Download','డౌన్‌లోడ్')}</button>
+          <button onclick="closeScannerDlg()">${tr('Close','మూసివేయి')}</button>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--b)">
+          <div style="font-size:12.5px;font-weight:700;margin-bottom:6px;color:var(--m)">${tr('Customize QR Scanner Photo','QR స్కానర్ ఫోటో మార్చండి')}</div>
+          <div class="acts">
+            <label class="sm p" style="cursor:pointer;display:inline-flex;align-items:center;margin:0">
+              ${tr('Upload New QR Photo','కొత్త QR ఫోటో అప్‌లోడ్ చేయండి')}
+              <input type="file" accept="image/*" onchange="uploadCustomQr(this)" style="display:none">
+            </label>
+            ${customQr?`<button class="sm d" onclick="resetCustomQr()">${tr('Reset to Default','డిఫాల్ట్ పెట్టు')}</button>`:''}
+          </div>
+          <p class="m" style="margin:6px 0 0;font-size:11.5px">${tr('Updating here updates the QR code across reminders, WhatsApp sharing, and Father device automatically.','ఇక్కడ మారిస్తే వాట్సాప్ రిమైండర్లు మరియు తండ్రి గారి ఫోన్‌లో కూడా కొత్త QR ఆటోమేటిక్‌గా అప్‌డేట్ అవుతుంది.')}</p>
+        </div>
+      `}
     </div>
   </div>`;
+}
+
+function verifyReceiptFromInput(){
+  const e = document.getElementById('verifyReceiptInput');
+  if(!e) return;
+  let val = e.value.trim();
+  if(!val) return toast(tr('Please enter receipt number or link','దయచేసి రసీదు నంబర్ లేదా లింక్ నమోదు చేయండి'));
+  if(val.includes('vr=') || val.includes('r=')) {
+    try {
+      const u = new URL(val, window.location.origin);
+      val = u.searchParams.get('vr') || u.searchParams.get('r') || u.searchParams.get('receipt') || val;
+    } catch(_) {}
+  }
+  const cleanId = val.replace(/^GF-/i, '').toLowerCase();
+  const match = T.find(x => x.id.toLowerCase() === cleanId || x.id.toLowerCase().startsWith(cleanId) || ('gf-' + x.id.slice(0,8)).toLowerCase() === val.toLowerCase());
+  if(match){
+    closeScannerDlg();
+    openReceipt(match.id);
+  } else {
+    toast(tr('Receipt not found. Check reference number: ','రసీదు దొరకలేదు: ') + val);
+  }
 }
 
 function uploadCustomQr(input){
@@ -3908,7 +4124,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v49</span>
+          <span class="v18-pill">v50</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4008,5 +4224,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=49').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=50').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
