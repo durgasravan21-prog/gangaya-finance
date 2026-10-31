@@ -1067,7 +1067,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=55"></script>
+<script src="/runtime.js?v=56"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -3196,6 +3196,7 @@ async function dlMsgs(){
   await sv(d,'gangaya-messages-'+today()+'.xlsx',xlsx([{name:'Messages',rows:Q.map(i=>({Phone:ph(i.m.phone),Name:i.m.te||i.m.name,Village:i.m.village,Type:i.tag,Date:i.d,Message:i.text,Link:wa(i)}))}]))
 }
 async function dl(){
+  if (isPublicScan || !user) return toast(tr('Staff login required to download accounting records', 'రికార్డులు డౌన్‌లోడ్ చేయడానికి సిబ్బంది లాగిన్ అవసరం'));
   let d=null;try{if(window.claude) d=await claude.use('downloads')}catch(_){}
   const tx=recs().reverse().map(t=>{const m=M.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Receipt:t.sent?'Sent':'Waiting',Recorded_by:getCollectorName(t.by)}}),
   ms=M.filter(m=>!m.archived&&(!fv||m.village==fv)),
@@ -4538,10 +4539,15 @@ function renderStandaloneReceiptPage(receiptId){
               <span class="gf-receipt-k">UPI UTR / Ref</span>
               <span class="gf-receipt-v" style="font-family:monospace">${esc(t.utr)}</span>
             </div>` : ''}
+            ${(balDue > 0 || typeof t.bal !== 'undefined') ? `
             <div class="gf-receipt-row">
               <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
               <span class="gf-receipt-v" style="color:${balDue > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(balDue)}</span>
-            </div>
+            </div>` : (m.inst ? `
+            <div class="gf-receipt-row">
+              <span class="gf-receipt-k">${tr('Instalment','వాయిదా')}</span>
+              <span class="gf-receipt-v">${inr(m.inst)} (${m.freq === 1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')})</span>
+            </div>` : '')}
             <div class="gf-receipt-row">
               <span class="gf-receipt-k">${isPay ? tr('Logged / Recorded By','నమోదు చేసినవారు') : tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
               <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(collector)}</span>
@@ -4572,19 +4578,12 @@ function renderStandaloneReceiptPage(receiptId){
             </div>
           </div>
 
-          <!-- Actions -->
-          <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px;margin-top:14px">
-            <button class="p sm" style="background:#25d366;border-color:#25d366;color:#fff;font-weight:700" onclick="shareReceiptPhoto('${t.id}')">
-              ${tr('Share Receipt Photo','రసీదు ఫోటో పంపు')}
+          <!-- Actions (Strictly View-Only For Public Verification) -->
+          <div class="gf-receipt-acts" style="justify-content:center;margin-top:18px">
+            <button class="sm" onclick="window.print()" style="padding:8px 24px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;background:var(--c);border:1px solid var(--b);color:var(--t);cursor:pointer">
+              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <span>${tr('Print Receipt','రసీదు ప్రింట్')}</span>
             </button>
-            <button class="sm" onclick="downloadReceiptPhoto('${t.id}')">
-              ${tr('Save Photo','ఫోటో సేవ్')}
-            </button>
-            <a class="wa sm" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">
-              ${tr('WhatsApp Text','వాట్సాప్ టెక్స్ట్')}
-            </a>
-            <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
-            <button class="sm" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
           </div>
         </div>
         <div class="gf-receipt-sawtooth"></div>
@@ -4675,7 +4674,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v55</span>
+          <span class="v18-pill">v56</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4775,5 +4774,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=55').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=56').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
