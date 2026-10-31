@@ -1067,7 +1067,8 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=56"></script>
+<script src="/vendor/jsqr.js"></script>
+<script src="/runtime.js?v=57"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2593,6 +2594,12 @@ function save(){
   const m=M.find(x=>x.id==sel.id);
   if(!m)return;
   const mode=pmode=='upi'?'upi':'cash',due=Math.max(st(m).due,0);
+  if(due <= 0){
+    return toast(tr('This borrower has zero balance due (0). Cannot save payment.','ఈ ఖాతాదారునికి ఎలాంటి బాకీ లేదు (0). చెల్లింపు సేవ్ చేయలేరు.'));
+  }
+  if(a > due){
+    return toast(tr(`Amount cannot exceed the balance due: ${inr(due)}. More than due cannot be saved.`, `మొత్తం బాకీ ${inr(due)} కంటే ఎక్కువ ఉండకూడదు. బాకీ కంటే ఎక్కువ సేవ్ చేయబడదు.`));
+  }
   const collector = who();
   const go2=()=>{
     const utr = (mode === 'upi' && $('#pay_utr')) ? $('#pay_utr').value.trim() : '';
@@ -2613,7 +2620,6 @@ function save(){
     });
     toast(tr(`Payment of ${inr(a)} logged by ${getCollectorDisplay(collector)} ✓`, `${inr(a)} చెల్లింపు (${getCollectorDisplay(collector)}) నమోదు చేయబడింది ✓`));
   };
-  if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
   go2();
 }
 const wa=i=>`https://wa.me/${i&&i.m&&i.m.phone?ph(i.m.phone):''}?text=${encodeURIComponent(i&&i.text||'')}`,
@@ -2773,33 +2779,249 @@ function downloadScannerImg(){
   document.body.appendChild(a);a.click();a.remove();
   toast(tr('Scanner downloading…','స్కానర్ డౌన్‌లోడ్ అవుతోంది…'));
 }
+let _cameraStream = null;
+let _cameraScannerActive = false;
+let _cameraRaf = null;
+
+function closeScannerDlg(){
+  stopCameraScanner();
+  scannerDlg=false;
+  draw();
+}
+
+async function startCameraScanner(){
+  const container = document.getElementById('cameraScannerBox');
+  if(!container) return;
+  stopCameraScanner();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    _cameraStream = stream;
+    _cameraScannerActive = true;
+
+    container.innerHTML = `
+      <div style="position:relative;width:100%;height:220px;background:#000;border-radius:14px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.2)">
+        <video id="gfQrVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+          <div style="width:150px;height:150px;border:2px solid #10b981;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.48);position:relative">
+            <div style="position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(16,185,129,0.85);box-shadow:0 0 8px #10b981"></div>
+          </div>
+        </div>
+        <button type="button" class="sm" onclick="stopCameraScanner()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;border:0;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer">✕ ${tr('Stop Camera','ఆపు')}</button>
+      </div>
+    `;
+
+    const video = document.getElementById('gfQrVideo');
+    video.srcObject = stream;
+    await video.play();
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    let detector = null;
+    if('BarcodeDetector' in window){
+      try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(_) {}
+    }
+
+    const scanFrame = async () => {
+      if(!_cameraScannerActive || !video || video.readyState < 2) {
+        if(_cameraScannerActive) _cameraRaf = requestAnimationFrame(scanFrame);
+        return;
+      }
+      try {
+        let codeValue = null;
+        if(detector){
+          const barcodes = await detector.detect(video);
+          if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
+        }
+        if(!codeValue && typeof jsQR === 'function'){
+          if(canvas.width !== video.videoWidth || canvas.height !== video.videoHeight){
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+          if(code && code.data) codeValue = code.data;
+        }
+
+        if(codeValue){
+          try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
+          playChime();
+          stopCameraScanner();
+          handleVerifyReceiptInput(codeValue);
+          return;
+        }
+      } catch(_) {}
+
+      if(_cameraScannerActive){
+        _cameraRaf = requestAnimationFrame(scanFrame);
+      }
+    };
+    _cameraRaf = requestAnimationFrame(scanFrame);
+  } catch(err){
+    console.error('Camera scanner error:', err);
+    toast(tr('Could not access camera. You can choose a photo or type code below.', 'కెమెరా తెరవబడలేదు. ఫోటో ఎంచుకోండి లేదా కింద కోడ్ రాయండి.'));
+    stopCameraScanner();
+  }
+}
+
+function stopCameraScanner(){
+  _cameraScannerActive = false;
+  if(_cameraRaf) { cancelAnimationFrame(_cameraRaf); _cameraRaf = null; }
+  if(_cameraStream){
+    try{ _cameraStream.getTracks().forEach(t => t.stop()); } catch(_) {}
+    _cameraStream = null;
+  }
+  const box = document.getElementById('cameraScannerBox');
+  if(box) box.innerHTML = '';
+}
+
+async function scanQrFromFile(input){
+  const file = input && input.files && input.files[0];
+  if(!file) return;
+  toast(tr('Scanning QR photo…','QR ఫోటో స్కాన్ చేస్తోంది…'));
+  try{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = async () => {
+      URL.revokeObjectURL(url);
+      let codeValue = null;
+      if('BarcodeDetector' in window){
+        try{
+          const detector = new BarcodeDetector({ formats: ['qr_code'] });
+          const barcodes = await detector.detect(img);
+          if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
+        }catch(_){}
+      }
+      if(!codeValue && typeof jsQR === 'function'){
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imgData.data, imgData.width, imgData.height);
+        if(code && code.data) codeValue = code.data;
+      }
+
+      if(codeValue){
+        try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
+        playChime();
+        handleVerifyReceiptInput(codeValue);
+      } else {
+        toast(tr('No QR code detected in this photo. Try typing receipt code.', 'ఈ ఫోటోలో QR కోడ్ కనుగొనబడలేదు. రసీదు కోడ్ రాయండి.'));
+      }
+    };
+    img.src = url;
+  }catch(err){
+    toast(tr('Could not scan photo','ఫోటో స్కాన్ చేయడం సాధ్యం కాలేదు'));
+  }
+}
+
+async function handleVerifyReceiptInput(rawVal){
+  let val = String(rawVal || '').trim();
+  if(!val){
+    const e = document.getElementById('verifyReceiptInput');
+    if(e) val = e.value.trim();
+  }
+  if(!val) return toast(tr('Please enter receipt code or scan QR','దయచేసి రసీదు కోడ్ నమోదు చేయండి లేదా QR స్కాన్ చేయండి'));
+
+  // Extract from URL if present
+  if(val.includes('vr=') || val.includes('r=') || val.includes('receipt=')){
+    try {
+      const u = new URL(val, window.location.origin);
+      val = u.searchParams.get('vr') || u.searchParams.get('r') || u.searchParams.get('receipt') || val;
+    } catch(_) {}
+  }
+
+  const cleanId = val.replace(/^GF-/i, '').trim();
+  const recNo = 'GF-' + cleanId.slice(0, 8).toUpperCase();
+
+  // 1. Try local memory
+  const match = T.find(x => x.id === cleanId || x.id.toLowerCase() === cleanId.toLowerCase() || x.id.toLowerCase().startsWith(cleanId.toLowerCase()) || ('GF-' + x.id.slice(0,8).toUpperCase()) === recNo);
+  if(match){
+    stopCameraScanner();
+    closeScannerDlg();
+    openReceipt(match.id);
+    return;
+  }
+
+  // 2. Query cloud API
+  toast(tr('Verifying receipt with cloud ledger…', 'క్లౌడ్ లెడ్జర్‌లో రసీదుని వెతుకుతోంది…'));
+  try{
+    const resp = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`);
+    if(resp.ok){
+      const data = await resp.json();
+      if(data && data.ok && data.t){
+        stopCameraScanner();
+        closeScannerDlg();
+        if(!T.some(x => x.id === data.t.id)){
+          T.push(data.t);
+          if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
+        }
+        openReceipt(data.t.id);
+        return;
+      }
+    }
+  }catch(_){}
+
+  toast(tr('Receipt not found: ', 'రసీదు కనుగొనబడలేదు: ') + (recNo || val));
+}
+
+function verifyReceiptFromInput(){
+  return handleVerifyReceiptInput();
+}
+
 function scannerModal(){
   if(!scannerDlg)return '';
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px;overflow:auto" onclick="if(event.target===this)closeScannerDlg()">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:400px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
-      <div class="row" style="margin-bottom:12px;align-items:center">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:420px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
+      <div class="row" style="margin-bottom:14px;align-items:center">
         <div style="display:flex;gap:6px">
-          <button class="sm ${scannerTab==='branch'?'p':''}" onclick="scannerTab='branch';draw()">${tr('Branch UPI QR','బ్రాంచ్ QR')}</button>
-          <button class="sm ${scannerTab==='verify'?'p':''}" onclick="scannerTab='verify';draw()">${tr('Verify Receipt QR','రసీదు ధృవీకరణ')}</button>
+          <button class="sm ${scannerTab==='branch'?'p':''}" onclick="stopCameraScanner();scannerTab='branch';draw()">${tr('Branch UPI QR','బ్రాంచ్ QR')}</button>
+          <button class="sm ${scannerTab==='verify'?'p':''}" onclick="scannerTab='verify';draw()">${tr('Verify Receipt','రసీదు ధృవీకరణ')}</button>
         </div>
         <button class="sm" onclick="closeScannerDlg()">✕</button>
       </div>
 
       ${scannerTab === 'verify' ? `
         <div style="padding:4px 0">
-          <div style="font-size:13.5px;font-weight:700;margin-bottom:6px">${tr('Verify Receipt by Number or QR','రసీదు నంబర్ లేదా QR ధృవీకరణ')}</div>
-          <p class="m" style="font-size:12px;margin:0 0 10px;line-height:1.4">
-            ${tr('Enter receipt code (e.g. GF-EF6DF8A4 or ID) or scanned QR URL to verify and view official record.','రసీదు నంబర్ లేదా స్కాన్ చేసిన QR లింక్ నమోదు చేసి అధికారిక రికార్డుని చూడండి.')}
+          <div style="font-size:14px;font-weight:800;margin-bottom:4px">${tr('Dual Receipt Verification (Scan or Code)','రసీదు ధృవీకరణ (స్కానింగ్ లేదా కోడ్)')}</div>
+          <p class="m" style="font-size:12px;margin:0 0 12px;line-height:1.4">
+            ${tr('Verify any official receipt by scanning the QR code with camera or by typing the receipt code.','QR కోడ్ స్కాన్ చేసి లేదా రసీదు కోడ్ నమోదు చేసి రసీదుని సులభంగా ధృవీకరించవచ్చు.')}
           </p>
-          <div class="g" style="margin-bottom:10px">
-            <input id="verifyReceiptInput" placeholder="${tr('Receipt No. (e.g. GF-EF6DF8A4)','రసీదు నంబర్ (ఉదా: GF-EF6DF8A4)')}" style="font-size:15px;font-weight:700;padding:10px" onkeydown="if(event.key==='Enter')verifyReceiptFromInput()">
+
+          <!-- Type 1: Live Scanning / Photo -->
+          <div style="background:var(--s);padding:12px;border-radius:12px;border:1px solid var(--b);margin-bottom:12px">
+            <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;color:var(--p);margin-bottom:8px;letter-spacing:0.04em">
+              1. ${tr('Scan QR Code','QR కోడ్ స్కాన్ చేయండి')}
+            </div>
+            <div id="cameraScannerBox"></div>
+            <div class="acts" style="gap:8px;flex-wrap:wrap">
+              <button class="p sm" onclick="startCameraScanner()" style="display:inline-flex;align-items:center;gap:6px;font-weight:700">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                <span>${tr('Live Camera Scanner','లైవ్ కెమెరా స్కానర్')}</span>
+              </button>
+              <label class="sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--t)">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span>${tr('Upload / Snap QR Photo','ఫోటో నుండి స్కాన్')}</span>
+                <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
+              </label>
+            </div>
           </div>
-          <div class="acts" style="margin-bottom:12px">
-            <button class="p" style="flex:1;padding:10px;font-size:13.5px;font-weight:700" onclick="verifyReceiptFromInput()">${tr('Verify & Open Receipt ✓','ధృవీకరించి రసీదుని తెరువు ✓')}</button>
-          </div>
-          <div style="background:var(--s);padding:10px 12px;border-radius:10px;border:1px dashed var(--b);font-size:11.5px;line-height:1.4;color:var(--m)">
-            <b style="color:var(--t)">${tr('Google / Camera Verification:','గూగుల్ / కెమెరా ధృవీకరణ:')}</b><br>
-            ${tr('Every receipt prints a micro QR code. Borrowers or staff can point Google Lens, Phone Camera, or Google Search at the QR code to open the verified ledger receipt instantly on any device.','ప్రతి రసీదుపై చిన్న QR కోడ్ ముద్రించబడుతుంది. గూగుల్ లెన్స్ లేదా ఫోన్ కెమెరాతో స్కాన్ చేసి నేరుగా అధికారిక రసీదుని ధృవీకరించవచ్చు.')}
+
+          <!-- Type 2: Enter Receipt Code -->
+          <div style="background:var(--s);padding:12px;border-radius:12px;border:1px solid var(--b)">
+            <div style="font-size:11.5px;font-weight:800;text-transform:uppercase;color:var(--p);margin-bottom:8px;letter-spacing:0.04em">
+              2. ${tr('Enter Receipt Code','రసీదు కోడ్ నమోదు చేయండి')}
+            </div>
+            <div class="g" style="margin-bottom:8px">
+              <input id="verifyReceiptInput" placeholder="${tr('Receipt Code (e.g. GF-33F815D5)','రసీదు కోడ్ (ఉదా: GF-33F815D5)')}" style="font-size:14.5px;font-weight:800;padding:9px;text-transform:uppercase;letter-spacing:0.04em" onkeydown="if(event.key==='Enter')handleVerifyReceiptInput()">
+            </div>
+            <button class="p" style="width:100%;padding:9px;font-size:13px;font-weight:700" onclick="handleVerifyReceiptInput()">${tr('Verify Code & Open Receipt ✓','కోడ్ ధృవీకరించి రసీదు తెరువు ✓')}</button>
           </div>
         </div>
       ` : `
@@ -2823,27 +3045,6 @@ function scannerModal(){
       `}
     </div>
   </div>`;
-}
-
-function verifyReceiptFromInput(){
-  const e = document.getElementById('verifyReceiptInput');
-  if(!e) return;
-  let val = e.value.trim();
-  if(!val) return toast(tr('Please enter receipt number or link','దయచేసి రసీదు నంబర్ లేదా లింక్ నమోదు చేయండి'));
-  if(val.includes('vr=') || val.includes('r=')) {
-    try {
-      const u = new URL(val, window.location.origin);
-      val = u.searchParams.get('vr') || u.searchParams.get('r') || u.searchParams.get('receipt') || val;
-    } catch(_) {}
-  }
-  const cleanId = val.replace(/^GF-/i, '').toLowerCase();
-  const match = T.find(x => x.id.toLowerCase() === cleanId || x.id.toLowerCase().startsWith(cleanId) || ('gf-' + x.id.slice(0,8)).toLowerCase() === val.toLowerCase());
-  if(match){
-    closeScannerDlg();
-    openReceipt(match.id);
-  } else {
-    toast(tr('Receipt not found. Check reference number: ','రసీదు దొరకలేదు: ') + val);
-  }
 }
 
 function uploadCustomQr(input){
@@ -3270,7 +3471,7 @@ const t={mid:m.id,type:k,amt:a,d,ts:pts(d,k),sent:true,past:true,by:who(),entere
 if(k=='loan'){const r=num($('#pr').value),i=num($('#pi').value);if(!(r>=a)||!amtOk(i))return toast('Total to return must be at least the loan given');t.repay=r;t.inst=i}
 else t.mode=$('#pm').value=='upi'?'upi':'cash';
 pdate=d;pkind=k;const go2=()=>once(async()=>{await db.collection('txns').add(t);clr(['pa','pr','pi']);toast('Saved: '+(k=='pay'?'payment ':'loan ')+inr(a)+' on '+fd(d))});
-if(k=='pay'){const due=Math.max(st(m,t.ts,d).due,0);if(a>due)return ask('This payment is more than the balance due on that date ('+inr(due)+'). Save anyway?','Save',go2)}
+if(k=='pay'){const due=Math.max(st(m,t.ts,d).due,0);if(due<=0)return toast(tr('No balance due on that date. Cannot save payment.','ఆ తేదీన బాకీ లేదు. చెల్లింపు సేవ్ చేయలేరు.'));if(a>due)return toast(tr(`Payment cannot exceed the balance due of ${inr(due)}. More than due cannot be saved.`,`చెల్లింపు మొత్తం బాకీ ${inr(due)} కంటే ఎక్కువ ఉండకూడదు. బాకీ కంటే ఎక్కువ సేవ్ చేయబడదు.`));}
 go2()}
 const HRT=(t)=>`${tr('payments','చెల్లింపులు')}`;
 function hsumText(){const t=hp.reduce((a,r)=>a+(num(r.a)||0),0);return hp.length+' payment(s) · total '+inr(t)}
@@ -3328,14 +3529,14 @@ const rows=hp.filter(x=>x.d||x.a);for(const[k,x]of rows.entries()){if(!DRE.test(
 const tot=rows.reduce((s,x)=>s+num(x.a),0),pays=rows.map(x=>({d:x.d,amt:num(x.a),mode:x.m=='upi'?'upi':'cash'})).sort((a,b)=>a.d.localeCompare(b.d));
 const go=()=>{const ts=Date.now(),base={sent:true,past:true,by:who(),entered_at:ts};
 imp={ops:[{k:'m',data:m},{k:'t',data:{...base,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:ld,ts:pts(ld,'loan')}},...pays.map(p=>({k:'t',data:{...base,type:'pay',amt:p.amt,mode:p.mode,d:p.d,ts:pts(p.d,'pay')}}))],k:0,mid:null,name:m.name,atomic:!!(db&&db.atomic)};runImport()};
-if(tot>r)return ask('The payments add up to '+inr(tot)+', which is more than the total to return ('+inr(r)+'). Save anyway?','Save',go);go()}
+if(tot>r)return toast('The payments add up to '+inr(tot)+', which is more than the total to return ('+inr(r)+'). More than the loan cannot be saved.');go()}
 function savePastMany(){if(!owner||!sel)return;const m=M.find(x=>x.id==sel.id);if(!m)return;const rows=hp.filter(x=>x.d||x.a);if(!rows.length)return toast('Add at least one payment');
 const first=T.filter(t=>t.mid==m.id&&t.type=='loan').map(t=>t.d).sort()[0]||'1990-01-01';
 for(const[k,x]of rows.entries()){if(!DRE.test(x.d)||x.d>today()||x.d<first)return toast('Payment '+(k+1)+': pick a date between the loan date ('+fd(first)+') and today');if(!(num(x.a)>0&&num(x.a)<=1e8))return toast('Payment '+(k+1)+': enter the amount')}
 const tot=rows.reduce((s,x)=>s+num(x.a),0),due=Math.max(st(m).due,0),dup=rows.filter(x=>T.some(t=>t.mid==m.id&&t.type=='pay'&&t.d==x.d&&t.amt==num(x.a))).length;
+if(tot>due)return toast('Payments add up to '+inr(tot)+', which is more than the balance due ('+inr(due)+'). More than due cannot be saved.');
 const go=()=>{const base={sent:true,past:true,by:who(),entered_at:Date.now()};imp={ops:rows.map(x=>({k:'t',data:{...base,type:'pay',amt:num(x.a),mode:x.m=='upi'?'upi':'cash',d:x.d,ts:pts(x.d,'pay')}})).sort((a,b)=>a.data.d.localeCompare(b.data.d)),k:0,mid:m.id,name:nm(m),atomic:false};runImport()};
-const warn=[];if(dup)warn.push(dup+' of these look already recorded (same date and amount)');if(tot>due)warn.push('they add up to '+inr(tot)+' but the balance due is '+inr(due));
-if(warn.length)return ask(warn.join(', and ')+'. Save anyway?','Save',go);go()}
+if(dup)return ask(dup+' of these look already recorded (same date and amount). Continue?','Continue',go);go()}
 async function runImport(){if(!imp||busy||!owner)return;busy=true;draw();const I=imp;
 try{
 if(I.atomic&&I.k==0&&I.ops[0].k=='m'){try{I.mid=await db.atomic(I.ops[0].data,I.ops.slice(1).map(o=>o.data));I.k=I.ops.length}catch(e){if(/add_member_history|PGRST202|find the function/i.test((e&&e.message)||'')){I.atomic=false}else throw e}}
@@ -4212,7 +4413,7 @@ async function generateReceiptImageBlob(receiptId){
   let rowY = heroY + heroH + 20;
   const rows = [
     ['Borrower', borrowerName + borrowerVillage],
-    m.phone ? ['Phone / WhatsApp', m.phone] : null,
+    
     ['Date & Time', `${dateStr}${timeStr ? `, ${timeStr}` : ''}`],
     t.utr ? ['UPI UTR / Ref', t.utr] : null,
     ['Balance Due', inr(balDue)],
@@ -4367,15 +4568,12 @@ function exitPublicReceiptView(){
   publicReceiptData = null;
   publicReceiptError = '';
   _publicFetchStarted = false;
-  const u = new URL(window.location.href);
-  u.searchParams.delete('vr');
-  u.searchParams.delete('r');
-  u.searchParams.delete('receipt');
-  history.replaceState(null, '', u.pathname + (u.search ? u.search : ''));
-  if (typeof window.__showLogin === 'function' && (!user || !user.email)) {
-    window.__showLogin();
-  } else {
-    draw();
+  try {
+    const u = new URL(window.location.origin + '/');
+    u.searchParams.set('login', '1');
+    window.location.href = u.toString();
+  } catch(_) {
+    window.location.href = '/?login=1';
   }
 }
 
@@ -4471,8 +4669,7 @@ function renderStandaloneReceiptPage(receiptId){
   const isPay = (t.type === 'pay');
   const borrowerName = m.name || m.te || t.borrower || tr('Customer','ఖాతాదారుడు');
   const borrowerVillage = m.village || t.village || '';
-  const borrowerPhone = m.phone || t.phone || '';
-  const dateStr = t.d ? fd(t.d) : today();
+    const dateStr = t.d ? fd(t.d) : today();
   const timeStr = t.ts ? tm(t) : '';
   const collector = getCollectorDisplay(t.by);
   const balDue = (typeof t.bal !== 'undefined') ? t.bal : (m.id ? Math.max(0, st(m, t.ts, t.d).due) : 0);
@@ -4525,11 +4722,6 @@ function renderStandaloneReceiptPage(receiptId){
               <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
               <span class="gf-receipt-v">${esc(borrowerName)} ${borrowerVillage ? `<span class="m">(${esc(borrowerVillage)})</span>` : ''}</span>
             </div>
-            ${borrowerPhone ? `
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</span>
-              <span class="gf-receipt-v">${esc(borrowerPhone)}</span>
-            </div>` : ''}
             <div class="gf-receipt-row">
               <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
               <span class="gf-receipt-v">${dateStr}${timeStr ? `, ${timeStr}` : ''}</span>
@@ -4674,7 +4866,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v56</span>
+          <span class="v18-pill">v57</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4774,5 +4966,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=56').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=57').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

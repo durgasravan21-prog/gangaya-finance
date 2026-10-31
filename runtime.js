@@ -17,6 +17,7 @@
     }
     o.innerHTML = html; return o;
   }
+  window.__showLogin = (m) => loginUI(m);
   function loginUI(msg) {
     return new Promise(res => {
       let isSignUp = false;
@@ -517,19 +518,26 @@
           uid = s.user.id;
           email = s.user.email || '';
           hasCachedProf = true;
-        } else if (!s) {
-          prof = parsed;
-          hasCachedProf = true;
         } else {
           try { localStorage.removeItem('gf_prof'); } catch (_) {}
         }
       }
     } catch (_) {}
 
-    // Allow public QR code receipt verification without login barrier
+    // Handle force redirect to sign-in page
     const urlParams = new URLSearchParams(window.location.search);
+    const forceLogin = (urlParams.get('login') === '1');
     const verifyReceiptId = urlParams.get('vr') || urlParams.get('r') || urlParams.get('receipt');
-    if (verifyReceiptId && !s && !hasCachedProf) {
+
+    if (forceLogin) {
+      try { localStorage.removeItem('gf_prof'); } catch (_) {}
+      prof = null;
+      hasCachedProf = false;
+      s = null;
+    }
+
+    // Allow public QR code receipt verification without login barrier (unless explicitly logging in)
+    if (!forceLogin && verifyReceiptId && !s && !hasCachedProf) {
       prof = { id: 'public-verify', role: 'collector', name: 'Receipt Verification' };
       uid = 'public-verify';
       hasCachedProf = true;

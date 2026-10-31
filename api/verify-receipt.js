@@ -40,6 +40,14 @@ module.exports = async (req, res) => {
       return res.status(404).json(data || { ok: false, error: 'Receipt not found' });
     }
 
+    // Strip borrower phone number for public privacy
+    if (data.m) {
+      delete data.m.phone;
+    }
+    if (data.t) {
+      delete data.t.phone;
+    }
+
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message || 'Lookup error' });
