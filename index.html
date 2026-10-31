@@ -1067,7 +1067,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 </main>
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
-<script src="/runtime.js?v=53"></script>
+<script src="/runtime.js?v=54"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1161,9 +1161,24 @@ for(const[k,ok]of[['t',t.d==td],['w',t.d>=w]]){if(!ok)continue;r[k].c+=t.amt;if(
 const BIZ='గంగయ్య ఫైనాన్స్',TM=['జనవరి','ఫిబ్రవరి','మార్చి','ఏప్రిల్','మే','జూన్','జూలై','ఆగస్టు','సెప్టెంబర్','అక్టోబర్','నవంబర్','డిసెంబర్'],fdt=d=>{const x=new Date(d+'T00:00:00');return x.getDate()+' '+TM[x.getMonth()]+' '+x.getFullYear()},
 ft=ts=>new Date(ts).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true}).toUpperCase();
 const tm=t=>t.past?tr('past record','పాత రికార్డు'):ft(t.ts),pts=(d,k)=>new Date(d+'T'+(k=='loan'?'09:00':'12:00')+':00+05:30').getTime();
-function msg(t){const m=M.find(x=>x.id==t.mid),s=st(m,t.ts,t.d),fq=m.freq==1?'రోజుకు':'వారానికి';
-const col=getCollectorDisplay(t.by),byLine=t.type=='pay'?`నమోదు చేసినవారు: ${col}`:`మంజూరు చేసినవారు: ${col}`;
-return `నమస్కారం ${m.te||m.name} గారు,\n${BIZ} నుండి రసీదు:\n`+(t.type=='pay'?`చెల్లింపు: ${inr(t.amt)} (${t.mode=='upi'?'UPI':'నగదు'})`:`కొత్త అప్పు: ${inr(t.amt)}\nతిరిగి చెల్లించాల్సిన మొత్తం: ${inr(t.repay)}\nవాయిదా: ${inr(t.inst||m.inst||0)} (${fq})`)+`\n${byLine}\nతేదీ: ${fdt(t.d)}, ${ft(t.ts)}\nమిగిలిన బాకీ: ${inr(Math.max(s.due,0))}${s.due>0?`\nతదుపరి చెల్లింపు: ${fdt(s.next)+' - '+inr(m.inst||0)}`:''}${loanClosed(m,t)?'\nమీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు':'\nధన్యవాదాలు'}\n${BIZ}`}
+function msg(t, mem){
+  const m = mem || M.find(x => x.id == t.mid) || {};
+  const s = (m.id && typeof st === 'function' && T.length > 0) ? st(m, t.ts, t.d) : { due: (typeof t.bal !== 'undefined' ? t.bal : 0) };
+  const fq = (m.freq == 1) ? 'రోజుకు' : 'వారానికి';
+  const col = getCollectorDisplay(t.by);
+  const byLine = t.type == 'pay' ? 'నమోదు చేసినవారు: ' + col : 'మంజూరు చేసినవారు: ' + col;
+  const recNo = 'GF-' + t.id.slice(0, 8).toUpperCase();
+  const vUrl = (typeof window !== 'undefined' && window.location && window.location.origin ? window.location.origin : 'https://gangaya-finance.vercel.app') + '/?vr=' + encodeURIComponent(t.id);
+  const nameStr = m.te || m.name || tr('Customer', 'ఖాతాదారుడు');
+  return 'నమస్కారం ' + nameStr + ' గారు,\n' +
+    BIZ + ' నుండి అధికారిక డిజిటల్ రసీదు (' + recNo + '):\n' +
+    (t.type == 'pay' ? 'చెల్లింపు మొత్తం: ' + inr(t.amt) + ' (' + (t.mode == 'upi' ? 'UPI · ధృవీకరించబడింది' : 'నగదు') + ')' : 'కొత్త అప్పు: ' + inr(t.amt) + '\nతిరిగి చెల్లించాల్సిన మొత్తం: ' + inr(t.repay) + '\nవాయిదా: ' + inr(t.inst || m.inst || 0) + ' (' + fq + ')') +
+    '\n' + byLine + '\n' +
+    'తేదీ & సమయం: ' + (t.d ? fdt(t.d) : today()) + ', ' + (t.ts ? ft(t.ts) : '') + '\n' +
+    'మిగిలిన బాకీ: ' + inr(Math.max(s.due || 0, 0)) + (s.due > 0 && s.next ? ('\nతదుపరి చెల్లింపు: ' + fdt(s.next) + ' - ' + inr(m.inst || 0)) : '') + '\n\n' +
+    'ఆన్‌లైన్ డిజిటల్ రసీదు / View Digital Receipt:\n' + vUrl + '\n\n' +
+    ((typeof loanClosed === 'function' && m.id && loanClosed(m, t)) ? 'మీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు\n' : 'ధన్యవాదాలు\n') + BIZ;
+}
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
 let mbSub='members', acSub='timeline', colQuery='';
 function go(t, sub){
@@ -2392,7 +2407,7 @@ function activityTab(){
               <b class="${isPay?'ok':''}" style="font-size:16px">${isPay?'+':''}${inr(t.amt)}</b>
               <div class="acts">
                 <button class="sm" onclick="openReceipt('${t.id}')">${tr('Receipt','రసీదు')}</button>
-                <a class="wa sm" style="padding:3px 7px;font-size:11px" target="_blank" rel="noopener" href="${wa({m, text: msg(t)})}">WhatsApp</a>
+                <a class="wa sm" style="padding:3px 7px;font-size:11px" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">WhatsApp</a>
               </div>
             </div>
           </div>
@@ -2595,7 +2610,7 @@ function save(){
   if(a>due)return ask(tr('This is more than the balance due ','ఇది బాకీ కంటే ఎక్కువ ')+inr(due)+tr('. Save anyway?','. అయినా సేవ్ చేయాలా?'),tr('Save','సేవ్'),go2);
   go2();
 }
-const wa=i=>`https://wa.me/${ph(i.m.phone)}?text=${encodeURIComponent(i.text)}`,
+const wa=i=>`https://wa.me/${i&&i.m&&i.m.phone?ph(i.m.phone):''}?text=${encodeURIComponent(i&&i.text||'')}`,
 fde=d=>{const x=new Date(d+'T00:00:00');return x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
 SCANNER_URL=()=>getScannerSrc(),
 rmsg=(m,s,l)=>{
@@ -4076,7 +4091,11 @@ function exitPublicReceiptView(){
   u.searchParams.delete('r');
   u.searchParams.delete('receipt');
   history.replaceState(null, '', u.pathname + (u.search ? u.search : ''));
-  draw();
+  if (typeof window.__showLogin === 'function' && (!user || !user.email)) {
+    window.__showLogin();
+  } else {
+    draw();
+  }
 }
 
 function renderStandaloneReceiptPage(receiptId){
@@ -4275,7 +4294,7 @@ function renderStandaloneReceiptPage(receiptId){
 
           <!-- Actions -->
           <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px;margin-top:14px">
-            <a class="wa" target="_blank" rel="noopener" href="${wa({m, text: msg(t)})}">
+            <a class="wa" target="_blank" rel="noopener" href="${wa({m, text: msg(t, m)})}">
               ${tr('Share WhatsApp','వాట్సాప్ లో పంపు')}
             </a>
             <button class="sm" onclick="window.print()">${tr('Print','ప్రింట్')}</button>
@@ -4285,11 +4304,12 @@ function renderStandaloneReceiptPage(receiptId){
         <div class="gf-receipt-sawtooth"></div>
       </div>
 
-      <!-- Staff Portal Footer Link -->
-      <div style="margin-top:24px;text-align:center">
-        <button class="sm" onclick="exitPublicReceiptView()" style="background:transparent;border:none;color:var(--p);font-weight:700;cursor:pointer;font-size:12.5px;text-decoration:underline">
-          ${tr('Are you staff or admin? Open Staff Portal →','మీరు స్టాఫ్ లేదా అడ్మినా? స్టాఫ్ పోర్టల్ తెరవండి →')}
+      <!-- Staff Login Link at the bottom -->
+      <div style="margin-top:28px;text-align:center">
+        <button class="sm" onclick="exitPublicReceiptView()" style="border-radius:10px;padding:6px 16px;font-size:12px;font-weight:700;background:var(--c);color:var(--t);border:1px solid var(--b);cursor:pointer">
+          ${tr('Staff Login ›','సిబ్బంది లాగిన్ ›')}
         </button>
+        <div class="m" style="font-size:11px;margin-top:6px">${tr('Gangaya Finance • Official Verified Receipt','గంగయ్య ఫైనాన్స్ • అధికారిక ధృవీకరించిన రసీదు')}</div>
       </div>
     </div>
   `;
@@ -4369,7 +4389,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v53</span>
+          <span class="v18-pill">v54</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4469,5 +4489,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=53').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=54').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

@@ -560,7 +560,8 @@
     if (s && hasCachedProf && prof && prof.role) {
       const o = document.getElementById('rt-ov'); if (o) o.remove();
       sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); });
-      window.__signout = async () => {
+      window.__showLogin = () => loginUI();
+    window.__signout = async () => {
         try { await sb.auth.signOut(); } catch (_) {}
         try { localStorage.removeItem('gf_prof'); } catch (_) {}
         location.reload();
