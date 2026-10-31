@@ -1068,7 +1068,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=57"></script>
+<script src="/runtime.js?v=58"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2794,78 +2794,142 @@ async function startCameraScanner(){
   if(!container) return;
   stopCameraScanner();
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    _cameraStream = stream;
-    _cameraScannerActive = true;
-
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
     container.innerHTML = `
-      <div style="position:relative;width:100%;height:220px;background:#000;border-radius:14px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.2)">
-        <video id="gfQrVideo" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-          <div style="width:150px;height:150px;border:2px solid #10b981;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.48);position:relative">
-            <div style="position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(16,185,129,0.85);box-shadow:0 0 8px #10b981"></div>
-          </div>
-        </div>
-        <button type="button" class="sm" onclick="stopCameraScanner()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;border:0;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer">✕ ${tr('Stop Camera','ఆపు')}</button>
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:14px;margin-bottom:12px;font-size:12.5px;color:var(--t)">
+        <b style="color:#ef4444">${tr('Camera Stream Not Supported', 'కెమెరా స్ట్రీమ్ సపోర్ట్ చేయదు')}</b>
+        <p class="m" style="margin:4px 0 10px;font-size:12px">${tr('Your browser does not support live camera streaming. Please snap a photo or choose from gallery instead.', 'మీ బ్రౌజర్‌లో లైవ్ కెమెరా సపోర్ట్ లేదు. దయచేసి ఫోటో తీసి స్కాన్ చేయండి లేదా కోడ్ రాయండి.')}</p>
+        <label class="p sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:700">
+          <span>${tr('Snap QR Photo / Gallery', 'ఫోటో తీసి స్కాన్ చేయి')}</span>
+          <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
+        </label>
       </div>
     `;
+    return;
+  }
 
-    const video = document.getElementById('gfQrVideo');
-    video.srcObject = stream;
-    await video.play();
+  // Show immediate permission prompt assistance
+  container.innerHTML = `
+    <div style="background:var(--s);border:1px solid var(--b);border-radius:14px;padding:20px 14px;text-align:center;margin-bottom:12px">
+      <div class="pulse-dot" style="margin:0 auto 10px;background:var(--p);width:12px;height:12px"></div>
+      <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--t)">${tr('Requesting Camera Access…','కెమెరా అనుమతి అడుగుతోంది…')}</div>
+      <p class="m" style="font-size:12px;max-width:280px;margin:0 auto 12px;line-height:1.45">
+        ${tr('Please tap "Allow" on the permission prompt in your browser to scan the receipt QR code.','రసీదు QR కోడ్ స్కాన్ చేయడానికి దయచేసి బ్రౌజర్ అనుమతి పాపప్‌లో "Allow" నొక్కండి.')}
+      </p>
+      <button type="button" class="sm" onclick="stopCameraScanner()">${tr('Cancel','రద్దు')}</button>
+    </div>
+  `;
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    let detector = null;
-    if('BarcodeDetector' in window){
-      try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(_) {}
+  let stream = null;
+  // Tier 1: Try environment (rear) camera with flexible constraints
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    });
+  } catch(e1) {
+    console.warn('Tier 1 camera failed, trying Tier 2:', e1);
+    // Tier 2: Try basic video without specific facingMode
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch(e2) {
+      console.error('All camera attempts failed:', e2);
+      const isDenied = (e2.name === 'NotAllowedError' || e2.name === 'PermissionDeniedError' || (e2.message && e2.message.toLowerCase().includes('denied')));
+      container.innerHTML = `
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;margin-bottom:12px;text-align:left">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <svg width="16" height="16" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            <b style="color:#d97706;font-size:13.5px">${isDenied ? tr('Camera Permission Denied / Blocked', 'కెమెరా అనుమతి నిలిపివేయబడింది') : tr('Camera Access Error', 'కెమెరా తెరవబడలేదు')}</b>
+          </div>
+          <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
+            ${isDenied ? tr('Your browser blocked camera permission. To enable: tap the <b>lock icon [Lock]</b> in your browser address bar at the top, change <b>Camera</b> to <b>Allow</b>, and tap <b>Retry</b> below. Or snap a picture directly:', 'బ్రౌజర్‌లో కెమెరా అనుమతి బ్లాక్ చేయబడింది. పైనున్న అడ్రస్ బార్‌లో  ఐకాన్ నొక్కి కెమెరాని Allow చేయండి, లేదా నేరుగా ఫోటో తీసి స్కాన్ చేయండి:') : tr('Could not start video stream. You can snap a photo with your phone camera instead:', 'కెమెరా ప్రారంభించలేకపోయాము. ఫోటో తీసి స్కాన్ చేయండి:')}
+          </p>
+          <div class="acts" style="gap:8px;flex-wrap:wrap">
+            <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">${tr('⟳ Try Again / Retry', 'మళ్ళీ ప్రయత్నించు')}</button>
+            <label class="sm" style="cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--t)">
+              ${tr('Snap QR Photo Instead', 'ఫోటో తీసి స్కాన్ చేయి')}
+              <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
+            </label>
+            <button class="sm" onclick="stopCameraScanner()">${tr('Close','మూసివేయి')}</button>
+          </div>
+        </div>
+      `;
+      return;
     }
+  }
 
-    const scanFrame = async () => {
-      if(!_cameraScannerActive || !video || video.readyState < 2) {
-        if(_cameraScannerActive) _cameraRaf = requestAnimationFrame(scanFrame);
+  _cameraStream = stream;
+  _cameraScannerActive = true;
+
+  container.innerHTML = `
+    <div style="position:relative;width:100%;height:220px;background:#000;border-radius:14px;overflow:hidden;margin-bottom:12px;border:1px solid rgba(255,255,255,0.2)">
+      <video id="gfQrVideo" playsinline webkit-playsinline autoplay muted style="width:100%;height:100%;object-fit:cover"></video>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+        <div style="width:150px;height:150px;border:2px solid #10b981;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.48);position:relative">
+          <div style="position:absolute;top:50%;left:0;right:0;height:2px;background:rgba(16,185,129,0.85);box-shadow:0 0 8px #10b981"></div>
+        </div>
+      </div>
+      <button type="button" class="sm" onclick="stopCameraScanner()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);color:#fff;border:0;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer">✕ ${tr('Stop Camera','ఆపు')}</button>
+    </div>
+  `;
+
+  const video = document.getElementById('gfQrVideo');
+  video.setAttribute('playsinline', 'true');
+  video.setAttribute('webkit-playsinline', 'true');
+  video.setAttribute('autoplay', 'true');
+  video.setAttribute('muted', 'true');
+  video.playsInline = true;
+  video.muted = true;
+  video.srcObject = stream;
+  try {
+    await video.play();
+  } catch(_) {
+    video.onclick = () => video.play().catch(()=>{});
+  }
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  let detector = null;
+  if('BarcodeDetector' in window){
+    try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(_) {}
+  }
+
+  const scanFrame = async () => {
+    if(!_cameraScannerActive || !video || video.readyState < 2) {
+      if(_cameraScannerActive) _cameraRaf = requestAnimationFrame(scanFrame);
+      return;
+    }
+    try {
+      let codeValue = null;
+      if(detector){
+        const barcodes = await detector.detect(video);
+        if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
+      }
+      if(!codeValue && typeof jsQR === 'function'){
+        if(canvas.width !== video.videoWidth || canvas.height !== video.videoHeight){
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imgData.data, imgData.width, imgData.height);
+        if(code && code.data) codeValue = code.data;
+      }
+
+      if(codeValue){
+        try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
+        playChime();
+        stopCameraScanner();
+        handleVerifyReceiptInput(codeValue);
         return;
       }
-      try {
-        let codeValue = null;
-        if(detector){
-          const barcodes = await detector.detect(video);
-          if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
-        }
-        if(!codeValue && typeof jsQR === 'function'){
-          if(canvas.width !== video.videoWidth || canvas.height !== video.videoHeight){
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-          }
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imgData.data, imgData.width, imgData.height);
-          if(code && code.data) codeValue = code.data;
-        }
+    } catch(_) {}
 
-        if(codeValue){
-          try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
-          playChime();
-          stopCameraScanner();
-          handleVerifyReceiptInput(codeValue);
-          return;
-        }
-      } catch(_) {}
-
-      if(_cameraScannerActive){
-        _cameraRaf = requestAnimationFrame(scanFrame);
-      }
-    };
-    _cameraRaf = requestAnimationFrame(scanFrame);
-  } catch(err){
-    console.error('Camera scanner error:', err);
-    toast(tr('Could not access camera. You can choose a photo or type code below.', 'కెమెరా తెరవబడలేదు. ఫోటో ఎంచుకోండి లేదా కింద కోడ్ రాయండి.'));
-    stopCameraScanner();
-  }
+    if(_cameraScannerActive){
+      _cameraRaf = requestAnimationFrame(scanFrame);
+    }
+  };
+  _cameraRaf = requestAnimationFrame(scanFrame);
 }
 
 function stopCameraScanner(){
@@ -2898,12 +2962,19 @@ async function scanQrFromFile(input){
       }
       if(!codeValue && typeof jsQR === 'function'){
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        const maxDim = 1200;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, imgData.width, imgData.height);
+        ctx.drawImage(img, 0, 0, w, h);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const code = jsQR(imgData.data, w, h);
         if(code && code.data) codeValue = code.data;
       }
 
@@ -2945,7 +3016,14 @@ async function handleVerifyReceiptInput(rawVal){
   if(match){
     stopCameraScanner();
     closeScannerDlg();
-    openReceipt(match.id);
+    if(user && user.email){
+      openReceipt(match.id);
+    } else {
+      isPublicScan = true;
+      vr = match.id;
+      publicReceiptData = { ok: true, t: match, m: (M.find(x => x.id === match.mid) || {}) };
+      draw();
+    }
     return;
   }
 
@@ -2958,11 +3036,18 @@ async function handleVerifyReceiptInput(rawVal){
       if(data && data.ok && data.t){
         stopCameraScanner();
         closeScannerDlg();
-        if(!T.some(x => x.id === data.t.id)){
-          T.push(data.t);
-          if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
+        if(user && user.email){
+          if(!T.some(x => x.id === data.t.id)){
+            T.push(data.t);
+            if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
+          }
+          openReceipt(data.t.id);
+        } else {
+          isPublicScan = true;
+          vr = data.t.id;
+          publicReceiptData = data;
+          draw();
         }
-        openReceipt(data.t.id);
         return;
       }
     }
@@ -3373,6 +3458,7 @@ ${hist?'':'<p class="m" style="margin:6px 0 0">One receipt per payment or loan, 
 +(q.map(i=>`<div class="card"><div class="row"><div><b>${esc(nm(i.m))}</b> <span class="m">${esc(vl(i.m.village))}</span><div class="m">${esc(i.tag)} · ${fd(i.d)}${i.ts?', '+ft(i.ts):''} ${i.t&&i.t.by?`· <b style="color:var(--p)">${esc(getCollectorDisplay(i.t.by))}</b>`:''}</div></div><div class="acts"><a class="wa" target="_blank" rel="noopener" href="${wa(i)}" onclick="track('${i.k}')">WhatsApp</a>${hist?'':`<button class="sm" onclick="sentNow('${i.k}')">✓ Sent</button><button class="sm" onclick="copyMsg('${i.k}')">Copy</button>`}${i.k[0]=='t'?`<button class="sm p" onclick="openReceipt('${i.k.slice(1)}')">${tr('Receipt','రసీదు')}</button>`:''}</div></div></div>`).join('')||'<div class="empty">Nothing here</div>')
 +(nx?`<div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0"><button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendNext()">Send all · next: ${esc(nm(nx.m))} (${q.length} left)</button><button style="padding:14px" onclick="qi++;draw()">Skip</button></div>`:'')}
 async function sv(d,fn,data){
+  if (isPublicScan || !user) return toast(tr('Staff login required to download data', 'డేటా డౌన్‌లోడ్ చేయడానికి సిబ్బంది లాగిన్ అవసరం'));
   try{
     if(d&&d.save){
       await d.save({filename:fn,data});
@@ -3393,6 +3479,7 @@ async function sv(d,fn,data){
   }
 }
 async function dlMsgs(){
+  if (isPublicScan || !user) return toast(tr('Staff login required to download messages', 'సందేశాలు డౌన్‌లోడ్ చేయడానికి సిబ్బంది లాగిన్ అవసరం'));
   let d=null;try{if(window.claude) d=await claude.use('downloads')}catch(_){}
   await sv(d,'gangaya-messages-'+today()+'.xlsx',xlsx([{name:'Messages',rows:Q.map(i=>({Phone:ph(i.m.phone),Name:i.m.te||i.m.name,Village:i.m.village,Type:i.tag,Date:i.d,Message:i.text,Link:wa(i)}))}]))
 }
@@ -3458,6 +3545,7 @@ ${role=='a'?`<button class="p sm" onclick="restoreM('${m.id}')">${tr('Restore','
 ${open?loanBlocks(m,L):''}
 </div>`}).join('')||`<div class="empty">${tr('No archived accounts found','ఆర్కైవ్ చేసిన ఖాతాలు లేవు')}</div>`)}
 async function dlArchived(){
+if (isPublicScan || !user) return toast(tr('Staff login required to download archived records', 'ఆర్కైవ్ రికార్డులు డౌన్‌లోడ్ చేయడానికి సిబ్బంది లాగిన్ అవసరం'));
 let d=null;try{if(window.claude) d=await claude.use('downloads')}catch(_){}
 const ms=M.filter(m=>m.archived&&(!arv||m.village==arv)),mids=new Set(ms.map(m=>m.id)),
 tx=T.filter(t=>mids.has(t.mid)).sort((a,b)=>a.ts-b.ts).map(t=>{const m=ms.find(x=>x.id==t.mid)||{};return{Date:t.d,Time:t.past?'(past record)':ft(t.ts),Past_record:t.past?'Yes':'',Entered_on:t.past&&t.ent?new Date(t.ent).toLocaleDateString('en-CA'):'',Village:m.village||'',Member:m.name||'',Phone:m.phone||'',Type:t.type=='pay'?'Payment':'New loan',Amount:t.amt,Mode:t.type=='pay'?t.mode.toUpperCase():'',Total_to_return:t.type=='loan'?t.repay:'',Balance_after:m.id?st(m,t.ts,t.d).due:'',Status:'Archived'}}),
@@ -4866,7 +4954,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v57</span>
+          <span class="v18-pill">v58</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4953,7 +5041,11 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     }
 
     user = await claude.use('user');
-    if(user){
+    if(user && (!uid || uid === 'public-verify' || isPublicScan)){
+      user = null;
+      owner = false;
+      role = '';
+    } else if(user){
       for(const f of['canEdit','isOwner']){try{if(await user[f]()){owner=true;break}}catch(e){}}
       try{me=await user.me()}catch(e){}
       role=owner?'a':'f';
@@ -4966,5 +5058,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=57').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=58').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
