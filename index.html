@@ -1068,7 +1068,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=59"></script>
+<script src="/runtime.js?v=60"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1250,11 +1250,31 @@ function rvCard(){const m=M.find(x=>x.id==rv);return m?`<div class="card"><div c
 const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)?+x:0,str=(x,n=80)=>String(x??'').slice(0,n),
 cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8;
 
-function getLoggedInUser(){
-  const em = (me && me.email ? me.email : '').toLowerCase();
-  const nm = (me && me.name ? me.name : '').toLowerCase();
-  const isAdm = (owner && role === 'a') || (me && me.role === 'admin') || em.includes('durgasravan') || em.includes('sravan');
+function syncRoleFromUser(){
+  const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
+  const uRole = String((me && me.role) || (user && user.role) || '').toLowerCase().trim();
+  const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || uRole === 'admin');
+  const isCollectorUser = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || uRole === 'collector');
 
+  if (isAdminUser) {
+    owner = true;
+    if (!role || (role !== 'a' && role !== 'f')) role = 'a';
+  } else if (isCollectorUser) {
+    owner = false;
+    role = 'f';
+  }
+}
+window.__onProfileUpdate = function(newProf){
+  if(newProf){
+    me = { ...(me || {}), ...newProf };
+    syncRoleFromUser();
+    draw();
+  }
+};
+
+function getLoggedInUser(){
+  syncRoleFromUser();
+  const isAdm = (owner && role === 'a');
   if(isAdm){
     return {
       id: 'sravan',
@@ -3023,29 +3043,47 @@ async function handleVerifyReceiptInput(rawVal){
     return;
   }
 
-  // 2. Query cloud API
+  // 2. Query cloud API via dual-path fast lookup
   toast(tr('Verifying receipt with cloud ledger…', 'క్లౌడ్ లెడ్జర్‌లో రసీదుని వెతుకుతోంది…'));
   try{
-    const resp = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`);
-    if(resp.ok){
-      const data = await resp.json();
-      if(data && data.ok && data.t){
-        stopCameraScanner();
-        closeScannerDlg();
-        if(user && me && me.email && me.id !== 'public-verify'){
-          if(!T.some(x => x.id === data.t.id)){
-            T.push(data.t);
-            if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
-          }
-          openReceipt(data.t.id);
-        } else {
-          isPublicScan = true;
-          vr = data.t.id;
-          publicReceiptData = data;
-          draw();
+    const rpcKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
+    const fetchRpc = async () => {
+      const r = await fetch('https://digmxlceoejepixflqnh.supabase.co/rest/v1/rpc/get_verified_receipt', {
+        method: 'POST',
+        headers: { apikey: rpcKey, Authorization: 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_id: cleanId }),
+        signal: AbortSignal.timeout(7000)
+      });
+      if (!r.ok) throw new Error('RPC error');
+      const d = await r.json();
+      if (d && d.ok && d.t) return d;
+      throw new Error('Not found');
+    };
+    const fetchApi = async () => {
+      const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`, { signal: AbortSignal.timeout(7000) });
+      if (!r.ok) throw new Error('API error');
+      const d = await r.json();
+      if (d && d.ok && d.t) return d;
+      throw new Error('Not found');
+    };
+
+    const data = await Promise.any([fetchRpc(), fetchApi()]);
+    if(data && data.ok && data.t){
+      stopCameraScanner();
+      closeScannerDlg();
+      if(user && me && me.email && me.id !== 'public-verify'){
+        if(!T.some(x => x.id === data.t.id)){
+          T.push(data.t);
+          if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
         }
-        return;
+        openReceipt(data.t.id);
+      } else {
+        isPublicScan = true;
+        vr = data.t.id;
+        publicReceiptData = data;
+        draw();
       }
+      return;
     }
   }catch(_){}
 
@@ -4662,11 +4700,18 @@ function exitPublicReceiptView(){
 }
 
 function renderStandaloneReceiptPage(receiptId){
-  const cleanId = String(receiptId || '').trim();
-  const recNo = 'GF-' + cleanId.replace(/^GF-/i, '').slice(0, 8).toUpperCase();
+  let cleanId = String(receiptId || '').trim();
+  if (cleanId.includes('vr=') || cleanId.includes('r=') || cleanId.includes('receipt=')) {
+    try {
+      const u = new URL(cleanId, window.location.origin);
+      cleanId = u.searchParams.get('vr') || u.searchParams.get('r') || u.searchParams.get('receipt') || cleanId;
+    } catch(_) {}
+  }
+  const queryId = cleanId.replace(/^GF-/i, '').trim();
+  const recNo = 'GF-' + queryId.slice(0, 8).toUpperCase();
 
   // Try finding from loaded memory first
-  let t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo);
+  let t = T.find(x => x.id === queryId || x.id.toLowerCase() === queryId.toLowerCase() || x.id.toLowerCase().startsWith(queryId.toLowerCase()) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo);
   let m = t ? M.find(x => x.id === t.mid) : null;
 
   // If not found in memory, use publicReceiptData from API / RPC
@@ -4680,23 +4725,10 @@ function renderStandaloneReceiptPage(receiptId){
     if (!_publicFetchStarted) {
       _publicFetchStarted = true;
       const doLookup = async () => {
-        // Path 1: Serverless API endpoint
-        try {
-          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`, { signal: AbortSignal.timeout(4500) });
-          if (r.ok) {
-            const res = await r.json();
-            if (res && res.ok && res.t) {
-              publicReceiptData = res;
-              publicReceiptError = '';
-              return draw();
-            }
-          }
-        } catch (_) {}
+        const rpcKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
 
-        // Path 2: Direct Supabase RPC query (Zero dependencies, anon permitted)
-        try {
+        const fetchRpc = async () => {
           const rpcUrl = 'https://digmxlceoejepixflqnh.supabase.co/rest/v1/rpc/get_verified_receipt';
-          const rpcKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
           const r2 = await fetch(rpcUrl, {
             method: 'POST',
             headers: {
@@ -4704,16 +4736,40 @@ function renderStandaloneReceiptPage(receiptId){
               Authorization: 'Bearer ' + rpcKey,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ p_id: cleanId }),
-            signal: AbortSignal.timeout(6000)
+            body: JSON.stringify({ p_id: queryId }),
+            signal: AbortSignal.timeout(8000)
           });
-          if (r2.ok) {
-            const res2 = await r2.json();
-            if (res2 && res2.ok && res2.t) {
-              publicReceiptData = res2;
-              publicReceiptError = '';
-              return draw();
-            }
+          if (!r2.ok) throw new Error('RPC error ' + r2.status);
+          const res2 = await r2.json();
+          if (res2 && res2.ok && res2.t) return res2;
+          throw new Error('Not found in ledger');
+        };
+
+        const fetchApi = async () => {
+          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: AbortSignal.timeout(8000) });
+          if (!r.ok) throw new Error('API error ' + r.status);
+          const res = await r.json();
+          if (res && res.ok && res.t) return res;
+          throw new Error('Not found in API');
+        };
+
+        try {
+          const win = await Promise.any([fetchRpc(), fetchApi()]);
+          if (win && win.ok && win.t) {
+            publicReceiptData = win;
+            publicReceiptError = '';
+            return draw();
+          }
+        } catch (_) {}
+
+        // Fallback retry for mobile connection stability
+        try {
+          await new Promise(r => setTimeout(r, 600));
+          const retryRes = await fetchRpc();
+          if (retryRes && retryRes.ok && retryRes.t) {
+            publicReceiptData = retryRes;
+            publicReceiptError = '';
+            return draw();
           }
         } catch (_) {}
 
@@ -4888,8 +4944,9 @@ function _drawInner(){
     if(dbErr) return app.innerHTML = renderErrorState('db', dbErr);
     return app.innerHTML = renderLoadingScreen();
   }
-const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
-const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
+  syncRoleFromUser();
+  const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
+  const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
   ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
   ['lg',tr('Ledger','ఖాతాలు'),null,tr('Ledger','ఖాతాలు')],
@@ -4950,7 +5007,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v59</span>
+          <span class="v18-pill">v60</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -4959,7 +5016,8 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       </div>
     </div>
     <div class="acts">
-      ${owner?`<button class="sm" onclick="setRole('${adm?'f':'a'}')" style="border-radius:10px;font-size:12px;font-weight:700">${adm?'Admin':'Collector'}</button>`:''}
+      ${adm ? '<span class="chip" style="font-weight:700;color:var(--p);font-size:11.5px">Admin · Durga Sravan</span>' : (owner ? '<span class="chip warn" style="font-weight:700;font-size:11.5px">Collector View</span>' : '<span class="chip" style="font-weight:700;font-size:11.5px">Collector · Gangaya (Father)</span>')}
+      ${owner ? `<button class="sm" onclick="setRole('${adm ? 'f' : 'a'}')" style="border-radius:10px;font-size:11px;font-weight:700;padding:3px 8px">${adm ? 'Preview Collector' : 'Back to Admin'}</button>` : ''}
 
       ${notifBellBtn()}
       ${!adm?`<button class="sm" onclick="openFatherNoteDlg()" style="background:var(--p);color:#fff;border-radius:10px;padding:4px 9px;font-weight:700;font-size:12px">${tr('Message Durga Sravan','దుర్గా శ్రావణ్ కి మెసేజ్')}</button>`:''}
@@ -5041,14 +5099,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       try { me = await user.me(); } catch(_) { me = null; }
       const isPublic = isPublicScan || (me && me.id === 'public-verify');
       if(!isPublic && me && me.id){
-        for(const f of ['canEdit','isOwner']){
-          try { if(await user[f]()){ owner = true; break; } } catch(_) {}
-        }
-        const userEmail = (me.email || '').toLowerCase();
-        if(me.role === 'admin' || userEmail.includes('durgasravan') || userEmail.includes('sravan')){
-          owner = true;
-        }
-        role = owner ? 'a' : 'f';
+        syncRoleFromUser();
       } else {
         user = null;
         owner = false;
@@ -5064,5 +5115,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=59').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=60').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

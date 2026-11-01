@@ -64,7 +64,7 @@
             if (error) { o.querySelector('#rt-m').textContent = error.message || 'Wrong email or password.'; return; }
             s = null;
             prof = null;
-            res();
+            window.location.href = '/';
           }
         };
       };
@@ -460,11 +460,36 @@
     user: {
       get id() { return uid; },
       get email() { return email; },
-      get role() { return (prof && prof.role) || 'collector'; },
-      get name() { return (prof && prof.name) || email; },
-      async canEdit() { return (prof && prof.role === 'admin'); },
-      async isOwner() { return (prof && prof.role === 'admin'); },
-      async me() { return { id: uid, name: (prof && prof.name) || email, email, role: (prof && prof.role) || 'collector' }; }
+      get role() {
+        const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'admin';
+        return (prof && prof.role) || 'collector';
+      },
+      get name() {
+        const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'Durga Sravan';
+        return (prof && prof.name) || 'Gangaya (Father)';
+      },
+      async canEdit() {
+        const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return true;
+        return (prof && prof.role === 'admin');
+      },
+      async isOwner() {
+        const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return true;
+        return (prof && prof.role === 'admin');
+      },
+      async me() {
+        const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
+        const isAdmin = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || (prof && prof.role === 'admin'));
+        return {
+          id: uid,
+          name: isAdmin ? 'Durga Sravan' : ((prof && prof.name) || 'Gangaya (Father)'),
+          email: em,
+          role: isAdmin ? 'admin' : 'collector'
+        };
+      }
     },
     db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus, assignUpiCredit: async (creditId, mid) => {
       const { data, error } = await sb.rpc('assign_upi_credit', { p_credit_id: creditId, p_mid: mid });
@@ -513,6 +538,28 @@
       return;
     }
 
+    function sanitizeProfile(uObj, rProf) {
+      const uEmail = String((uObj && uObj.email) || (rProf && rProf.email) || email || '').toLowerCase().trim();
+      const isAdmin = (uEmail === 'durgasravan21@gmail.com' || uEmail.includes('durgasravan') || uEmail.includes('sravan') || (rProf && rProf.role === 'admin'));
+      const id = (uObj && uObj.id) || (rProf && (rProf.id || rProf.userId)) || uid || '';
+      if (isAdmin) {
+        return {
+          id,
+          userId: id,
+          email: uEmail || 'durgasravan21@gmail.com',
+          role: 'admin',
+          name: 'Durga Sravan'
+        };
+      }
+      return {
+        id,
+        userId: id,
+        email: uEmail || 'challagollasridevi@gmail.com',
+        role: 'collector',
+        name: 'Gangaya (Father)'
+      };
+    }
+
     let s = null;
     try {
       s = (await sb.auth.getSession()).data.session;
@@ -525,10 +572,11 @@
       if (cp) {
         const parsed = JSON.parse(cp);
         if (s && s.user && (parsed.id === s.user.id || parsed.userId === s.user.id || parsed.email === s.user.email)) {
-          prof = parsed;
+          prof = sanitizeProfile(s.user, parsed);
           uid = s.user.id;
           email = s.user.email || '';
           hasCachedProf = true;
+          try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
         } else {
           try { localStorage.removeItem('gf_prof'); } catch (_) {}
         }
@@ -541,6 +589,7 @@
     const verifyReceiptId = urlParams.get('vr') || urlParams.get('r') || urlParams.get('receipt');
 
     if (forceLogin) {
+      try { await sb.auth.signOut(); } catch (_) {}
       try { localStorage.removeItem('gf_prof'); } catch (_) {}
       prof = null;
       hasCachedProf = false;
@@ -559,15 +608,7 @@
 
     // Fast-derive profile from session user email if not in localStorage or stale
     if (s && (!prof || !prof.role || (s.user && prof.id && prof.id !== s.user.id))) {
-      const em = (s.user && s.user.email || '').toLowerCase();
-      const isAdmin = (em.includes('durgasravan') || em.includes('sravan'));
-      prof = {
-        id: s.user.id,
-        userId: s.user.id,
-        email: s.user.email || '',
-        role: isAdmin ? 'admin' : 'collector',
-        name: isAdmin ? 'Durga Sravan' : 'Gangaya (Father)'
-      };
+      prof = sanitizeProfile(s.user, prof);
       uid = s.user.id;
       email = s.user.email || '';
       hasCachedProf = true;
@@ -580,10 +621,18 @@
       const o = document.getElementById('rt-ov'); if (o) o.remove();
       sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') location.reload(); });
       window.__showLogin = () => loginUI();
-    window.__signout = async () => {
+      window.__signout = async () => {
         try { await sb.auth.signOut(); } catch (_) {}
         try { localStorage.removeItem('gf_prof'); } catch (_) {}
-        location.href = '/?login=1';
+        try {
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_'))) {
+              localStorage.removeItem(k);
+            }
+          }
+        } catch (_) {}
+        window.location.href = '/?login=1';
       };
       finish();
       // Background-validate profile without blocking
@@ -591,8 +640,13 @@
         sb.from('profiles').select('id,role,name').eq('id', s.user.id).maybeSingle()
           .then(res => {
             if (res.data && res.data.role) {
-              prof = { ...res.data, userId: s.user.id, email: s.user.email };
+              const updated = sanitizeProfile(s.user, { ...res.data, userId: s.user.id, email: s.user.email });
+              const changed = !prof || prof.role !== updated.role || prof.name !== updated.name;
+              prof = updated;
               try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
+              if (changed && typeof window.__onProfileUpdate === 'function') {
+                window.__onProfileUpdate(prof);
+              }
             }
           }).catch(() => {});
       }
@@ -624,7 +678,7 @@
       const data = res && res.data;
       const error = res && res.error;
       if (data && data.role) {
-        prof = { ...data, userId: s.user.id, email: s.user.email };
+        prof = sanitizeProfile(s.user, { ...data, userId: s.user.id, email: s.user.email });
         uid = s.user.id;
         email = s.user.email || '';
         try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
@@ -662,7 +716,15 @@
     window.__signout = async () => {
       try { await sb.auth.signOut(); } catch (_) {}
       try { localStorage.removeItem('gf_prof'); } catch (_) {}
-      location.reload();
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_'))) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch (_) {}
+      window.location.href = '/?login=1';
     };
     finish();
   }
