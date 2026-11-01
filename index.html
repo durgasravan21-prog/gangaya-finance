@@ -1068,7 +1068,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=58"></script>
+<script src="/runtime.js?v=59"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1251,25 +1251,21 @@ const OKID=/^[\w-]{1,128}$/,DRE=/^\d{4}-\d{2}-\d{2}$/,num=x=>Number.isFinite(+x)
 cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=x=>Number.isFinite(x)&&x>=0&&x<=1e8;
 
 function getLoggedInUser(){
-  const em = (me && me.email || email || '').toLowerCase();
-  const nm = (me && me.name || '').toLowerCase();
-  const r = (me && me.role) || (role === 'a' ? 'admin' : 'collector');
+  const em = (me && me.email ? me.email : '').toLowerCase();
+  const nm = (me && me.name ? me.name : '').toLowerCase();
+  const isAdm = (owner && role === 'a') || (me && me.role === 'admin') || em.includes('durgasravan') || em.includes('sravan');
 
-  // If in collector role ('f') or collector account (challagollasridevi@gmail.com / Father):
-  const isFather = (role === 'f' || r === 'collector' || r === 'f' || !owner || em.includes('sridevi') || em.includes('challagolla') || nm.includes('father') || nm.includes('gangaya'));
-  const isSravan = !isFather && (r === 'admin' || role === 'a' || em.includes('durgasravan') || em.includes('sravan'));
-
-  if(isFather || !isSravan){
+  if(isAdm){
     return {
-      id: 'father',
-      name: 'Gangaya (Father)',
-      display: tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)')
+      id: 'sravan',
+      name: 'Durga Sravan',
+      display: tr('Durga Sravan', 'దుర్గా శ్రావణ్')
     };
   }
   return {
-    id: 'sravan',
-    name: 'Durga Sravan',
-    display: tr('Durga Sravan', 'దుర్గా శ్రావణ్')
+    id: 'father',
+    name: 'Gangaya (Father)',
+    display: tr('Gangaya (Father)', 'గంగయ్య (తండ్రి)')
   };
 }
 function getCollectorName(by){
@@ -3016,7 +3012,7 @@ async function handleVerifyReceiptInput(rawVal){
   if(match){
     stopCameraScanner();
     closeScannerDlg();
-    if(user && user.email){
+    if(user && me && me.email && me.id !== 'public-verify'){
       openReceipt(match.id);
     } else {
       isPublicScan = true;
@@ -3036,7 +3032,7 @@ async function handleVerifyReceiptInput(rawVal){
       if(data && data.ok && data.t){
         stopCameraScanner();
         closeScannerDlg();
-        if(user && user.email){
+        if(user && me && me.email && me.id !== 'public-verify'){
           if(!T.some(x => x.id === data.t.id)){
             T.push(data.t);
             if(data.m && !M.some(x => x.id === data.m.id)) M.push(data.m);
@@ -4954,7 +4950,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v58</span>
+          <span class="v18-pill">v59</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5041,14 +5037,24 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     }
 
     user = await claude.use('user');
-    if(user && (!uid || uid === 'public-verify' || isPublicScan)){
-      user = null;
-      owner = false;
-      role = '';
-    } else if(user){
-      for(const f of['canEdit','isOwner']){try{if(await user[f]()){owner=true;break}}catch(e){}}
-      try{me=await user.me()}catch(e){}
-      role=owner?'a':'f';
+    if(user){
+      try { me = await user.me(); } catch(_) { me = null; }
+      const isPublic = isPublicScan || (me && me.id === 'public-verify');
+      if(!isPublic && me && me.id){
+        for(const f of ['canEdit','isOwner']){
+          try { if(await user[f]()){ owner = true; break; } } catch(_) {}
+        }
+        const userEmail = (me.email || '').toLowerCase();
+        if(me.role === 'admin' || userEmail.includes('durgasravan') || userEmail.includes('sravan')){
+          owner = true;
+        }
+        role = owner ? 'a' : 'f';
+      } else {
+        user = null;
+        owner = false;
+        role = '';
+        me = null;
+      }
       draw();
     }
   }catch(e){
@@ -5058,5 +5064,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=58').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=59').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

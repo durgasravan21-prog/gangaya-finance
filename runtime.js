@@ -58,9 +58,12 @@
               o.querySelector('#rt-m').textContent = 'Account created! If confirmation was sent, check email, then Sign in.';
             }
           } else {
+            try { localStorage.removeItem('gf_prof'); } catch(_) {}
             const { error } = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
             b.disabled = false;
             if (error) { o.querySelector('#rt-m').textContent = error.message || 'Wrong email or password.'; return; }
+            s = null;
+            prof = null;
             res();
           }
         };
@@ -454,7 +457,15 @@
     return { count: count || 0 };
   }
   const caps = {
-    user: { async canEdit() { return (prof && prof.role === 'admin'); }, async isOwner() { return (prof && prof.role === 'admin'); }, async me() { return { id: uid, name: (prof && prof.name) || email, email, role: (prof && prof.role) || 'collector' }; } },
+    user: {
+      get id() { return uid; },
+      get email() { return email; },
+      get role() { return (prof && prof.role) || 'collector'; },
+      get name() { return (prof && prof.name) || email; },
+      async canEdit() { return (prof && prof.role === 'admin'); },
+      async isOwner() { return (prof && prof.role === 'admin'); },
+      async me() { return { id: uid, name: (prof && prof.name) || email, email, role: (prof && prof.role) || 'collector' }; }
+    },
     db: { collection: colRef, doc: docRef, clearAll, reloadAll, loadAll: loadAllStores, getStatus, assignUpiCredit: async (creditId, mid) => {
       const { data, error } = await sb.rpc('assign_upi_credit', { p_credit_id: creditId, p_mid: mid });
       if (error) throw err(error);
@@ -572,7 +583,7 @@
     window.__signout = async () => {
         try { await sb.auth.signOut(); } catch (_) {}
         try { localStorage.removeItem('gf_prof'); } catch (_) {}
-        location.reload();
+        location.href = '/?login=1';
       };
       finish();
       // Background-validate profile without blocking
