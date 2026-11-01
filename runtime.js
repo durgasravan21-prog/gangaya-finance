@@ -5,7 +5,7 @@
     url: 'https://digmxlceoejepixflqnh.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk'
   };
-  let sb = null, uid = null, prof = null, email = '', finish;
+  let sb = null, uid = null, prof = null, email = '', s = null, finish;
   const ready = new Promise(r => (finish = r));
 
   function overlay(html) {
@@ -84,6 +84,9 @@
         if (error) throw err(error);
         return data || [];
       } catch (e) {
+        if (/permission denied|not_granted/i.test((e && e.message) || (e && e.code) || '')) {
+          throw e;
+        }
         if (attempt < 1) {
           console.warn('allRows attempt ' + (attempt + 1) + ' for ' + c + ' failed, retrying...');
           await new Promise(r => setTimeout(r, 1000));
@@ -164,6 +167,16 @@
         }
         return true;
       } catch (e) {
+        if (/permission denied|not_granted/i.test((e && e.message) || (e && e.code) || '')) {
+          for (const c of targetCols) {
+            const s = getStore(c);
+            if (s.map.size > 0) {
+              s.loaded = true;
+              s.emit();
+            }
+          }
+          return false;
+        }
         if (attempt < 1) {
           await new Promise(r => setTimeout(r, 1000));
         } else {
@@ -206,7 +219,9 @@
             schedulePersist(c, s);
             s.emit();
           } catch (e) {
-            console.warn('load for ' + c + ': ' + (e && e.message || e));
+            if (!/permission denied|not_granted/i.test((e && e.message) || (e && e.code) || '')) {
+              console.warn('load for ' + c + ': ' + (e && e.message || e));
+            }
             if (s.map.size > 0) { s.loaded = true; s.emit(); }
           }
         }
@@ -498,7 +513,7 @@
       return data;
     }}, downloads, sample
   };
-  window.claude = { use: n => (n === 'db' ? Promise.resolve(caps.db) : ready.then(() => caps[n] || null)) };
+  window.claude = { use: n => ready.then(() => caps[n] || null) };
 
   async function boot() {
     let cfg = DEFAULT_CFG;
@@ -560,10 +575,35 @@
       };
     }
 
-    let s = null;
+    s = null;
     try {
-      s = (await sb.auth.getSession()).data.session;
-    } catch (_) {}
+      const getRes = await sb.auth.getSession();
+      if (getRes && getRes.error) {
+        if (/invalid refresh token|refresh token not found/i.test(getRes.error.message || '')) {
+          console.warn('Stale auth tokens detected, resetting auth state...');
+          try { await sb.auth.signOut(); } catch (_) {}
+          try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('sb-')) localStorage.removeItem(k);
+            }
+          } catch (_) {}
+        }
+      } else if (getRes && getRes.data) {
+        s = getRes.data.session;
+      }
+    } catch (authErr) {
+      if (/invalid refresh token|refresh token not found/i.test((authErr && authErr.message) || '')) {
+        console.warn('Stale refresh token exception, clearing auth storage...');
+        try { await sb.auth.signOut(); } catch (_) {}
+        try {
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-')) localStorage.removeItem(k);
+          }
+        } catch (_) {}
+      }
+    }
 
     // Check for cached profile - only use if matches current authenticated session
     let hasCachedProf = false;
