@@ -1068,14 +1068,14 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=61"></script>
+<script src="/runtime.js?v=62"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
 window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offlineMode){toast(tr('Internet restored ✓ Reconnecting…','ఇంటర్నెట్ తిరిగి వచ్చింది ✓ రీకనెక్ట్ అవుతోంది…'));location.reload()}else{draw()}});
 const _urlP=new URLSearchParams(window.location.search);
 let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='branch',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[];
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='branch',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -1084,6 +1084,36 @@ async function getScannerBlob(){
   }
   const resp = await fetch('/scanner.png');
   return await resp.blob();
+}
+function timeoutSignal(ms){
+  if(typeof AbortSignal!=='undefined'&&typeof AbortSignal.timeout==='function'){
+    try{return AbortSignal.timeout(ms)}catch(_){}
+  }
+  const ctrl=new AbortController();
+  setTimeout(()=>{try{ctrl.abort()}catch(_){}},ms);
+  return ctrl.signal;
+}
+const DEFAULT_UPI_ID = 'challagolla.sravan@superyes';
+const DEFAULT_UPI_NAME = 'CHALLAGOLLA DURGA SRAVAN';
+function getUpiPayUrl(amount, note){
+  const a = (Number(amount) > 0) ? Number(amount).toFixed(2) : '';
+  const tn = encodeURIComponent(note || 'Gangaya Finance');
+  return `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent(DEFAULT_UPI_NAME)}${a ? `&am=${a}` : ''}&cu=INR&tn=${tn}`;
+}
+function getUpiQrSvg(amount, note, dim = 110){
+  try{
+    if(typeof QRCode === 'function'){
+      const upiUrl = getUpiPayUrl(amount, note);
+      const node = QRCode({
+        msg: upiUrl,
+        dim: dim,
+        pad: 1,
+        pal: ['#0f172a', '#ffffff']
+      });
+      if(node && node.outerHTML) return node.outerHTML;
+    }
+  }catch(_){}
+  return '';
 }
 function getReceiptQrSvg(receiptId){
   try{
@@ -2171,6 +2201,7 @@ function recView(){
 const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
 b=st(m,t.ts,t.d),isPay=t.type=='pay';
 const recNo='GF-'+t.id.slice(0,8).toUpperCase();
+const payAmt = (b && b.due > 0) ? b.due : ((m && m.inst > 0) ? m.inst : t.amt);
 const isAdm = (owner && role === 'a');
 const isCollectedByFather = isFatherTxn(t);
 const showPosTheme = isAdm && isCollectedByFather;
@@ -2261,6 +2292,28 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
 
         <div class="gf-receipt-stamp">
           ${isPay?'PAID ✓':'SANCTIONED ✓'}
+        </div>
+
+        <!-- Dynamic UPI Payment Scanner -->
+        <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+            <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
+          </div>
+          <div style="font-size:13.5px;font-weight:800;color:var(--t);margin-bottom:2px">
+            ${tr('Scan to Pay ' + inr(payAmt) + ' using any UPI App', 'ఏదైనా UPI యాప్‌తో ' + inr(payAmt) + ' చెల్లించండి')}
+          </div>
+          <div class="m" style="font-size:11px;margin-bottom:10px">
+            GPay · PhonePe · Paytm · super.money · BHIM
+          </div>
+          <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
+            ${getUpiQrSvg(payAmt, recNo, 120)}
+          </div>
+          <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
+            ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
+          </div>
+          <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+            <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
+          </a>
         </div>
 
         <!-- Verification Micro QR Code -->
@@ -2645,6 +2698,8 @@ rmsg=(m,s,l)=>{
   const isEn=(l==='en'||(!l&&rmLang==='en'));
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
   const isOd=dl!==null&&dl<0,isTd=dl===0,instAmt=m.inst||0,dueAmt=Math.max(s.due,0);
+  const payAmt=isOd?dueAmt:(instAmt>0?instAmt:dueAmt);
+  const upiPayUrl=getUpiPayUrl(payAmt, m.name);
   const scanLink=SCANNER_URL();
   if(isEn){
     const biz='Gangaya Finance';
@@ -2656,8 +2711,8 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`Your regular instalment is ${inr(instAmt)}.\n`;
     }
-    const urg=isOd?'Please repay your overdue instalment immediately using the QR scanner below:\n':'Please repay your instalment on time using the QR scanner below:\n';
-    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nThank you\n${biz}`;
+    const urg=isOd?'Please repay your overdue instalment immediately using the QR scanner or UPI link below:\n':'Please repay your instalment on time using the QR scanner or UPI link below:\n';
+    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\nClick to Pay ${inr(payAmt)}: ${upiPayUrl}\n\nOfficial QR Scanner:\n${scanLink}\n\nThank you\n${biz}`;
   }else{
     const biz='గంగయ్య ఫైనాన్స్';
     let sched='';
@@ -2668,8 +2723,8 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`మీ వాయిదా: ${inr(instAmt)}\n`;
     }
-    const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును క్రింది QR స్కానర్ ద్వారా పూర్తి చేయగలరు:\n';
-    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`${scanLink}\n\nధన్యవాదాలు\n${biz}`;
+    const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ లేదా UPI లింక్ ద్వారా చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును క్రింది QR స్కానర్ లేదా UPI లింక్ ద్వారా పూర్తి చేయగలరు:\n';
+    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n${inr(payAmt)} చెల్లించడానికి లింక్: ${upiPayUrl}\n\nఅధికారిక QR స్కానర్:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
   }
 };
 function qitems(h){const o=[],td=today();
@@ -2730,6 +2785,19 @@ async function sendRemind(mid,langOpt){
     const link=`https://wa.me/${ph(m.phone)}?text=${encodeURIComponent(text)}`;
     const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);a.click();a.remove();
     toast(tr('WhatsApp reminder opened ('+(lang=='en'?'English':'Telugu')+') for '+m.name+' ✓',m.name+' కి వాట్సాప్ రిమైండర్ ('+(lang=='en'?'ఇంగ్లీష్':'తెలుగు')+') తెరవబడింది ✓'));
+  }
+  draw();
+}
+async function toggleRemSent(mid){
+  const id=mid+'_'+today();
+  if(RM.has(id)){
+    RM.delete(id);
+    try{await db.doc('rem/'+id).delete()}catch(_){}
+    toast(tr('Marked as unsent','రిమైండర్ పంపలేదు అని మార్చబడింది'));
+  }else{
+    RM.add(id);
+    try{await db.doc('rem/'+id).set({mid,d:today(),sent:true,ts:Date.now()})}catch(_){}
+    toast(tr('Marked as reminded today ✓','ఈ రోజు రిమైండర్ పంపినట్లుగా గుర్తించబడింది ✓'));
   }
   draw();
 }
@@ -3052,7 +3120,7 @@ async function handleVerifyReceiptInput(rawVal){
         method: 'POST',
         headers: { apikey: rpcKey, Authorization: 'Bearer ' + rpcKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ p_id: cleanId }),
-        signal: AbortSignal.timeout(7000)
+        signal: timeoutSignal(7000)
       });
       if (!r.ok) throw new Error('RPC error');
       const d = await r.json();
@@ -3060,7 +3128,7 @@ async function handleVerifyReceiptInput(rawVal){
       throw new Error('Not found');
     };
     const fetchApi = async () => {
-      const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`, { signal: AbortSignal.timeout(7000) });
+      const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(cleanId)}`, { signal: timeoutSignal(7000) });
       if (!r.ok) throw new Error('API error');
       const d = await r.json();
       if (d && d.ok && d.t) return d;
@@ -3144,7 +3212,12 @@ function scannerModal(){
           </div>
         </div>
       ` : `
-        <img src="${getScannerSrc()}" alt="QR Scanner" style="max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;margin:0 auto 12px;border-radius:12px;border:1px solid var(--b);display:block">
+        <img src="${getScannerSrc()}" alt="QR Scanner" style="max-width:100%;max-height:48vh;width:auto;height:auto;object-fit:contain;margin:0 auto 10px;border-radius:12px;border:1px solid var(--b);display:block">
+        <div style="text-align:center;margin-bottom:12px">
+          <div style="font-weight:900;font-size:15px;color:var(--t)">CHALLAGOLLA DURGA SRAVAN</div>
+          <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--p);margin-top:2px">UPI ID: challagolla.sravan@superyes</div>
+          <div class="m" style="font-size:11.5px;margin-top:3px">${tr('Scan and Pay using any UPI app (super.money, GPay, PhonePe, Paytm, BHIM)','ఏదైనా UPI యాప్‌తో స్కాన్ చేసి చెల్లించండి')}</div>
+        </div>
         <div class="acts" style="justify-content:center;gap:8px">
           <button class="p" onclick="shareScannerPhoto()">${tr('Share QR Photo','QR షేర్ చేయండి')}</button>
           <button onclick="downloadScanner()">${tr('Download','డౌన్‌లోడ్')}</button>
@@ -3354,10 +3427,14 @@ function remindersTab(){
   const withDues=all.filter(r=>r.s.due>0);
   const allDueCount=withDues.length;
   const odCount=withDues.filter(r=>r.isOd).length,tdCount=withDues.filter(r=>r.isTd).length,upCount=withDues.filter(r=>r.isUp).length;
+  const pendingCount=withDues.filter(r=>!RM.has(r.m.id+'_'+today())).length;
+  const sentCount=all.filter(r=>RM.has(r.m.id+'_'+today())).length;
   const odAmt=withDues.filter(r=>r.isOd).reduce((sum,r)=>sum+(r.m.inst||0),0);
   const tdAmt=withDues.filter(r=>r.isTd).reduce((sum,r)=>sum+(r.m.inst||0),0);
   const totDueAmt=withDues.reduce((sum,r)=>sum+r.s.due,0);
   const filtered=all.filter(r=>{
+    if(rmf=='pending'&&(r.s.due<=0||RM.has(r.m.id+'_'+today())))return false;
+    if(rmf=='sent'&&!RM.has(r.m.id+'_'+today()))return false;
     if(rmf=='od'&&!r.isOd)return false;
     if(rmf=='td'&&!r.isTd)return false;
     if(rmf=='up'&&!r.isUp)return false;
@@ -3369,7 +3446,8 @@ function remindersTab(){
     }
     return true;
   });
-  const nextRem=filtered[rmi]||filtered[0];
+  const unsentQueue=filtered.filter(r=>!RM.has(r.m.id+'_'+today())&&!skippedRemIds.has(r.m.id));
+  const nextRem=unsentQueue[0]||null;
   return `
     <div class="g" style="margin-bottom:12px">
       <div class="card stat" style="border-left:4px solid var(--r);cursor:pointer" onclick="rmf='od';draw()">
@@ -3397,7 +3475,7 @@ function remindersTab(){
           <button onclick="dlReminders()" ${filtered.length?'':'disabled'}>${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>
         </div>
       </div>
-      <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp with official QR scanner (without personal name & UPI ID).','అధికారిక QR స్కానర్‌తో వాట్సాప్ ద్వారా రిమైండర్లు పంపండి (వ్యక్తిగత పేరు మరియు UPI ID లేకుండా).')}</p>
+      <p class="m" style="margin:4px 0 8px">${tr('Send payment reminders on WhatsApp with official QR scanner & UPI payment link.','అధికారిక QR స్కానర్ & UPI పేమెంట్ లింక్‌తో వాట్సాప్ ద్వారా రిమైండర్లు పంపండి.')}</p>
       
       <div style="display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px;padding:8px 12px;background:var(--s);border-radius:8px;flex-wrap:wrap;gap:8px">
         <span style="font-size:13px;font-weight:600">${tr('Reminder Message Language:','రిమైండర్ మెసేజ్ భాష:')}</span>
@@ -3409,6 +3487,8 @@ function remindersTab(){
 
       <div class="chips" style="margin-bottom:10px">
         <button class="${rmf=='all'?'p':''}" onclick="rmf='all';draw()">${tr('All Active Dues','అందరూ బాకీదారులు')} (${allDueCount})</button>
+        <button class="${rmf=='pending'?'p':''}" onclick="rmf='pending';draw()">${tr('To Send (Pending)','పంపాల్సినవి')} (${pendingCount})</button>
+        <button class="${rmf=='sent'?'p':''}" onclick="rmf='sent';draw()">${tr('Sent Today','ఈ రోజు పంపినవి')} (${sentCount})</button>
         <button class="${rmf=='od'?'p':''}" onclick="rmf='od';draw()">${tr('Overdue','ఆలస్యం')} (${odCount})</button>
         <button class="${rmf=='td'?'p':''}" onclick="rmf='td';draw()">${tr('Due Today','ఈ రోజు')} (${tdCount})</button>
         <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
@@ -3439,32 +3519,51 @@ function remindersTab(){
                 <b>${esc(nm(r.m))}</b>
                 <span class="m">${esc(vl(r.m.village))}</span>
                 ${statusBadge}
-                ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:600">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
+                ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:700;background:rgba(16,185,129,0.1);padding:2px 8px;border-radius:6px">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
               </div>
               <div class="m" style="margin-top:4px">
                 ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}<b>${inr(r.s.due)}</b>${r.s.next?` · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}`:''}
               </div>
             </div>
-            <div class="acts" style="flex-shrink:0">
+            <div class="acts" style="flex-shrink:0;flex-wrap:wrap;gap:6px">
               <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
               <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'తెలుగు':'EN'}</button>
+              <button class="sm ${isRemToday?'ok':''}" onclick="toggleRemSent('${r.m.id}')" title="${isRemToday?tr('Marked as reminded today. Tap to unmark','ఈ రోజు పంపబడింది. తీసివేయడానికి క్లిక్ చేయండి'):tr('Mark as sent today without opening WhatsApp','వాట్సాప్ తెరవకుండా పంపినట్లుగా గుర్తించండి')}">${isRemToday ? `✓ ${tr('Sent','పంపబడింది')}` : tr('Mark Sent','పంపినట్లు గుర్తించు')}</button>
               <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">QR</button>
               <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">${tr('Edit','ఎడిట్')}</button>
               <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
-              <button class="sm" onclick="rv='${r.m.id}';draw()">${tr('Account','ఖాతా')}</button>
+              <button class="sm ${rv===r.m.id?'p':''}" onclick="rv=(rv==='${r.m.id}'?'':'${r.m.id}');draw()" title="${tr('View full loan and payment history for this member','ఈ ఖాతాదారుని పూర్తి అప్పులు మరియు చెల్లింపుల వివరాలు')}">${tr('Account','ఖాతా')}</button>
             </div>
           </div>
+          ${rv === r.m.id ? `
+            <div style="margin-top:10px;padding:12px;background:var(--s);border-radius:12px;border:1px solid var(--b)">
+              <div class="row" style="margin-bottom:8px">
+                <b style="font-size:13.5px">${esc(nm(r.m))} · ${tr('Account History & Records','ఖాతా వివరాలు & రికార్డులు')}</b>
+                <button class="sm" onclick="rv='';draw()">✕ ${tr('Close','మూసివేయి')}</button>
+              </div>
+              ${memRecs(r.m)}
+            </div>
+          ` : ''}
         </div>
       `;
     }).join('')||`<div class="card empty"><p class="m">${tr('No clients matching filters ','రిమైండర్లు ఏమీ లేవు ')}</p></div>`}
     ${nextRem?`
       <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0">
         <button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendRemind('${nextRem.m.id}')">
-          ${tr('Send Reminder ('+(rmLang=='en'?'English':'తెలుగు')+') · next: ','రిమైండర్ పంపు ('+(rmLang=='en'?'ఇంగ్లీష్':'తెలుగు')+') · తదుపరి: ')}${esc(nm(nextRem.m))} (${filtered.length} ${tr('left','మిగిలాయి')})
+          ${tr('Send Reminder ('+(rmLang=='en'?'English':'తెలుగు')+') · next: ','రిమైండర్ పంపు ('+(rmLang=='en'?'ఇంగ్లీష్':'తెలుగు')+') · తదుపరి: ')}${esc(nm(nextRem.m))} (${unsentQueue.length} ${tr('left to send','పంపాల్సినవి')})
         </button>
-        <button style="padding:14px" onclick="rmi=(rmi+1)%filtered.length;draw()">${tr('Skip','దాటవేయి')}</button>
+        <button style="padding:14px;min-width:70px" onclick="skippedRemIds.add('${nextRem.m.id}');draw()">${tr('Skip','దాటవేయి')}</button>
       </div>
-    `:''}
+    `:(filtered.length>0?`
+      <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--bg);padding:10px 14px;border:1px solid var(--b);border-radius:12px">
+        <div style="font-size:13.5px;font-weight:700;color:var(--ok)">
+          ✓ ${tr('All reminders sent or skipped for today', 'ఈ రోజుకి అన్ని రిమైండర్లు పంపబడ్డాయి లేదా దాటవేయబడ్డాయి')}
+        </div>
+        ${skippedRemIds.size > 0 ? `
+          <button class="sm" onclick="skippedRemIds.clear();draw()">${tr('Reset Skips (' + skippedRemIds.size + ')', 'దాటవేసినవి మళ్లీ చూపించు (' + skippedRemIds.size + ')')}</button>
+        ` : ''}
+      </div>
+    `:'')}
   `;
 }
 function done(k){if(!owner)return;const i=Q.find(x=>x.k==k);if(i&&i.mk)w(i.mk)}
@@ -4433,8 +4532,9 @@ async function generateReceiptImageBlob(receiptId){
   const balDue = (typeof t.bal !== 'undefined') ? t.bal : (m.id && T.length > 0 ? Math.max(0, st(m, t.ts, t.d).due) : 0);
 
   const W = 460;
-  const H = 760;
+  const H = 920;
   const S = 2;
+  const payAmt = (balDue > 0) ? balDue : ((m && m.inst > 0) ? m.inst : t.amt);
 
   const canvas = document.createElement('canvas');
   canvas.width = W * S;
@@ -4578,13 +4678,63 @@ async function generateReceiptImageBlob(receiptId){
   ctx.fillText(isPay ? 'PAID ✓' : 'SANCTIONED ✓', 0, 6);
   ctx.restore();
 
+  // Dynamic UPI Payment Scanner Box on Canvas Image
+  const payCardY = rowY + 10;
+  const payCardW = cardW - 40;
+  const payCardH = 114;
+  ctx.fillStyle = '#f0fdf4';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(cardX + 20, payCardY, payCardW, payCardH, 12);
+  else ctx.rect(cardX + 20, payCardY, payCardW, payCardH);
+  ctx.fill();
+  ctx.strokeStyle = '#bbf7d0';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#15803d';
+  ctx.font = '800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText('● UPI · SCAN & PAY WITH ANY UPI APP', cardX + 34, payCardY + 24);
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 19px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(inr(payAmt), cardX + 34, payCardY + 50);
+
+  ctx.fillStyle = '#475569';
+  ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillText(DEFAULT_UPI_NAME, cardX + 34, payCardY + 70);
+
+  ctx.font = '700 11px monospace';
+  ctx.fillStyle = '#1e293b';
+  ctx.fillText(DEFAULT_UPI_ID, cardX + 34, payCardY + 88);
+
+  ctx.font = '600 9.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.fillText('GPay · PhonePe · Paytm · super.money · BHIM', cardX + 34, payCardY + 104);
+
+  // Render UPI QR onto Canvas
+  try {
+    const upiSvg = getUpiQrSvg(payAmt, recNo, 92);
+    if (upiSvg) {
+      const upiDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(upiSvg);
+      const upiImg = new Image();
+      upiImg.crossOrigin = 'anonymous';
+      await new Promise((res) => {
+        upiImg.onload = res;
+        upiImg.onerror = res;
+        upiImg.src = upiDataUrl;
+      });
+      ctx.drawImage(upiImg, cardX + payCardW - 90, payCardY + 11, 92, 92);
+    }
+  } catch (_) {}
+
   // Verification Box
-  const qrBoxY = cardY + cardH - 145;
+  const qrBoxY = payCardY + payCardH + 12;
   const qrBoxW = cardW - 40;
   ctx.fillStyle = '#f8fafc';
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(cardX + 20, qrBoxY, qrBoxW, 90, 12);
-  else ctx.rect(cardX + 20, qrBoxY, qrBoxW, 90);
+  if (ctx.roundRect) ctx.roundRect(cardX + 20, qrBoxY, qrBoxW, 84, 12);
+  else ctx.rect(cardX + 20, qrBoxY, qrBoxW, 84);
   ctx.fill();
   ctx.strokeStyle = '#cbd5e1';
   ctx.setLineDash([4, 4]);
@@ -4594,18 +4744,18 @@ async function generateReceiptImageBlob(receiptId){
   ctx.textAlign = 'left';
   ctx.fillStyle = '#059669';
   ctx.font = '800 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('● DIGITAL VERIFIED RECEIPT', cardX + 34, qrBoxY + 26);
+  ctx.fillText('● DIGITAL VERIFIED RECEIPT', cardX + 34, qrBoxY + 24);
 
   ctx.fillStyle = '#64748b';
   ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Scan QR with any phone camera or Google', cardX + 34, qrBoxY + 44);
-  ctx.fillText('to verify official Mumbai cloud record', cardX + 34, qrBoxY + 58);
+  ctx.fillText('Scan QR with any phone camera or Google', cardX + 34, qrBoxY + 42);
+  ctx.fillText('to verify official Mumbai cloud record', cardX + 34, qrBoxY + 56);
 
   ctx.fillStyle = '#0f172a';
   ctx.font = '700 10.5px monospace';
-  ctx.fillText(recNo, cardX + 34, qrBoxY + 76);
+  ctx.fillText(recNo, cardX + 34, qrBoxY + 72);
 
-  // Render QR Code onto Canvas
+  // Render Verification QR Code onto Canvas
   try {
     const qrSvg = getReceiptQrSvg(t.id);
     const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(qrSvg);
@@ -4616,7 +4766,7 @@ async function generateReceiptImageBlob(receiptId){
       qrImg.onerror = res;
       qrImg.src = svgDataUrl;
     });
-    ctx.drawImage(qrImg, cardX + qrBoxW - 68, qrBoxY + 11, 68, 68);
+    ctx.drawImage(qrImg, cardX + qrBoxW - 68, qrBoxY + 10, 64, 64);
   } catch (_) {}
 
   // Footer notice
@@ -4737,7 +4887,7 @@ function renderStandaloneReceiptPage(receiptId){
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ p_id: queryId }),
-            signal: AbortSignal.timeout(8000)
+            signal: timeoutSignal(8000)
           });
           if (!r2.ok) throw new Error('RPC error ' + r2.status);
           const res2 = await r2.json();
@@ -4746,7 +4896,7 @@ function renderStandaloneReceiptPage(receiptId){
         };
 
         const fetchApi = async () => {
-          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: AbortSignal.timeout(8000) });
+          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: timeoutSignal(8000) });
           if (!r.ok) throw new Error('API error ' + r.status);
           const res = await r.json();
           if (res && res.ok && res.t) return res;
@@ -4813,6 +4963,7 @@ function renderStandaloneReceiptPage(receiptId){
   const timeStr = t.ts ? tm(t) : '';
   const collector = getCollectorDisplay(t.by);
   const balDue = (typeof t.bal !== 'undefined') ? t.bal : (m.id ? Math.max(0, st(m, t.ts, t.d).due) : 0);
+  const payAmt = (balDue > 0) ? balDue : ((m && m.inst > 0) ? m.inst : t.amt);
 
   return `
     <div style="min-height:100vh;background:var(--bg);color:var(--t);display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px;box-sizing:border-box">
@@ -4888,6 +5039,28 @@ function renderStandaloneReceiptPage(receiptId){
 
           <div class="gf-receipt-stamp">
             ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
+          </div>
+
+          <!-- Dynamic UPI Payment Scanner for Standalone Receipt -->
+          <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
+            </div>
+            <div style="font-size:13.5px;font-weight:800;color:var(--t);margin-bottom:2px">
+              ${tr('Scan to Pay ' + inr(payAmt) + ' using any UPI App', 'ఏదైనా UPI యాప్‌తో ' + inr(payAmt) + ' చెల్లించండి')}
+            </div>
+            <div class="m" style="font-size:11px;margin-bottom:10px">
+              GPay · PhonePe · Paytm · super.money · BHIM
+            </div>
+            <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
+              ${getUpiQrSvg(payAmt, recNo, 120)}
+            </div>
+            <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
+              ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
+            </div>
+            <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+              <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
+            </a>
           </div>
 
           <!-- Micro QR Box -->
@@ -5007,7 +5180,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v61</span>
+          <span class="v18-pill">v62</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5115,5 +5288,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=61').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=62').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
