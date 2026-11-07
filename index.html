@@ -1075,7 +1075,7 @@ window.addEventListener('offline',()=>{isNetOffline=true;draw()});
 window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offlineMode){toast(tr('Internet restored ✓ Reconnecting…','ఇంటర్నెట్ తిరిగి వచ్చింది ✓ రీకనెక్ట్ అవుతోంది…'));location.reload()}else{draw()}});
 const _urlP=new URLSearchParams(window.location.search);
 let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='branch',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='verify',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,upiScannedDlg=false,upiScannedData=null,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -2310,7 +2310,7 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           ${isPay?'PAID ✓':'SANCTIONED ✓'}
         </div>
 
-                ${((!isPay || t.type === 'loan') || ((b && b.due > 0) || (typeof t.bal !== 'undefined' && t.bal > 0))) ? `
+                ${(!isPay) ? `
         <!-- Dynamic UPI Payment Scanner (Only for Sanctioned Loans or Due Slips) -->
         <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
@@ -2879,8 +2879,18 @@ function getRemTemplate(m,s,tpl,l){
   return rmsg(m,s,l);
 }
 function openScannerDlg(tabMode){
-  if(tabMode) scannerTab = tabMode;
+  scannerTab = tabMode || 'verify';
   scannerDlg = true;
+  draw();
+}
+function showUpiScannedModal(data){
+  upiScannedData = data;
+  upiScannedDlg = true;
+  draw();
+}
+function closeUpiScannedModal(){
+  upiScannedDlg = false;
+  upiScannedData = null;
   draw();
 }
 async function copyScannerImg(){
@@ -2943,21 +2953,30 @@ async function startCameraScanner(){
   let stream = null;
   let lastErr = null;
 
-  try {
-    if (isMobile) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }
-        });
-      } catch(e1) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      }
-    } else {
-      // Desktop / Laptop (PC): Direct webcam access
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  const tryGUM = async (constraints) => {
+    try {
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch(err) {
+      lastErr = err;
+      return null;
     }
-  } catch(e) {
-    lastErr = e;
+  };
+
+  if (isMobile) {
+    stream = await tryGUM({ video: { facingMode: { ideal: 'environment' } } });
+    if (!stream) stream = await tryGUM({ video: true });
+  } else {
+    // Desktop / Laptop (PC): Direct webcam access
+    stream = await tryGUM({ video: true });
+    if (!stream && navigator.mediaDevices.enumerateDevices) {
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const vidDev = devs.find(d => d.kind === 'videoinput');
+        if (vidDev && vidDev.deviceId) {
+          stream = await tryGUM({ video: { deviceId: { exact: vidDev.deviceId } } });
+        }
+      } catch(_) {}
+    }
   }
 
   if (!stream) {
@@ -2975,7 +2994,7 @@ async function startCameraScanner(){
           ${esc(errName || 'Notice')}: ${esc(errMsg || tr('Camera could not start','కెమెరా తెరవబడలేదు'))}
         </div>
         <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
-          ${tr('You can reload the page, snap/upload a photo of the receipt, or directly enter the receipt code below:', 'పేజీని రీలోడ్ చేయండి, ఫోటో అప్‌లోడ్ చేయండి లేదా క్రింద రసీదు కోడ్ నమోదు చేయండి:')}
+          ${tr('Tip: If browser site settings or another application is previewing the camera, close that panel and tap Try Camera Again. Or snap/upload a photo of the receipt below:', 'సూచన: బ్రౌజర్ సెట్టింగ్స్ లేదా వేరే యాప్ కెమెరా వాడుతుంటే, దాన్ని మూసివేసి మళ్ళీ ప్రయత్నించండి. లేదా క్రింద ఫోటో ఎంచుకోండి:')}
         </p>
         <div class="acts" style="gap:8px;flex-wrap:wrap">
           <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">
@@ -3166,15 +3185,32 @@ async function handleVerifyReceiptInput(rawVal){
   if(!val) return toast(tr('Please enter receipt code or scan QR','దయచేసి రసీదు కోడ్ నమోదు చేయండి లేదా QR స్కాన్ చేయండి'));
 
   // Handle UPI Pay URLs
+  let isUpiPayment = false;
+  let upiData = null;
   if(val.startsWith('upi://') || val.includes('pa=') || val.includes('tn=')){
     try {
       const u = new URL(val.replace(/^upi:\/\/[^?]*\?/i, 'https://dummy/?'));
-      const tn = u.searchParams.get('tn') || u.searchParams.get('note');
-      if (tn) val = tn;
+      const pa = u.searchParams.get('pa') || '';
+      const pn = u.searchParams.get('pn') || '';
+      const am = u.searchParams.get('am') || '';
+      const tn = u.searchParams.get('tn') || u.searchParams.get('note') || '';
+      upiData = { pa, pn, am, tn, raw: val };
+      if (tn && /GF-[0-9a-zA-Z]{6,36}/i.test(tn)) {
+        val = tn;
+      } else if (!val.includes('vr=') && !val.includes('GF-')) {
+        isUpiPayment = true;
+      }
     } catch(_) {
       const m = val.match(/[?&]tn=([^&]+)/i);
       if (m && m[1]) val = decodeURIComponent(m[1]);
     }
+  }
+
+  if (isUpiPayment && upiData) {
+    stopCameraScanner();
+    closeScannerDlg();
+    showUpiScannedModal(upiData);
+    return;
   }
 
   // Extract from URL if present
@@ -3265,8 +3301,8 @@ function scannerModal(){
     <div class="card" role="dialog" aria-modal="true" style="max-width:420px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35)">
       <div class="row" style="margin-bottom:14px;align-items:center">
         <div style="display:flex;gap:6px">
-          <button class="sm ${scannerTab==='branch'?'p':''}" onclick="stopCameraScanner();scannerTab='branch';draw()">${tr('Branch UPI QR','బ్రాంచ్ QR')}</button>
-          <button class="sm ${scannerTab==='verify'?'p':''}" onclick="scannerTab='verify';draw()">${tr('Verify Receipt','రసీదు ధృవీకరణ')}</button>
+          <button class="sm ${scannerTab==='verify'?'p':''}" onclick="scannerTab='verify';draw()">${tr('Verify Receipt Scanner','రసీదు స్కానర్')}</button>
+          <button class="sm ${scannerTab==='branch'?'p':''}" onclick="stopCameraScanner();scannerTab='branch';draw()">${tr('Branch Payment QR','బ్రాంచ్ చెల్లింపు QR')}</button>
         </div>
         <button class="sm" onclick="closeScannerDlg()">✕</button>
       </div>
@@ -3341,6 +3377,36 @@ function scannerModal(){
           <p class="m" style="margin:6px 0 0;font-size:11.5px">${tr('Updating here updates the QR code across reminders, WhatsApp sharing, and Father device automatically.','ఇక్కడ మారిస్తే వాట్సాప్ రిమైండర్లు మరియు తండ్రి గారి ఫోన్‌లో కూడా కొత్త QR ఆటోమేటిక్‌గా అప్‌డేట్ అవుతుంది.')}</p>
         </div>
       `}
+    </div>
+  </div>`;
+}
+
+function upiScannedModalHtml(){
+  if(!upiScannedDlg || !upiScannedData) return '';
+  const d = upiScannedData;
+  const payUrl = d.raw || `upi://pay?pa=${encodeURIComponent(d.pa)}&pn=${encodeURIComponent(d.pn || '')}${d.am ? `&am=${encodeURIComponent(d.am)}` : ''}&cu=INR${d.tn ? `&tn=${encodeURIComponent(d.tn)}` : ''}`;
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:45;padding:16px;overflow:auto" onclick="if(event.target===this)closeUpiScannedModal()">
+    <div class="card" role="dialog" aria-modal="true" style="max-width:380px;width:100%;margin:auto;box-shadow:0 12px 36px rgba(0,0,0,.35);text-align:center">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(99,102,241,0.12);color:var(--p);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:22px;font-weight:900">
+        ₹
+      </div>
+      <div style="font-weight:900;font-size:16px;margin-bottom:4px;color:var(--t)">${tr('UPI Payment QR Detected', 'UPI చెల్లింపు QR కనుగొనబడింది')}</div>
+      <p class="m" style="font-size:12px;margin:0 0 14px;line-height:1.4">
+        ${tr('This is a direct UPI payment QR code, not a receipt verification code.', 'ఇది నేరుగా UPI చెల్లింపు QR కోడ్, రసీదు ధృవీకరణ కోడ్ కాదు.')}
+      </p>
+      <div style="background:var(--s);padding:12px;border-radius:12px;border:1px solid var(--b);margin-bottom:14px;text-align:left">
+        ${d.pn ? `<div style="font-size:11px;color:var(--m);font-weight:700;text-transform:uppercase">${tr('Payee Name','స్వీకర్త పేరు')}</div><div style="font-weight:800;font-size:13.5px;color:var(--t);margin-bottom:8px">${esc(d.pn)}</div>` : ''}
+        <div style="font-size:11px;color:var(--m);font-weight:700;text-transform:uppercase">${tr('UPI ID','UPI ఐడీ')}</div>
+        <div style="font-family:monospace;font-weight:800;font-size:13px;color:var(--p);margin-bottom:8px">${esc(d.pa || DEFAULT_UPI_ID)}</div>
+        ${d.am ? `<div style="font-size:11px;color:var(--m);font-weight:700;text-transform:uppercase">${tr('Amount','మొత్తం')}</div><div style="font-weight:900;font-size:18px;color:#10b981;margin-bottom:8px">${inr(d.am)}</div>` : ''}
+        ${d.tn ? `<div style="font-size:11px;color:var(--m);font-weight:700;text-transform:uppercase">${tr('Note / Reference','నోట్')}</div><div style="font-size:12px;color:var(--t)">${esc(d.tn)}</div>` : ''}
+      </div>
+      <div class="acts" style="flex-direction:column;gap:8px">
+        <a href="${payUrl}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff">
+          <span>${tr('Open UPI App to Pay', 'UPI యాప్‌తో చెల్లించండి')} →</span>
+        </a>
+        <button class="sm" onclick="closeUpiScannedModal()">${tr('Close','మూసివేయి')}</button>
+      </div>
     </div>
   </div>`;
 }
@@ -4791,9 +4857,9 @@ async function generateReceiptImageBlob(receiptId){
   ctx.restore();
 
   // Dynamic UPI Payment Card - PROMINENT, CENTERED & AUTODETECTABLE BY WHATSAPP
-    const isDue = (balDue > 0);
+  // User Rule: In receipts like for payment already made we do not need to send the payment scanner, only sanctioned or due slips sharing will have payment scanner, and receipts of paid slips will NOT have them.
   const isSanction = (!isPay || t.type === 'loan');
-  const showPaymentScanner = isSanction || isDue;
+  const showPaymentScanner = isSanction && !isPay;
 
   if (showPaymentScanner) {
     // Dynamic UPI Payment Card for Sanctions / Due Slips
@@ -5264,7 +5330,7 @@ function renderStandaloneReceiptPage(receiptId){
             ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
           </div>
 
-                    ${((!isPay || t.type === 'loan') || (balDue > 0)) ? `
+          ${(!isPay) ? `
           <!-- Dynamic UPI Payment Scanner (Only for Loans or Due Slips) -->
           <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
@@ -5419,7 +5485,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v67</span>
+          <span class="v18-pill">v68</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5472,6 +5538,7 @@ ${notifPanel()}
 ${fatherNoteModal()}
 ${manualRemModal()}
 ${scannerModal()}
+${upiScannedModalHtml()}
 ${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{
