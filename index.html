@@ -1068,7 +1068,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=64"></script>
+<script src="/runtime.js?v=65"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2907,6 +2907,42 @@ let _cameraRaf = null;
 let _cameraScanning = false;
 let _lastCameraScanTs = 0;
 
+function reloadForCamera(){
+  sessionStorage.setItem('gf_auto_camera', '1');
+  const u = new URL(window.location.href);
+  u.searchParams.set('cam', '1');
+  window.location.href = u.toString();
+}
+
+function checkAutoCameraOnBoot(){
+  const urlP = new URLSearchParams(window.location.search);
+  const wantsCam = urlP.get('cam') === '1' || sessionStorage.getItem('gf_auto_camera') === '1';
+  if(wantsCam){
+    sessionStorage.removeItem('gf_auto_camera');
+    try {
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('cam');
+      window.history.replaceState({}, '', cleanUrl.toString());
+    } catch(_) {}
+    openScannerDlg('verify');
+    setTimeout(() => {
+      startCameraScanner();
+    }, 280);
+  }
+}
+
+if(typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query){
+  try {
+    navigator.permissions.query({ name: 'camera' }).then(status => {
+      status.onchange = () => {
+        if(status.state === 'granted'){
+          reloadForCamera();
+        }
+      };
+    }).catch(()=>{});
+  } catch(_) {}
+}
+
 function closeScannerDlg(){
   stopCameraScanner();
   scannerDlg=false;
@@ -2936,53 +2972,85 @@ async function startCameraScanner(){
   container.innerHTML = `
     <div style="background:var(--s);border:1px solid var(--b);border-radius:14px;padding:20px 14px;text-align:center;margin-bottom:12px">
       <div class="pulse-dot" style="margin:0 auto 10px;background:var(--p);width:12px;height:12px"></div>
-      <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--t)">${tr('Requesting Camera Access…','కెమెరా అనుమతి అడుగుతోంది…')}</div>
+      <div style="font-weight:800;font-size:13.5px;margin-bottom:4px;color:var(--t)">${tr('Starting Camera Feed…','కెమెరా ప్రారంభమవుతోంది…')}</div>
       <p class="m" style="font-size:12px;max-width:280px;margin:0 auto 12px;line-height:1.45">
-        ${tr('Please tap "Allow" on the permission prompt in your browser to scan the receipt QR code.','రసీదు QR కోడ్ స్కాన్ చేయడానికి దయచేసి బ్రౌజర్ అనుమతి పాపప్‌లో "Allow" నొక్కండి.')}
+        ${tr('Connecting to camera hardware. Please tap "Allow" if your browser prompts for permission.','కెమెరా కనెక్ట్ అవుతోంది. బ్రౌజర్ అనుమతి అడిగితే "Allow" నొక్కండి.')}
       </p>
       <button type="button" class="sm" onclick="stopCameraScanner()">${tr('Cancel','రద్దు')}</button>
     </div>
   `;
 
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   let stream = null;
-  // Tier 1: Rear camera with 720p constraints
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-  } catch(e1) {
-    // Tier 2: Simple environment facing mode
+  let lastErr = null;
+
+  if (isMobile) {
+    // Mobile: Rear camera first
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    } catch(e2) {
-      // Tier 3: Any video camera
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+    } catch(e1) {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      } catch(e3) {
-        console.error('All camera attempts failed:', e3);
-        const isDenied = (e3.name === 'NotAllowedError' || e3.name === 'PermissionDeniedError' || (e3.message && e3.message.toLowerCase().includes('denied')));
-        container.innerHTML = `
-          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;margin-bottom:12px;text-align:left">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <svg width="16" height="16" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              <b style="color:#d97706;font-size:13.5px">${isDenied ? tr('Camera Permission Denied / Blocked', 'కెమెరా అనుమతి నిలిపివేయబడింది') : tr('Camera Access Error', 'కెమెరా తెరవబడలేదు')}</b>
-            </div>
-            <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
-              ${isDenied ? tr('Your browser blocked camera permission. Tap the site settings or lock icon in your browser URL bar, change Camera to Allow, and tap Retry below. Or snap a picture directly:', 'బ్రౌజర్‌లో కెమెరా అనుమతి బ్లాక్ చేయబడింది. URL బార్‌లో సైట్ సెట్టింగ్స్ నొక్కి కెమెరాని Allow చేయండి, లేదా నేరుగా ఫోటో తీసి స్కాన్ చేయండి:') : tr('Could not start video stream. You can snap a photo with your phone camera instead:', 'కెమెరా ప్రారంభించలేకపోయాము. ఫోటో తీసి స్కాన్ చేయండి:')}
-            </p>
-            <div class="acts" style="gap:8px;flex-wrap:wrap">
-              <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">${tr('⟳ Try Again / Retry', 'మళ్ళీ ప్రయత్నించు')}</button>
-              <label class="sm" style="cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--t)">
-                ${tr('Snap QR Photo Instead', 'ఫోటో తీసి స్కాన్ చేయి')}
-                <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
-              </label>
-              <button class="sm" onclick="stopCameraScanner()">${tr('Close','మూసివేయి')}</button>
-            </div>
-          </div>
-        `;
-        return;
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch(e2) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch(e3) {
+          lastErr = e3;
+        }
       }
     }
+  } else {
+    // Desktop / Laptop (PC): Direct webcam access (Integrated Webcam)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    } catch(eDesk1) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+      } catch(eDesk2) {
+        lastErr = eDesk1 || eDesk2;
+      }
+    }
+  }
+
+  if (!stream) {
+    console.error('All camera attempts failed:', lastErr);
+    const errName = (lastErr && lastErr.name) || '';
+    const isDenied = (errName === 'NotAllowedError' || errName === 'PermissionDeniedError' || (lastErr && lastErr.message && lastErr.message.toLowerCase().includes('denied')));
+    const isNotFound = (errName === 'NotFoundError' || errName === 'DevicesNotFoundError');
+
+    container.innerHTML = `
+      <div style="background:rgba(245,158,11,0.08);border:1.5px solid rgba(245,158,11,0.35);border-radius:14px;padding:16px;margin-bottom:12px;text-align:left">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <svg width="18" height="18" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          <b style="color:#d97706;font-size:14px">${isDenied ? tr('Camera Permission / Reload Required', 'కెమెరా అనుమతి / పేజీ రీలోడ్ అవసరం') : (isNotFound ? tr('No Camera Found', 'కెమెరా కనపడలేదు') : tr('Camera Access Error', 'కెమెరా తెరవబడలేదు'))}</b>
+        </div>
+        <p class="m" style="font-size:12.5px;line-height:1.5;margin:0 0 14px;color:var(--t)">
+          ${isDenied
+            ? tr('If you just enabled the Camera toggle in your browser settings (or lock icon), Chrome requires a quick page reload to activate it. Tap <b>Reload & Start Camera</b> below:', 'బ్రౌజర్‌లో లేదా లాక్ ఐకాన్‌లో కెమెరా Allow చేసినట్లయితే, దాన్ని ఆక్టివేట్ చేయడానికి పేజీని రీలోడ్ చేయాలి. క్రింద ఉన్న <b>రీలోడ్ చేసి కెమెరా ప్రారంభించు</b> బటన్ నొక్కండి:')
+            : (isNotFound
+                ? tr('No camera hardware was detected on this device. You can snap/upload a QR photo or type receipt code:', 'ఈ పరికరంలో కెమెరా లేదు. ఫోటో అప్‌లోడ్ చేయండి లేదా రసీదు కోడ్ రాయండి:')
+                : tr('Could not start video stream. Tap Reload & Start Camera or choose a photo:', 'కెమెరా ప్రారంభించలేకపోయాము. రీలోడ్ చేసి ప్రయత్నించండి లేదా ఫోటో ఎంచుకోండి:'))}
+        </p>
+        <div class="acts" style="gap:8px;flex-wrap:wrap">
+          <button class="p sm" onclick="reloadForCamera()" style="background:#2563eb;border-color:#2563eb;color:#fff;font-weight:800;font-size:13px;padding:8px 16px;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+            ${tr('⟳ Reload & Start Camera', '⟳ రీలోడ్ చేసి కెమెరా ప్రారంభించు')}
+          </button>
+          <button class="sm" onclick="startCameraScanner()" style="font-weight:700">
+            ${tr('Try Without Reload', 'రీలోడ్ లేకుండా ప్రయత్నించు')}
+          </button>
+          <label class="sm" style="cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--t)">
+            ${tr('Snap QR Photo Instead', 'ఫోటో తీసి స్కాన్ చేయి')}
+            <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
+          </label>
+          <button class="sm" onclick="stopCameraScanner()">${tr('Close','మూసివేయి')}</button>
+        </div>
+      </div>
+    `;
+    return;
   }
 
   _cameraStream = stream;
@@ -3042,7 +3110,7 @@ async function startCameraScanner(){
             const barcodes = await detector.detect(video);
             if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
           } catch(_) {
-            detector = null; // disable if throws on frame
+            detector = null;
           }
         }
         if(!codeValue && typeof jsQR === 'function'){
@@ -5400,7 +5468,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v64</span>
+          <span class="v18-pill">v65</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5506,7 +5574,8 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     if(M.length===0) dbErr='Could not start: '+((e&&e.message)||e);
   }
   draw();
+  setTimeout(() => { if(typeof checkAutoCameraOnBoot === 'function') checkAutoCameraOnBoot(); }, 400);
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=64').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=65').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
