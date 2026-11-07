@@ -39,11 +39,28 @@ function parseBankSms(text) {
   return null;
 }
 
+const webhookRateMap = new Map();
+function checkWebhookRateLimit(ip) {
+  const now = Date.now();
+  const rec = webhookRateMap.get(ip) || { count: 0, reset: now + 60000 };
+  if (now > rec.reset) {
+    rec.count = 1;
+    rec.reset = now + 60000;
+  } else {
+    rec.count++;
+  }
+  webhookRateMap.set(ip, rec);
+  if (webhookRateMap.size > 1000) {
+    for (const [k, v] of webhookRateMap) {
+      if (now > v.reset) webhookRateMap.delete(k);
+    }
+  }
+  return rec.count <= 30;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-webhook-secret');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -61,6 +78,12 @@ module.exports = async (req, res) => {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  // Rate Limiting
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  if (!checkWebhookRateLimit(clientIp)) {
+    return res.status(429).json({ ok: false, error: 'Rate limit exceeded' });
   }
 
   // Security: Webhook Secret Authentication (prevents unauthorized/forged webhook posts)

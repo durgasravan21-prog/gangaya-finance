@@ -3,6 +3,25 @@
 //  2) Google Input Tools: free fallback that needs no key.
 const TE = /[\u0C00-\u0C7F]/;
 
+const sampleRateMap = new Map();
+function checkSampleRateLimit(userId) {
+  const now = Date.now();
+  const rec = sampleRateMap.get(userId) || { count: 0, reset: now + 60000 };
+  if (now > rec.reset) {
+    rec.count = 1;
+    rec.reset = now + 60000;
+  } else {
+    rec.count++;
+  }
+  sampleRateMap.set(userId, rec);
+  if (sampleRateMap.size > 1000) {
+    for (const [k, v] of sampleRateMap) {
+      if (now > v.reset) sampleRateMap.delete(k);
+    }
+  }
+  return rec.count <= 40;
+}
+
 async function transliterateGoogle(text) {
   try {
     const parts = text.trim().split(/\s+/);
@@ -44,6 +63,7 @@ async function transliterateClaude(name, key) {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method !== 'POST') return res.status(405).json({ error: 'method' });
   const { SUPABASE_URL: U, SUPABASE_ANON_KEY: K, ANTHROPIC_API_KEY: A } = process.env;
   if (!U || !K) return res.status(503).json({ error: 'database not configured' });
@@ -55,6 +75,9 @@ module.exports = async (req, res) => {
     const u = await fetch(U + '/auth/v1/user', { headers: { apikey: K, Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(6000) });
     if (!u.ok) return res.status(401).json({ error: 'auth' });
     const user = await u.json();
+    if (!user || !user.id || !checkSampleRateLimit(user.id)) {
+      return res.status(429).json({ error: 'rate limit' });
+    }
     const p = await fetch(U + '/rest/v1/profiles?select=role&id=eq.' + encodeURIComponent(user.id), { headers: { apikey: K, Authorization: 'Bearer ' + tok }, signal: AbortSignal.timeout(6000) });
     const rows = await p.json();
     if (!Array.isArray(rows) || !rows[0] || !['admin', 'collector'].includes(rows[0].role)) return res.status(403).json({ error: 'forbidden' });

@@ -2145,6 +2145,20 @@ function recentFatherNotesHtml(){
   </div>`;
 }
 function toast(m){tmsg=String(m);clearTimeout(tt);tt=setTimeout(()=>{tmsg='';draw()},5000);draw()}
+function logAdminAction(action, details){
+  try {
+    if(!db || !owner) return;
+    const author = (me && me.email) || who() || 'admin';
+    db.collection('notifs').add({
+      type: 'audit',
+      action: String(action || ''),
+      details: String(details || ''),
+      by: author,
+      ts: Date.now(),
+      created_at: new Date().toISOString()
+    }).catch(()=>{});
+  } catch(_) {}
+}
 function ask(m,ok,fn){dlg={m,ok,fn};draw()}
 function dlgOk(){const f=dlg&&dlg.fn;dlg=null;draw();if(f)f()}
 function dlgHtml(){return(dlg?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button><button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button></div></div></div>`:'')+(tmsg?`<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>`:'')}
@@ -3129,6 +3143,8 @@ async function scanQrFromFile(input){
   const file = input && input.files && input.files[0];
   if(!file) return;
   if(input) input.value = '';
+  if(!file.type || !file.type.startsWith('image/')) return toast(tr('Please select an image file','దయచేసి ఇమేజ్ ఫైల్ ఎంచుకోండి'));
+  if(file.size > 15 * 1024 * 1024) return toast(tr('File too large (max 15MB)','ఫైల్ సైజు చాలా పెద్దదిగా ఉంది'));
   toast(tr('Scanning QR photo…','QR ఫోటో స్కాన్ చేస్తోంది…'));
   try{
     const img = new Image();
@@ -3414,7 +3430,8 @@ function upiScannedModalHtml(){
 function uploadCustomQr(input){
   const file = input && input.files && input.files[0];
   if(!file) return;
-  if(!file.type.startsWith('image/')) return toast(tr('Please select an image file','దయచేసి ఇమేజ్ ఫైల్ ఎంచుకోండి'));
+  if(!file.type || !file.type.startsWith('image/')) return toast(tr('Please select an image file','దయచేసి ఇమేజ్ ఫైల్ ఎంచుకోండి'));
+  if(file.size > 10 * 1024 * 1024) return toast(tr('File too large (max 10MB)','ఫైల్ సైజు చాలా పెద్దదిగా ఉంది'));
   const reader = new FileReader();
   reader.onload = async (e) => {
     const dataUrl = e.target.result;
@@ -3444,6 +3461,7 @@ function uploadCustomQr(input){
             by: who()
           });
         }
+        logAdminAction('custom_qr_uploaded', 'Updated branch QR payment image');
         toast(tr('QR Scanner updated across all devices ✓','QR స్కానర్ అన్ని డివైస్‌లలో అప్‌డేట్ చేయబడింది ✓'));
       } catch(err){
         toast(tr('Saved locally ✓','స్థానికంగా సేవ్ చేయబడింది ✓'));
@@ -3459,6 +3477,7 @@ async function resetCustomQr(){
     customQr = '';
     try { localStorage.removeItem('gf_custom_qr'); } catch(_) {}
     try { if(db) await db.doc('settings/qr_scanner').delete(); } catch(_) {}
+    logAdminAction('custom_qr_reset', 'Reset branch QR payment image to default');
     toast(tr('Reset to default scanner ✓','డిఫాల్ట్ స్కానర్ సెట్ చేయబడింది ✓'));
     draw();
   });
@@ -3834,11 +3853,11 @@ return `${impBanner()}${f}${rvCard()}<div class="card"><h2>Add member</h2><div c
 const clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
 function saveEdit(){if(!owner||!sel)return;const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value),v=$('#ev').value,i=num($('#ei').value);
 if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');if(!amtOk(i))return toast('Check the installment');
-const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(()=>db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq}))}
+const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(async()=>{await db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq});logAdminAction('member_updated','Updated member '+n+' in '+v);})}
 function delM(id){if(!owner)return;const m=M.find(x=>x.id==id),n=T.filter(t=>t.mid==id).length;if(!m)return;
-if(!n)return ask('Delete '+m.name+'? This member has no records.','Delete',()=>w(()=>db.doc('members/'+id).delete()));
-ask(m.name+' has '+n+' record(s). Move '+m.name+' and all their records to the Archived section? (They will be completely isolated from active Collect, Ledger, and Reports).','Archive',()=>w(async()=>{await db.doc('members/'+id).update({archived:true});toast(m.name+' moved to Archived')}))}
-function restoreM(id){if(!owner)return;const m=M.find(x=>x.id==id);ask('Restore '+(m?m.name:'this member')+' back to active? They and their records will reappear in active Ledger and Collect.','Restore',()=>w(async()=>{await db.doc('members/'+id).update({archived:false});toast((m?m.name:'Member')+' restored to active')}))}
+if(!n)return ask('Delete '+m.name+'? This member has no records.','Delete',()=>w(async()=>{await db.doc('members/'+id).delete();logAdminAction('member_deleted','Deleted member '+m.name);}));
+ask(m.name+' has '+n+' record(s). Move '+m.name+' and all their records to the Archived section? (They will be completely isolated from active Collect, Ledger, and Reports).','Archive',()=>w(async()=>{await db.doc('members/'+id).update({archived:true});logAdminAction('member_archived','Archived member '+m.name);toast(m.name+' moved to Archived')}))}
+function restoreM(id){if(!owner)return;const m=M.find(x=>x.id==id);ask('Restore '+(m?m.name:'this member')+' back to active? They and their records will reappear in active Ledger and Collect.','Restore',()=>w(async()=>{await db.doc('members/'+id).update({archived:false});logAdminAction('member_restored','Restored member '+(m?m.name:id));toast((m?m.name:'Member')+' restored to active')}))}
 function archivedTab(){
 const q=arq.trim().toLowerCase(),
 ms=M.filter(m=>m.archived&&(!arv||m.village==arv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
@@ -3978,7 +3997,7 @@ if(!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Check the amounts');if(g>0&&r<g
 if(M.some(x=>x.phone==p&&x.name.toLowerCase()==n.toLowerCase()))return toast(n+' is already added with this number');
 const m={name:n,te:$('#nt').value.trim().slice(0,60),phone:p,village:v,inst:i,freq:+$('#f').value==1?1:7,created:pastL?ld:today()};
 if(exb)return saveExisting(m,g,r,i,ld);
-once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});clr(['n','nt','p','lg','lr','i','ld'])})}
+once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});logAdminAction('member_added','Added member '+n+' in '+v);clr(['n','nt','p','lg','lr','i','ld'])})}
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{const res=await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i});if(res&&res.id)openReceipt(res.id);})}
@@ -4349,6 +4368,7 @@ async function approveLoanReq(id){
           read: false
         });
 
+        logAdminAction('loan_approved', `Approved loan of ${inr(lr.amt)} for ${lr.mname}`);
         toast(tr(`Loan of ${inr(lr.amt)} for ${lr.mname} approved & added to active records ✓`, `${lr.mname} యొక్క ${inr(lr.amt)} అప్పు ఆమోదించబడింది ✓`));
       }catch(e){
         toast('Error: ' + (e&&e.message||e));
@@ -4401,6 +4421,7 @@ async function rejectLoanReq(id){
           read: false
         });
 
+        logAdminAction('loan_declined', `Declined loan request of ${inr(lr.amt)} for ${lr.mname}`);
         toast(tr('Loan request declined ✓', 'అప్పు అభ్యర్థన తిరస్కరించబడింది ✓'));
       }catch(e){
         toast('Error: ' + (e&&e.message||e));
@@ -4463,6 +4484,7 @@ function delV(id){
     ask(tr('Delete village "' + v.name + '"?', '"' + v.name + '" ఊరును తొలగించాలా?'), tr('Delete','తొలగించు'), () => {
       w(async () => {
         await db.doc('villages/' + id).delete();
+        logAdminAction('village_deleted', 'Deleted village ' + v.name);
         toast(tr('Village deleted ✓', 'ఊరు తొలగించబడింది ✓'));
       });
     });
@@ -4477,6 +4499,7 @@ function delV(id){
             try { await db.doc('members/' + m.id).update({ village: '' }); } catch(_) {}
           }
           await db.doc('villages/' + id).delete();
+          logAdminAction('village_deleted', `Deleted village ${v.name} (${mCount} members affected)`);
           toast(tr(`Village deleted and ${mCount} member records updated ✓`, `ఊరు తొలగించబడింది, ${mCount} సభ్యుల డేటా క్లియర్ అయింది ✓`));
         });
       }
@@ -4484,7 +4507,7 @@ function delV(id){
   }
 }
 function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n)return toast('Enter the village name');if(V.some(v=>v.name.toLowerCase()==n.toLowerCase()))return toast('This village already exists');
-once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});clr(['nv','vt'])})}
+once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});logAdminAction('village_added','Added village '+n);clr(['nv','vt'])})}
 function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function heroKpis(preRemList, prePndRc){
@@ -5505,7 +5528,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v69</span>
+          <span class="v18-pill">v70</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>

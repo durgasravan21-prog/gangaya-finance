@@ -1,12 +1,42 @@
 // Gangaya Finance - Public Receipt Verification API
 // Serves standalone verified receipt data for Google Lens & phone camera QR scans
 
+// In-memory sliding window rate limiter: max 60 requests per minute per IP
+const rateMap = new Map();
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const rec = rateMap.get(ip) || { count: 0, reset: now + 60000 };
+  if (now > rec.reset) {
+    rec.count = 1;
+    rec.reset = now + 60000;
+  } else {
+    rec.count++;
+  }
+  rateMap.set(ip, rec);
+  if (rateMap.size > 2000) {
+    for (const [k, v] of rateMap) {
+      if (now > v.reset) rateMap.delete(k);
+    }
+  }
+  return rec.count <= 60;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') {
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  // Rate Limiting
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    return res.status(429).json({ ok: false, error: 'Too many requests. Please try again later.' });
+  }
 
   let rawId = (req.query.id || req.query.vr || req.query.r || req.query.receipt || '').trim();
   if (!rawId) {
@@ -17,7 +47,11 @@ module.exports = async (req, res) => {
     const match = rawId.match(/[?&](?:vr|r|receipt)=([^&#]+)/);
     if (match) rawId = decodeURIComponent(match[1]);
   }
-  const cleanId = rawId.replace(/^GF-/i, '').trim();
+  // Sanitize input: strictly alphanumeric and hyphen, bounded length
+  const cleanId = rawId.replace(/^GF-/i, '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 36).trim();
+  if (!cleanId || cleanId.length < 4) {
+    return res.status(400).json({ ok: false, error: 'Invalid receipt ID format' });
+  }
 
   const { SUPABASE_URL: U, SUPABASE_ANON_KEY: K } = process.env;
   const url = U || 'https://digmxlceoejepixflqnh.supabase.co';
@@ -55,6 +89,6 @@ module.exports = async (req, res) => {
 
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message || 'Lookup error' });
+    return res.status(500).json({ ok: false, error: 'Receipt lookup could not be completed at this time' });
   }
 };
