@@ -1068,7 +1068,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=63"></script>
+<script src="/runtime.js?v=64"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1115,20 +1115,20 @@ function getUpiQrSvg(amount, note, dim = 110){
   }catch(_){}
   return '';
 }
-function getReceiptQrSvg(receiptId){
+function getReceiptQrSvg(receiptId, dim = 52){
   try{
     if(typeof QRCode === 'function'){
       const verifyUrl = `${window.location.origin}/?vr=${encodeURIComponent(receiptId)}`;
       const node = QRCode({
         msg: verifyUrl,
-        dim: 52,
-        pad: 1,
-        pal: ['#0f172a', '#ffffff']
+        dim: dim,
+        pad: 2,
+        pal: ['#000000', '#ffffff']
       });
       if(node && node.outerHTML) return node.outerHTML;
     }
   }catch(_){}
-  return `<svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="15" y="15" width="4" height="4"/><path d="M14 10h1M10 14v1M18 10h3M10 18v3"/></svg>`;
+  return `<svg width="${dim}" height="${dim}" viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="15" y="15" width="4" height="4"/><path d="M14 10h1M10 14v1M18 10h3M10 18v3"/></svg>`;
 }
 const V18_ICONS = {
   ac: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
@@ -1495,9 +1495,25 @@ function onTxnsUpdate(newT){
     }
   }
 }
+function mergeLoanRequests(requests, notifsList){
+  const fromNT = (notifsList || []).filter(n => (n.type === 'loan_req' || n.type === 'loan_request') && n.status !== 'approved' && n.status !== 'rejected');
+  const seenIds = new Set();
+  const seenKeys = new Set();
+  const res = [];
+  for(const r of [...(requests || []), ...fromNT]){
+    if(!r) continue;
+    const rId = String(r.id || '').trim();
+    const sigKey = (r.mid || '') + '_' + (r.amt || '') + '_' + (r.d || '');
+    if(rId && seenIds.has(rId)) continue;
+    if(seenKeys.has(sigKey)) continue;
+    if(rId) seenIds.add(rId);
+    seenKeys.add(sigKey);
+    res.push(r);
+  }
+  return res;
+}
 function onNotifsUpdate(newNT){
-  const reqsFromNT = newNT.filter(n => n.type === 'loan_req' || n.type === 'loan_request');
-  LR = [...reqsFromNT, ...LR.filter(x => !reqsFromNT.some(n => n.id === x.id))];
+  LR = mergeLoanRequests(LR, newNT);
   if(bootComplete){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)){
@@ -2294,7 +2310,8 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           ${isPay?'PAID ✓':'SANCTIONED ✓'}
         </div>
 
-        <!-- Dynamic UPI Payment Scanner -->
+                ${((!isPay || t.type === 'loan') || ((b && b.due > 0) || (typeof t.bal !== 'undefined' && t.bal > 0))) ? `
+        <!-- Dynamic UPI Payment Scanner (Only for Sanctioned Loans or Due Slips) -->
         <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
             <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
@@ -2330,13 +2347,28 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           </div>
           <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" class="gf-receipt-qr-link" title="${tr('Scan / Click to verify receipt online','ఆన్‌లైన్‌లో రసీదుని ధృవీకరించడానికి స్కాన్ / క్లిక్ చేయండి')}">
             <div class="gf-receipt-qr-box">
-              ${getReceiptQrSvg(t.id)}
+              ${getReceiptQrSvg(t.id, 52)}
             </div>
             <span class="gf-receipt-qr-hint">${tr('SCAN TO VERIFY','స్కాన్ చేయండి')}</span>
           </a>
-        </div>
+        </div>` : `
+        <!-- Paid Slip: Prominent Verification Scanner Only (Payment already made) -->
+        <div class="gf-receipt-verify-sec" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
+          <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:3px 12px;border-radius:20px;color:#059669;font-weight:800;font-size:11px;margin-bottom:8px">
+            <span style="width:6px;height:6px;border-radius:50%;background:#059669"></span>
+            <span>${tr('OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓','అధికారిక ధృవీకరించిన రసీదు · పూర్తిగా చెల్లించబడింది ✓')}</span>
+          </div>
+          <div class="m" style="font-size:11.5px;max-width:320px;margin:0 auto 10px;line-height:1.4">
+            ${tr('Scan QR with any phone camera or Google to verify authentic ledger record','రికార్డు ధృవీకరణ కోసం ఫోన్ కెమెరా లేదా గూగుల్‌తో QR కోడ్ స్కాన్ చేయండి')}
+          </div>
+          <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;border:1px solid var(--b);box-shadow:0 4px 12px rgba(0,0,0,0.06);text-decoration:none">
+            ${getReceiptQrSvg(t.id, 120)}
+          </a>
+          <div style="font-family:monospace;font-size:12px;font-weight:800;color:var(--t);margin-top:6px">${recNo}</div>
+          <div class="m" style="font-size:10.5px">${tr('Authenticated by Collector · Gangaya Finance','కలెక్టర్ ద్వారా ధృవీకరించబడింది · గంగయ్య ఫైనాన్స్')}</div>
+        </div>`}
 
-        ${showPosTheme ? `
+                ${showPosTheme ? `
         <div class="gf-pos-barcode"></div>
         <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
         ` : ''}
@@ -2846,8 +2878,14 @@ function getRemTemplate(m,s,tpl,l){
   }
   return rmsg(m,s,l);
 }
-function openScannerDlg(){scannerDlg=true;draw()}
-function closeScannerDlg(){scannerDlg=false;draw()}
+function openScannerDlg(tabMode){
+  if(tabMode) scannerTab = tabMode;
+  scannerDlg = true;
+  draw();
+  if(tabMode === 'verify' || tabMode === 'camera'){
+    setTimeout(() => { startCameraScanner(); }, 80);
+  }
+}
 async function copyScannerImg(){
   try{
     const r=await fetch('/scanner.png');
@@ -2866,6 +2904,8 @@ function downloadScannerImg(){
 let _cameraStream = null;
 let _cameraScannerActive = false;
 let _cameraRaf = null;
+let _cameraScanning = false;
+let _lastCameraScanTs = 0;
 
 function closeScannerDlg(){
   stopCameraScanner();
@@ -2905,39 +2945,43 @@ async function startCameraScanner(){
   `;
 
   let stream = null;
-  // Tier 1: Try environment (rear) camera with flexible constraints
+  // Tier 1: Rear camera with 720p constraints
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } }
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
   } catch(e1) {
-    console.warn('Tier 1 camera failed, trying Tier 2:', e1);
-    // Tier 2: Try basic video without specific facingMode
+    // Tier 2: Simple environment facing mode
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     } catch(e2) {
-      console.error('All camera attempts failed:', e2);
-      const isDenied = (e2.name === 'NotAllowedError' || e2.name === 'PermissionDeniedError' || (e2.message && e2.message.toLowerCase().includes('denied')));
-      container.innerHTML = `
-        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;margin-bottom:12px;text-align:left">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-            <svg width="16" height="16" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-            <b style="color:#d97706;font-size:13.5px">${isDenied ? tr('Camera Permission Denied / Blocked', 'కెమెరా అనుమతి నిలిపివేయబడింది') : tr('Camera Access Error', 'కెమెరా తెరవబడలేదు')}</b>
+      // Tier 3: Any video camera
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch(e3) {
+        console.error('All camera attempts failed:', e3);
+        const isDenied = (e3.name === 'NotAllowedError' || e3.name === 'PermissionDeniedError' || (e3.message && e3.message.toLowerCase().includes('denied')));
+        container.innerHTML = `
+          <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:14px;padding:16px;margin-bottom:12px;text-align:left">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <svg width="16" height="16" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <b style="color:#d97706;font-size:13.5px">${isDenied ? tr('Camera Permission Denied / Blocked', 'కెమెరా అనుమతి నిలిపివేయబడింది') : tr('Camera Access Error', 'కెమెరా తెరవబడలేదు')}</b>
+            </div>
+            <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
+              ${isDenied ? tr('Your browser blocked camera permission. Tap the site settings or lock icon in your browser URL bar, change Camera to Allow, and tap Retry below. Or snap a picture directly:', 'బ్రౌజర్‌లో కెమెరా అనుమతి బ్లాక్ చేయబడింది. URL బార్‌లో సైట్ సెట్టింగ్స్ నొక్కి కెమెరాని Allow చేయండి, లేదా నేరుగా ఫోటో తీసి స్కాన్ చేయండి:') : tr('Could not start video stream. You can snap a photo with your phone camera instead:', 'కెమెరా ప్రారంభించలేకపోయాము. ఫోటో తీసి స్కాన్ చేయండి:')}
+            </p>
+            <div class="acts" style="gap:8px;flex-wrap:wrap">
+              <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">${tr('⟳ Try Again / Retry', 'మళ్ళీ ప్రయత్నించు')}</button>
+              <label class="sm" style="cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--t)">
+                ${tr('Snap QR Photo Instead', 'ఫోటో తీసి స్కాన్ చేయి')}
+                <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
+              </label>
+              <button class="sm" onclick="stopCameraScanner()">${tr('Close','మూసివేయి')}</button>
+            </div>
           </div>
-          <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
-            ${isDenied ? tr('Your browser blocked camera permission. To enable: tap the <b>lock icon [Lock]</b> in your browser address bar at the top, change <b>Camera</b> to <b>Allow</b>, and tap <b>Retry</b> below. Or snap a picture directly:', 'బ్రౌజర్‌లో కెమెరా అనుమతి బ్లాక్ చేయబడింది. పైనున్న అడ్రస్ బార్‌లో  ఐకాన్ నొక్కి కెమెరాని Allow చేయండి, లేదా నేరుగా ఫోటో తీసి స్కాన్ చేయండి:') : tr('Could not start video stream. You can snap a photo with your phone camera instead:', 'కెమెరా ప్రారంభించలేకపోయాము. ఫోటో తీసి స్కాన్ చేయండి:')}
-          </p>
-          <div class="acts" style="gap:8px;flex-wrap:wrap">
-            <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">${tr('⟳ Try Again / Retry', 'మళ్ళీ ప్రయత్నించు')}</button>
-            <label class="sm" style="cursor:pointer;background:var(--c);border:1px solid var(--b);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--t)">
-              ${tr('Snap QR Photo Instead', 'ఫోటో తీసి స్కాన్ చేయి')}
-              <input type="file" accept="image/*" capture="environment" onchange="scanQrFromFile(this)" style="display:none">
-            </label>
-            <button class="sm" onclick="stopCameraScanner()">${tr('Close','మూసివేయి')}</button>
-          </div>
-        </div>
-      `;
-      return;
+        `;
+        return;
+      }
     }
   }
 
@@ -2964,11 +3008,15 @@ async function startCameraScanner(){
   video.playsInline = true;
   video.muted = true;
   video.srcObject = stream;
-  try {
-    await video.play();
-  } catch(_) {
-    video.onclick = () => video.play().catch(()=>{});
-  }
+
+  const playVideo = () => {
+    video.play().catch(e => {
+      console.warn('Video play deferred:', e);
+      video.onclick = () => video.play().catch(()=>{});
+    });
+  };
+  video.onloadedmetadata = playVideo;
+  playVideo();
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -2978,36 +3026,56 @@ async function startCameraScanner(){
     try { detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch(_) {}
   }
 
-  const scanFrame = async () => {
-    if(!_cameraScannerActive || !video || video.readyState < 2) {
-      if(_cameraScannerActive) _cameraRaf = requestAnimationFrame(scanFrame);
-      return;
-    }
-    try {
-      let codeValue = null;
-      if(detector){
-        const barcodes = await detector.detect(video);
-        if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
-      }
-      if(!codeValue && typeof jsQR === 'function'){
-        if(canvas.width !== video.videoWidth || canvas.height !== video.videoHeight){
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-        }
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, imgData.width, imgData.height);
-        if(code && code.data) codeValue = code.data;
-      }
+  _cameraScanning = false;
+  _lastCameraScanTs = 0;
 
-      if(codeValue){
-        try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
-        playChime();
-        stopCameraScanner();
-        handleVerifyReceiptInput(codeValue);
-        return;
+  const scanFrame = async () => {
+    if(!_cameraScannerActive || !video) return;
+    const now = Date.now();
+    if(video.readyState >= 2 && video.videoWidth > 0 && !_cameraScanning && (now - _lastCameraScanTs >= 110)){
+      _cameraScanning = true;
+      _lastCameraScanTs = now;
+      try {
+        let codeValue = null;
+        if(detector){
+          try {
+            const barcodes = await detector.detect(video);
+            if(barcodes && barcodes.length > 0) codeValue = barcodes[0].rawValue;
+          } catch(_) {
+            detector = null; // disable if throws on frame
+          }
+        }
+        if(!codeValue && typeof jsQR === 'function'){
+          const maxScanDim = 640;
+          let sw = video.videoWidth;
+          let sh = video.videoHeight;
+          if(sw > maxScanDim || sh > maxScanDim){
+            if(sw > sh){ sh = Math.round(sh * maxScanDim / sw); sw = maxScanDim; }
+            else { sw = Math.round(sw * maxScanDim / sh); sh = maxScanDim; }
+          }
+          if(canvas.width !== sw || canvas.height !== sh){
+            canvas.width = sw;
+            canvas.height = sh;
+          }
+          ctx.drawImage(video, 0, 0, sw, sh);
+          const imgData = ctx.getImageData(0, 0, sw, sh);
+          const code = jsQR(imgData.data, sw, sh, { inversionAttempts: 'attemptBoth' });
+          if(code && code.data) codeValue = code.data;
+        }
+
+        if(codeValue){
+          try{ if(navigator.vibrate) navigator.vibrate(100); }catch(_){}
+          playChime();
+          stopCameraScanner();
+          handleVerifyReceiptInput(codeValue);
+          return;
+        }
+      } catch(err) {
+        console.warn('Camera scan loop err:', err);
+      } finally {
+        _cameraScanning = false;
       }
-    } catch(_) {}
+    }
 
     if(_cameraScannerActive){
       _cameraRaf = requestAnimationFrame(scanFrame);
@@ -3018,6 +3086,7 @@ async function startCameraScanner(){
 
 function stopCameraScanner(){
   _cameraScannerActive = false;
+  _cameraScanning = false;
   if(_cameraRaf) { cancelAnimationFrame(_cameraRaf); _cameraRaf = null; }
   if(_cameraStream){
     try{ _cameraStream.getTracks().forEach(t => t.stop()); } catch(_) {}
@@ -3030,6 +3099,7 @@ function stopCameraScanner(){
 async function scanQrFromFile(input){
   const file = input && input.files && input.files[0];
   if(!file) return;
+  if(input) input.value = '';
   toast(tr('Scanning QR photo…','QR ఫోటో స్కాన్ చేస్తోంది…'));
   try{
     const img = new Image();
@@ -3048,7 +3118,7 @@ async function scanQrFromFile(input){
         const canvas = document.createElement('canvas');
         let w = img.naturalWidth || img.width;
         let h = img.naturalHeight || img.height;
-        const maxDim = 1200;
+        const maxDim = 1000;
         if(w > maxDim || h > maxDim){
           if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
           else { w = Math.round(w * maxDim / h); h = maxDim; }
@@ -3058,7 +3128,7 @@ async function scanQrFromFile(input){
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
         const imgData = ctx.getImageData(0, 0, w, h);
-        const code = jsQR(imgData.data, w, h);
+        const code = jsQR(imgData.data, w, h, { inversionAttempts: 'attemptBoth' });
         if(code && code.data) codeValue = code.data;
       }
 
@@ -3076,6 +3146,7 @@ async function scanQrFromFile(input){
   }
 }
 
+
 async function handleVerifyReceiptInput(rawVal){
   let val = String(rawVal || '').trim();
   if(!val){
@@ -3083,6 +3154,18 @@ async function handleVerifyReceiptInput(rawVal){
     if(e) val = e.value.trim();
   }
   if(!val) return toast(tr('Please enter receipt code or scan QR','దయచేసి రసీదు కోడ్ నమోదు చేయండి లేదా QR స్కాన్ చేయండి'));
+
+  // Handle UPI Pay URLs
+  if(val.startsWith('upi://') || val.includes('pa=') || val.includes('tn=')){
+    try {
+      const u = new URL(val.replace(/^upi:\/\/[^?]*\?/i, 'https://dummy/?'));
+      const tn = u.searchParams.get('tn') || u.searchParams.get('note');
+      if (tn) val = tn;
+    } catch(_) {
+      const m = val.match(/[?&]tn=([^&]+)/i);
+      if (m && m[1]) val = decodeURIComponent(m[1]);
+    }
+  }
 
   // Extract from URL if present
   if(val.includes('vr=') || val.includes('r=') || val.includes('receipt=')){
@@ -3092,7 +3175,11 @@ async function handleVerifyReceiptInput(rawVal){
     } catch(_) {}
   }
 
-  const cleanId = val.replace(/^GF-/i, '').trim();
+  // Extract GF- code if embedded in string
+  const gfMatch = val.match(/GF-([0-9a-zA-Z]{6,36})/i);
+  if(gfMatch && gfMatch[1]) val = gfMatch[1];
+
+  const cleanId = val.replace(/^GF-/i, '').replace(/["']/g, '').trim();
   const recNo = 'GF-' + cleanId.slice(0, 8).toUpperCase();
 
   // 1. Try local memory
@@ -3997,6 +4084,7 @@ function fatherNewLoanModal(){
 }
 
 async function submitFatherNewLoan(){
+  if (busy) return;
   const mid = ($('#fnl_mid')?$('#fnl_mid').value:fnlMid);
   const amt = num($('#fnl_amt')?$('#fnl_amt').value:fnlAmt);
   const repay = num($('#fnl_repay')?$('#fnl_repay').value:fnlRepay);
@@ -4064,9 +4152,10 @@ async function submitFatherNewLoan(){
         read: false
       });
 
+      const reqId = (reqDoc && reqDoc.id) ? reqDoc.id : ('lr_' + Date.now());
       try{
-        await db.collection('loan_requests').add({
-          id: reqDoc.id,
+        await db.doc('loan_requests/' + reqId).set({
+          id: reqId,
           mid: m.id,
           mname: nm(m),
           village: m.village || '',
@@ -4141,6 +4230,8 @@ async function approveLoanReq(id){
           });
         }catch(_){}
 
+        LR = LR.filter(x => x.id !== id && !(x.mid === lr.mid && x.amt === lr.amt && (x.d === lr.d || !x.d)));
+
         await db.collection('notifs').add({
           type: 'note',
           text: tr(`Loan of ${inr(lr.amt)} for ${lr.mname} has been APPROVED by Durga Sravan ✓`, `దుర్గా శ్రావణ్ గారు ${lr.mname} యొక్క ${inr(lr.amt)} అప్పును ఆమోదించారు ✓`),
@@ -4191,6 +4282,8 @@ async function rejectLoanReq(id){
           });
         }catch(_){}
 
+        LR = LR.filter(x => x.id !== id && !(x.mid === lr.mid && x.amt === lr.amt && (x.d === lr.d || !x.d)));
+
         await db.collection('notifs').add({
           type: 'note',
           text: tr(`Loan request of ${inr(lr.amt)} for ${lr.mname} was DECLINED by Durga Sravan`, `దుర్గా శ్రావణ్ గారు ${lr.mname} యొక్క ${inr(lr.amt)} అప్పు అభ్యర్థనను తిరస్కరించారు`),
@@ -4212,6 +4305,7 @@ async function rejectLoanReq(id){
     }
   );
 }
+
 
 function villages(){
   return `<div class="card">
@@ -4678,91 +4772,182 @@ async function generateReceiptImageBlob(receiptId){
   ctx.restore();
 
   // Dynamic UPI Payment Card - PROMINENT, CENTERED & AUTODETECTABLE BY WHATSAPP
-  const payCardY = rowY + 10;
-  const payCardW = cardW - 32;
-  const payCardH = 310;
-  const payCardX = cardX + 16;
-  ctx.fillStyle = '#f0fdf4';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(payCardX, payCardY, payCardW, payCardH, 16);
-  else ctx.rect(payCardX, payCardY, payCardW, payCardH);
-  ctx.fill();
-  ctx.strokeStyle = '#86efac';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+    const isDue = (balDue > 0);
+  const isSanction = (!isPay || t.type === 'loan');
+  const showPaymentScanner = isSanction || isDue;
 
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#15803d';
-  ctx.font = '900 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('● UPI · SCAN & PAY WITH ANY UPI APP', cardX + cardW / 2, payCardY + 22);
+  if (showPaymentScanner) {
+    // Dynamic UPI Payment Card for Sanctions / Due Slips
+    const payCardY = rowY + 10;
+    const payCardW = cardW - 32;
+    const payCardH = 310;
+    const payCardX = cardX + 16;
+    ctx.fillStyle = '#f0fdf4';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(payCardX, payCardY, payCardW, payCardH, 16);
+    else ctx.rect(payCardX, payCardY, payCardW, payCardH);
+    ctx.fill();
+    ctx.strokeStyle = '#86efac';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-  ctx.fillStyle = '#0f172a';
-  ctx.font = '900 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(inr(payAmt), cardX + cardW / 2, payCardY + 46);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#15803d';
+    ctx.font = '900 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('● UPI · SCAN & PAY WITH ANY UPI APP', cardX + cardW / 2, payCardY + 22);
 
-  ctx.fillStyle = '#64748b';
-  ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('WhatsApp · Google Pay · PhonePe · Paytm · super.money · BHIM', cardX + cardW / 2, payCardY + 62);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(inr(payAmt), cardX + cardW / 2, payCardY + 46);
 
-  // Large Centered 190x190 QR with pure white quiet zone for instant camera autodetection
-  const qrDim = 190;
-  const qrX = cardX + (cardW - qrDim) / 2;
-  const qrY = payCardY + 72;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('WhatsApp · Google Pay · PhonePe · Paytm · super.money · BHIM', cardX + cardW / 2, payCardY + 62);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12, 12);
-  else ctx.rect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12);
-  ctx.fill();
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.lineWidth = 1;
-  ctx.stroke();
+    const qrDim = 190;
+    const qrX = cardX + (cardW - qrDim) / 2;
+    const qrY = payCardY + 72;
 
-  try {
-    const upiSvg = getUpiQrSvg(payAmt, recNo, qrDim);
-    if (upiSvg) {
-      const upiDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(upiSvg);
-      const upiImg = new Image();
-      upiImg.crossOrigin = 'anonymous';
-      await new Promise((res) => {
-        upiImg.onload = res;
-        upiImg.onerror = res;
-        upiImg.src = upiDataUrl;
-      });
-      ctx.drawImage(upiImg, qrX, qrY, qrDim, qrDim);
-    }
-  } catch (_) {}
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12, 12);
+    else ctx.rect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-  // Payee info under QR
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#1e293b';
-  ctx.font = '800 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText(DEFAULT_UPI_NAME, cardX + cardW / 2, qrY + qrDim + 18);
+    try {
+      const upiSvg = getUpiQrSvg(payAmt, recNo, qrDim);
+      if (upiSvg) {
+        const upiDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(upiSvg);
+        const upiImg = new Image();
+        upiImg.crossOrigin = 'anonymous';
+        await new Promise((res) => {
+          upiImg.onload = res;
+          upiImg.onerror = res;
+          upiImg.src = upiDataUrl;
+        });
+        ctx.drawImage(upiImg, qrX, qrY, qrDim, qrDim);
+      }
+    } catch (_) {}
 
-  ctx.fillStyle = '#4f46e5';
-  ctx.font = '700 11.5px monospace';
-  ctx.fillText(DEFAULT_UPI_ID, cardX + cardW / 2, qrY + qrDim + 33);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '800 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(DEFAULT_UPI_NAME, cardX + cardW / 2, qrY + qrDim + 18);
 
-  // Verification strip below payment card
-  const verifyY = payCardY + payCardH + 10;
-  ctx.fillStyle = '#f8fafc';
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(cardX + 20, verifyY, cardW - 40, 36, 8);
-  else ctx.rect(cardX + 20, verifyY, cardW - 40, 36);
-  ctx.fill();
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.setLineDash([4, 4]);
-  ctx.stroke();
-  ctx.setLineDash([]);
+    ctx.fillStyle = '#4f46e5';
+    ctx.font = '700 11.5px monospace';
+    ctx.fillText(DEFAULT_UPI_ID, cardX + cardW / 2, qrY + qrDim + 33);
 
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#059669';
-  ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('● OFFICIAL CLOUD RECORD: ' + recNo + ' · gangaya-finance.vercel.app', cardX + cardW / 2, verifyY + 16);
+    // Verification strip below payment card
+    const verifyY = payCardY + payCardH + 10;
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cardX + 20, verifyY, cardW - 40, 36, 8);
+    else ctx.rect(cardX + 20, verifyY, cardW - 40, 36);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-  ctx.fillStyle = '#64748b';
-  ctx.font = '600 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  ctx.fillText('Verified Digital Receipt · Authenticated By Collector', cardX + cardW / 2, verifyY + 28);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#059669';
+    ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('● OFFICIAL CLOUD RECORD: ' + recNo + ' · gangaya-finance.vercel.app', cardX + cardW / 2, verifyY + 16);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('Verified Digital Receipt · Authenticated By Collector', cardX + cardW / 2, verifyY + 28);
+  } else {
+    // Paid Slip: Prominent Verification Scanner Card (No payment scanner)
+    const verCardY = rowY + 10;
+    const verCardW = cardW - 32;
+    const verCardH = 310;
+    const verCardX = cardX + 16;
+    ctx.fillStyle = '#ecfdf5';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(verCardX, verCardY, verCardW, verCardH, 16);
+    else ctx.rect(verCardX, verCardY, verCardW, verCardH);
+    ctx.fill();
+    ctx.strokeStyle = '#6ee7b7';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#047857';
+    ctx.font = '900 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('● OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓', cardX + cardW / 2, verCardY + 22);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = '900 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(recNo, cardX + cardW / 2, verCardY + 46);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('Scan QR with phone camera or Google to verify authentic ledger record', cardX + cardW / 2, verCardY + 62);
+
+    // Large Centered 190x190 Verification QR with pure white quiet zone
+    const qrDim = 190;
+    const qrX = cardX + (cardW - qrDim) / 2;
+    const qrY = verCardY + 72;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12, 12);
+    else ctx.rect(qrX - 6, qrY - 6, qrDim + 12, qrDim + 12);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    try {
+      const verSvg = getReceiptQrSvg(cleanId, qrDim);
+      if (verSvg) {
+        const verDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(verSvg);
+        const verImg = new Image();
+        verImg.crossOrigin = 'anonymous';
+        await new Promise((res) => {
+          verImg.onload = res;
+          verImg.onerror = res;
+          verImg.src = verDataUrl;
+        });
+        ctx.drawImage(verImg, qrX, qrY, qrDim, qrDim);
+      }
+    } catch (_) {}
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '800 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('DIGITAL LEDGER VERIFIED RECORD · GF-' + cleanId, cardX + cardW / 2, qrY + qrDim + 18);
+
+    ctx.fillStyle = '#059669';
+    ctx.font = '700 11px monospace';
+    ctx.fillText('gangaya-finance.vercel.app/?vr=' + cleanId, cardX + cardW / 2, qrY + qrDim + 33);
+
+    // Bottom strip
+    const verifyY = verCardY + verCardH + 10;
+    ctx.fillStyle = '#f8fafc';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cardX + 20, verifyY, cardW - 40, 36, 8);
+    else ctx.rect(cardX + 20, verifyY, cardW - 40, 36);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#059669';
+    ctx.font = '800 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('● OFFICIAL CLOUD RECORD: ' + recNo + ' · gangaya-finance.vercel.app', cardX + cardW / 2, verifyY + 16);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 9px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText('All dues cleared in full · Authenticated By Collector', cardX + cardW / 2, verifyY + 28);
+  }
 
   // Footer notice
   ctx.textAlign = 'center';
@@ -4777,31 +4962,23 @@ async function shareReceiptPhoto(receiptId) {
   toast(tr('Generating receipt photo…', 'రసీదు ఫోటో సిద్ధమవుతోంది…'));
   try {
     const cleanId = String(receiptId || '').replace(/^GF-/i, '').slice(0, 8).toUpperCase();
-    const t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === ('GF-' + cleanId)) || (publicReceiptData && publicReceiptData.t ? publicReceiptData.t : null);
+    const recNo = 'GF-' + cleanId;
+    const t = T.find(x => x.id === cleanId || x.id.startsWith(cleanId) || ('GF-' + x.id.slice(0, 8).toUpperCase()) === recNo) || (publicReceiptData && publicReceiptData.t ? publicReceiptData.t : null);
     const m = t ? (M.find(x => x.id === t.mid) || (publicReceiptData ? publicReceiptData.m : null)) : null;
-    const b = (m && t && T.length > 0) ? st(m, t.ts, t.d) : null;
-    const balDue = t ? ((typeof t.bal !== 'undefined') ? t.bal : (b ? Math.max(0, b.due) : 0)) : 0;
-    const payAmt = (balDue > 0) ? balDue : ((m && m.inst > 0) ? m.inst : (t ? t.amt : 0));
 
     const blob = await generateReceiptImageBlob(receiptId);
     if (!blob) throw new Error('Could not generate receipt image');
 
-    const fileName = `Gangaya-Finance-Receipt-GF-${cleanId}.png`;
+    const fileName = `Gangaya-Finance-Receipt-${recNo}.png`;
     const file = new File([blob], fileName, { type: 'image/png' });
-    const recUrl = `${window.location.origin}/?vr=${cleanId}`;
-    const upiUrl = getUpiPayUrl(payAmt, 'GF-' + cleanId);
-    const shareText = `Gangaya Finance Payment Receipt (GF-${cleanId})\n` +
-      (t ? `Amount Paid: ${inr(t.amt)}\n` : '') +
-      (payAmt > 0 ? `Balance Due / Pay: ${inr(payAmt)}\n` : '') +
-      `Pay via UPI (${DEFAULT_UPI_ID}): ${upiUrl}\n` +
-      `Verified Receipt: ${recUrl}`;
+    const shareText = `Gangaya Finance · ${recNo}`;
 
     let shared = false;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
-          title: `Gangaya Finance Receipt GF-${cleanId}`,
+          title: `Gangaya Finance ${recNo}`,
           text: shareText
         });
         shared = true;
@@ -4838,6 +5015,7 @@ async function shareReceiptPhoto(receiptId) {
     toast(tr('Could not share photo: ' + (err.message || ''), 'ఫోటో పంపడం సాధ్యం కాలేదు'));
   }
 }
+
 
 async function downloadReceiptPhoto(receiptId) {
   toast(tr('Downloading receipt photo…', 'రసీదు ఫోటో డౌన్‌లోడ్ అవుతోంది…'));
@@ -5067,7 +5245,8 @@ function renderStandaloneReceiptPage(receiptId){
             ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
           </div>
 
-          <!-- Dynamic UPI Payment Scanner for Standalone Receipt -->
+                    ${((!isPay || t.type === 'loan') || (balDue > 0)) ? `
+          <!-- Dynamic UPI Payment Scanner (Only for Loans or Due Slips) -->
           <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
             <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
               <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
@@ -5103,11 +5282,26 @@ function renderStandaloneReceiptPage(receiptId){
             </div>
             <div class="gf-receipt-qr-link">
               <div class="gf-receipt-qr-box">
-                ${getReceiptQrSvg(t.id)}
+                ${getReceiptQrSvg(t.id, 52)}
               </div>
               <span class="gf-receipt-qr-hint">${tr('VERIFIED ✓','ధృవీకరించబడింది')}</span>
             </div>
-          </div>
+          </div>` : `
+          <!-- Paid Slip: Prominent Verification Scanner Only (Payment already made) -->
+          <div class="gf-receipt-verify-sec" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
+            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:3px 12px;border-radius:20px;color:#059669;font-weight:800;font-size:11px;margin-bottom:8px">
+              <span style="width:6px;height:6px;border-radius:50%;background:#059669"></span>
+              <span>${tr('OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓','అధికారిక ధృవీకరించిన రసీదు · పూర్తిగా చెల్లించబడింది ✓')}</span>
+            </div>
+            <div class="m" style="font-size:11.5px;max-width:320px;margin:0 auto 10px;line-height:1.4">
+              ${tr('Scan QR with any phone camera or Google to verify authentic ledger record','రికార్డు ధృవీకరణ కోసం ఫోన్ కెమెరా లేదా గూగుల్‌తో QR కోడ్ స్కాన్ చేయండి')}
+            </div>
+            <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;border:1px solid var(--b);box-shadow:0 4px 12px rgba(0,0,0,0.06);text-decoration:none">
+              ${getReceiptQrSvg(t.id, 120)}
+            </a>
+            <div style="font-family:monospace;font-size:12px;font-weight:800;color:var(--t);margin-top:6px">${recNo}</div>
+            <div class="m" style="font-size:10.5px">${tr('Authenticated by Collector · Gangaya Finance','కలెక్టర్ ద్వారా ధృవీకరించబడింది · గంగయ్య ఫైనాన్స్')}</div>
+          </div>`}
 
           <!-- Actions (Strictly View-Only For Public Verification) -->
           <div class="gf-receipt-acts" style="justify-content:center;margin-top:18px">
@@ -5206,7 +5400,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v63</span>
+          <span class="v18-pill">v64</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5283,7 +5477,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
       sub('notifs',a=>onNotifsUpdate(a),cNT);
       sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);
-      sub('loan_requests',a=>{const fromNT=NT.filter(n=>n.type==='loan_req'||n.type==='loan_request');LR=[...a,...fromNT.filter(n=>!a.some(x=>x.id===n.id))];draw()},cLR);
+      sub('loan_requests',a=>{LR=mergeLoanRequests(a,NT);draw()},cLR);
       sub('upi_credits',a=>{UC=a;draw()},cUC);
 
       if(db.loadAll){
@@ -5314,5 +5508,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
 })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=63').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=64').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
