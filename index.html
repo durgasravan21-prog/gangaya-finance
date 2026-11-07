@@ -3752,8 +3752,28 @@ function cycleTheme(){thm=thm=='auto'?'light':thm=='light'?'dark':'auto';try{loc
 window.toggleTheme=cycleTheme;
 try{const v=localStorage.getItem('gangaya_theme')||localStorage.getItem('gf-theme');if(v=='light'||v=='dark'||v=='auto')thm=v}catch(e){}
 applyTheme();try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(thm=='auto')applyTheme()})}catch(e){}
-addEventListener('keydown',e=>{if(e.key=='Escape'){if(notifOpen){closeNotifs();draw()}else if(fnDlg){closeFatherNoteDlg()}else if(dlg){dlg=null;draw()}else if(vr){vr='';draw()}else if(sel){sel=null;draw()}}
-else if(e.key=='Enter'&&e.target&&e.target.tagName=='INPUT'&&e.target.type!='radio'){const id=e.target.id;if(id=='amt')save();else if(id=='pa')savePast();else if(/^x[gri]$/.test(id))saveLoan();else if(id=='nv')addV()}});
+addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+    e.preventDefault();
+    openScannerDlg('verify');
+    return;
+  }
+  if(e.key=='Escape'){
+    if(scannerDlg){closeScannerDlg()}
+    else if(upiScannedDlg){closeUpiScannedModal()}
+    else if(notifOpen){closeNotifs();draw()}
+    else if(fnDlg){closeFatherNoteDlg()}
+    else if(dlg){dlg=null;draw()}
+    else if(vr){vr='';draw()}
+    else if(sel){sel=null;draw()}
+  } else if(e.key=='Enter'&&e.target&&e.target.tagName=='INPUT'&&e.target.type!='radio'){
+    const id=e.target.id;
+    if(id=='amt')save();
+    else if(id=='pa')savePast();
+    else if(/^x[gri]$/.test(id))saveLoan();
+    else if(id=='nv')addV();
+  }
+});
 function sendNext(){if(!owner||pnd)return;const i=Q[qi]||Q[0];if(!i)return;const a=document.createElement('a');a.href=wa(i);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);track(i.k);a.click();a.remove()}
 function sentNow(k){if(owner)done(k)}
 function copyMsg(k){const i=Q.find(x=>x.k==k);if(!i)return;(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(i.text):Promise.reject()).then(()=>toast('Message copied. Paste it in the WhatsApp chat of '+i.m.phone)).catch(()=>ask(i.text,'OK',()=>{}))}
@@ -5485,7 +5505,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v68</span>
+          <span class="v18-pill">v69</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>

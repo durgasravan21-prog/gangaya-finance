@@ -63,6 +63,15 @@ module.exports = async (req, res) => {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
+  // Security: Webhook Secret Authentication (prevents unauthorized/forged webhook posts)
+  const webhookSecret = process.env.UPI_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const providedSecret = req.headers['x-webhook-secret'] || (req.query && req.query.secret);
+    if (!providedSecret || providedSecret !== webhookSecret) {
+      return res.status(401).json({ ok: false, error: 'Unauthorized webhook request' });
+    }
+  }
+
   const { SUPABASE_URL: U, SUPABASE_ANON_KEY: K } = process.env;
   if (!U || !K) {
     return res.status(503).json({ ok: false, error: 'Database environment missing' });
