@@ -445,82 +445,266 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   100% { transform: translateY(0); opacity: 1; }
 }
 
-/* Authentic Physical POS Paper Dispense */
-.gf-pos-paper-viewport {
+/* Smooth & Satisfying Thermal Receipt Dispenser Animation (code.xr style) */
+.gf-receipt-dispenser-wrap {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.gf-dispenser-slot {
+  width: 100%;
+  background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px 18px 4px 4px;
+  padding: 10px 16px 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+.gf-dispenser-slot-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.gf-dispenser-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.gf-dispenser-badge {
+  background: #2563eb;
+  color: #ffffff;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.gf-dispenser-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #10b981;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gf-dispenser-led {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: ledPulse 1.4s ease-in-out infinite;
+}
+
+.gf-dispenser-mouth {
+  height: 7px;
+  background: #000000;
+  border-radius: 3.5px;
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.9), 0 1px 2px rgba(255,255,255,0.05);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.gf-dispenser-teeth {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, #334155, #334155 3px, #000000 3px, #000000 6px);
+  opacity: 0.45;
+}
+
+/* Paper Viewport & Spring Rollout */
+.gf-paper-viewport {
   width: 100%;
   position: relative;
-  overflow: visible;
-}
-.gf-pos-paper-viewport.is-dispensing {
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.38);
-  border-radius: 0 0 20px 20px;
-  animation: posViewportRoll 2.3s 0.15s cubic-bezier(0.12, 0.85, 0.28, 1) forwards;
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
+  animation: receiptRollOut 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top center;
 }
 
-@keyframes posViewportRoll {
+@keyframes receiptRollOut {
   0% {
     max-height: 0;
-    opacity: 1;
-  }
-  12% {
-    max-height: 100px;
+    opacity: 0.7;
+    transform: perspective(1000px) rotateX(-8deg);
   }
   30% {
-    max-height: 240px;
-  }
-  55% {
-    max-height: 480px;
-  }
-  80% {
-    max-height: 750px;
+    max-height: 280px;
+    opacity: 0.95;
+    transform: perspective(1000px) rotateX(-3deg);
   }
   100% {
-    max-height: 2500px;
+    max-height: 2600px;
     opacity: 1;
+    transform: perspective(1000px) rotateX(0deg);
   }
 }
 
-.gf-pos-paper-viewport.is-dispensing .gf-receipt-paper.is-pos-dispensed {
-  border-radius: 0;
-  border-top: none;
-  box-shadow: none;
-  animation: posPaperDescend 2.3s 0.15s cubic-bezier(0.12, 0.85, 0.28, 1) forwards;
+.gf-receipt-paper-animated {
+  background: #ffffff;
+  color: #0f172a;
+  padding: 24px 22px 18px;
+  position: relative;
+  box-sizing: border-box;
+  animation: receiptPaperDescend 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes posPaperDescend {
+@keyframes receiptPaperDescend {
   0% {
-    transform: translateY(-90px);
-  }
-  20% {
-    transform: translateY(-55px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-  80% {
-    transform: translateY(-5px);
+    transform: translateY(-40px);
   }
   100% {
     transform: translateY(0);
   }
 }
 
-.gf-receipt-modal.skip-anim,
-.gf-receipt-modal.skip-anim .gf-pos-paper-viewport,
-.gf-receipt-modal.skip-anim .gf-receipt-paper,
-.gf-pos-paper-viewport.skip-anim,
-.gf-receipt-paper.skip-anim {
-  animation: none !important;
-  max-height: none !important;
-  clip-path: none !important;
-  transform: none !important;
-  opacity: 1 !important;
+:root[data-theme=dark] .gf-receipt-paper-animated {
+  background: #0f172a;
+  color: #f8fafc;
 }
 
-.gf-receipt-paper.is-pos-dispensed .gf-receipt-stamp {
-  animation: stampImpact 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) 2.45s forwards !important;
+/* Success Checkmark Badge Pop */
+.gf-receipt-success-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+  animation: successBadgePop 0.5s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
+
+@keyframes successBadgePop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.gf-receipt-success-badge svg {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: checkmarkStroke 0.4s 0.4s ease forwards;
+}
+
+@keyframes checkmarkStroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Staggered Content Reveals */
+.gf-anim-header {
+  animation: receiptItemFade 0.45s 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gf-anim-hero {
+  animation: receiptItemFade 0.45s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gf-anim-rows {
+  animation: receiptItemFade 0.45s 0.52s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gf-anim-stamp {
+  animation: receiptItemFade 0.45s 0.62s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gf-anim-qr {
+  animation: receiptItemFade 0.45s 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.gf-anim-acts {
+  animation: receiptItemFade 0.45s 0.82s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes receiptItemFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Perforated Sawtooth Tear Edge */
+.gf-receipt-sawtooth-cut {
+  position: relative;
+  height: 12px;
+  width: 100%;
+  background: #ffffff;
+  background-image: radial-gradient(circle, transparent 65%, #ffffff 70%);
+  background-size: 14px 14px;
+  background-position: 0 -7px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.12));
+}
+
+:root[data-theme=dark] .gf-receipt-sawtooth-cut {
+  background: #0f172a;
+  background-image: radial-gradient(circle, transparent 65%, #0f172a 70%);
+}
+
+/* Skip-animation override */
+.skip-anim,
+.skip-anim *,
+.gf-receipt-modal.skip-anim .gf-paper-viewport,
+.gf-receipt-modal.skip-anim .gf-receipt-paper-animated,
+.gf-receipt-modal.skip-anim .gf-receipt-success-badge,
+.gf-receipt-modal.skip-anim .gf-anim-header,
+.gf-receipt-modal.skip-anim .gf-anim-hero,
+.gf-receipt-modal.skip-anim .gf-anim-rows,
+.gf-receipt-modal.skip-anim .gf-anim-stamp,
+.gf-receipt-modal.skip-anim .gf-anim-qr,
+.gf-receipt-modal.skip-anim .gf-anim-acts,
+.gf-receipt-dispenser-wrap.skip-anim .gf-paper-viewport,
+.gf-receipt-dispenser-wrap.skip-anim .gf-receipt-paper-animated,
+.gf-receipt-dispenser-wrap.skip-anim .gf-receipt-success-badge,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-header,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-hero,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-rows,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-stamp,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-qr,
+.gf-receipt-dispenser-wrap.skip-anim .gf-anim-acts {
+  animation: none !important;
+  max-height: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  stroke-dashoffset: 0 !important;
+}
+
+/* Legacy POS support classes preserved */
+.gf-pos-paper-viewport { width: 100%; position: relative; }
 .gf-receipt-paper {
   background: #ffffff;
   color: #0f172a;
@@ -529,11 +713,6 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   padding: 26px 24px 20px;
   position: relative;
   border: 1px solid rgba(0,0,0,0.08);
-}
-.gf-receipt-paper.is-pos-dispensed {
-  border-radius: 0;
-  border-top: none;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.35);
 }
 .gf-pos-terminal-head {
   width: 100%;
@@ -1068,7 +1247,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=66"></script>
+<script src="/runtime.js?v=71"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2245,27 +2424,29 @@ if(showPosTheme){
     if(el) el.textContent = tr('PRINT DISPENSED ✓', 'ప్రింట్ పూర్తయింది ✓');
   }, 2350);
 }
-return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:${showPosTheme ? 'flex-start' : 'center'};z-index:99;padding:${showPosTheme ? '0 12px 60px' : '16px'};overflow-y:auto;overflow-x:hidden" onclick="if(event.target.id=='ov'){vr='';draw()}">
-  <div class="gf-receipt-modal ${showPosTheme ? 'has-pos-terminal' : ''}" role="dialog" aria-modal="true" onclick="const p=this.querySelector('.is-pos-dispensed');if(p)p.classList.add('skip-anim');const v=this.querySelector('.gf-pos-paper-viewport');if(v)v.classList.add('skip-anim');">
-    ${showPosTheme ? `
-    <div class="gf-pos-terminal-head">
-      <div class="gf-pos-terminal-body">
-        <div class="gf-pos-terminal-brand">
-          <span class="gf-pos-slot-badge">GF POS</span>
-          <span style="font-weight:800;letter-spacing:0.06em">${tr('COLLECTOR LIVE FEED','కలెక్టర్ లైవ్ ఫీడ్')}</span>
+return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:99;padding:16px 12px 60px;overflow-y:auto;overflow-x:hidden" onclick="if(event.target.id=='ov'){vr='';draw()}">
+  <div class="gf-receipt-dispenser-wrap" role="dialog" aria-modal="true" onclick="this.classList.add('skip-anim');">
+    
+    <!-- Metallic Dispenser Slot at Top -->
+    <div class="gf-dispenser-slot">
+      <div class="gf-dispenser-slot-bar">
+        <div class="gf-dispenser-brand">
+          <span class="gf-dispenser-badge">GF POS</span>
+          <span>${tr('THERMAL RECEIPT DISPENSER','థర్మల్ రసీదు ప్రింటర్')}</span>
         </div>
-        <div class="gf-pos-terminal-status" id="posStatusWrap">
-          <span class="gf-pos-live-led"></span>
-          <span id="posStatusText">${tr('PRINTING RECEIPT…','రసీదు ప్రింట్ అవుతోంది…')}</span>
+        <div class="gf-dispenser-status">
+          <span class="gf-dispenser-led"></span>
+          <span>${tr('READY / DISPENSED ✓','రసీదు సిద్ధం ✓')}</span>
         </div>
       </div>
-      <div class="gf-pos-mouth">
-        <div class="gf-pos-mouth-slot"></div>
-        <div class="gf-pos-teeth"></div>
+      <div class="gf-dispenser-mouth">
+        <div class="gf-dispenser-teeth"></div>
       </div>
-    </div>` : ''}
-    <div class="gf-pos-paper-viewport ${showPosTheme ? 'is-dispensing' : ''}">
-      <div class="gf-receipt-paper ${showPosTheme ? 'is-pos-dispensed' : ''}">
+    </div>
+
+    <!-- Smooth Rolling Paper Viewport (code.xr style) -->
+    <div class="gf-paper-viewport">
+      <div class="gf-receipt-paper-animated">
         ${(isAdm && curIdx !== -1) ? `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px;margin-bottom:12px;background:rgba(99,102,241,0.08);border-radius:10px;font-size:12px;font-weight:700">
           <span style="color:var(--p)">${tr('Receipt Review','రసీదు సమీక్ష')} (${curIdx + 1} / ${unreadWaiting.length})</span>
@@ -2274,7 +2455,15 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
             ${nextId ? `<button class="sm p" style="padding:2px 8px;font-size:11px" onclick="openReceipt('${nextId}')">${tr('Next →','తదుపరి →')}</button>` : ''}
           </div>
         </div>` : ''}
-        <div class="gf-receipt-header">
+
+        <!-- Circular Success Checkmark Pop Badge -->
+        <div class="gf-receipt-success-badge">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <div class="gf-receipt-header gf-anim-header">
           <div class="gf-receipt-brand">
             <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
             <span>Gangaya Finance</span>
@@ -2283,7 +2472,7 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
         </div>
 
-        <div class="gf-receipt-hero">
+        <div class="gf-receipt-hero gf-anim-hero">
           <div class="gf-receipt-amt-lbl">${isPay?tr('Amount Paid','చెల్లించిన మొత్తం'):tr('Loan Amount','మంజూరైన అప్పు')}</div>
           <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
           <div class="gf-receipt-mode-badge">
@@ -2291,7 +2480,7 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           </div>
         </div>
 
-        <div class="gf-receipt-rows">
+        <div class="gf-receipt-rows gf-anim-rows">
           <div class="gf-receipt-row">
             <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
             <span class="gf-receipt-v">${esc(nm(m))} <span class="m">(${esc(vl(m.village))})</span></span>
@@ -2320,13 +2509,13 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           </div>
         </div>
 
-        <div class="gf-receipt-stamp">
+        <div class="gf-receipt-stamp gf-anim-stamp">
           ${isPay?'PAID ✓':'SANCTIONED ✓'}
         </div>
 
-                ${(!isPay) ? `
+        ${(!isPay) ? `
         <!-- Dynamic UPI Payment Scanner (Only for Sanctioned Loans or Due Slips) -->
-        <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
+        <div class="gf-receipt-payment-scanner gf-anim-qr" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
             <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
           </div>
@@ -2348,7 +2537,7 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
         </div>
 
         <!-- Verification Micro QR Code -->
-        <div class="gf-receipt-verify-sec">
+        <div class="gf-receipt-verify-sec gf-anim-qr">
           <div class="gf-receipt-verify-info">
             <div class="gf-receipt-verify-badge">
               <span class="gf-receipt-verify-dot"></span>
@@ -2367,7 +2556,7 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           </a>
         </div>` : `
         <!-- Paid Slip: Prominent Verification Scanner Only (Payment already made) -->
-        <div class="gf-receipt-verify-sec" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
+        <div class="gf-receipt-verify-sec gf-anim-qr" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
           <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:3px 12px;border-radius:20px;color:#059669;font-weight:800;font-size:11px;margin-bottom:8px">
             <span style="width:6px;height:6px;border-radius:50%;background:#059669"></span>
             <span>${tr('OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓','అధికారిక ధృవీకరించిన రసీదు · పూర్తిగా చెల్లించబడింది ✓')}</span>
@@ -2382,12 +2571,11 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           <div class="m" style="font-size:10.5px">${tr('Authenticated by Collector · Gangaya Finance','కలెక్టర్ ద్వారా ధృవీకరించబడింది · గంగయ్య ఫైనాన్స్')}</div>
         </div>`}
 
-                ${showPosTheme ? `
-        <div class="gf-pos-barcode"></div>
-        <div class="gf-pos-barcode-num">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
-        ` : ''}
+        <div class="gf-pos-barcode gf-anim-stamp"></div>
+        <div class="gf-pos-barcode-num gf-anim-stamp">${recNo} · ${tr('AUTHENTICATED BY COLLECTOR','కలెక్టర్ ద్వారా ధృవీకరించబడింది')}</div>
 
-        <div class="gf-receipt-acts" style="flex-wrap:wrap;gap:8px">
+        <!-- Current Action Buttons Preserved Intact -->
+        <div class="gf-receipt-acts gf-anim-acts" style="flex-wrap:wrap;gap:8px;margin-top:16px">
           <button class="p sm" style="background:#25d366;border-color:#25d366;color:#fff;font-weight:700" onclick="shareReceiptPhoto('${t.id}')">
             ${tr('Share Receipt Photo','రసీదు ఫోటో పంపు')}
           </button>
@@ -2412,7 +2600,8 @@ return `<div id="ov" class="${showPosTheme ? 'is-pos-ov' : ''}" style="position:
           <button class="sm" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
         </div>
       </div>
-      <div class="gf-receipt-sawtooth"></div>
+      <!-- Perforated Sawtooth Tear Edge -->
+      <div class="gf-receipt-sawtooth-cut"></div>
     </div>
   </div>
 </div>`}
@@ -2963,6 +3152,14 @@ async function startCameraScanner(){
     </div>
   `;
 
+  if (_cameraStream) {
+    try {
+      _cameraStream.getTracks().forEach(t => t.stop());
+    } catch(_) {}
+    _cameraStream = null;
+    await new Promise(r => setTimeout(r, 80));
+  }
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   let stream = null;
   let lastErr = null;
@@ -2977,17 +3174,24 @@ async function startCameraScanner(){
   };
 
   if (isMobile) {
-    stream = await tryGUM({ video: { facingMode: { ideal: 'environment' } } });
+    stream = await tryGUM({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } } });
+    if (!stream) stream = await tryGUM({ video: { facingMode: 'environment' } });
     if (!stream) stream = await tryGUM({ video: true });
   } else {
     // Desktop / Laptop (PC): Direct webcam access
     stream = await tryGUM({ video: true });
+    if (!stream) {
+      stream = await tryGUM({ video: { width: { ideal: 640 }, height: { ideal: 480 } } });
+    }
     if (!stream && navigator.mediaDevices.enumerateDevices) {
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
-        const vidDev = devs.find(d => d.kind === 'videoinput');
-        if (vidDev && vidDev.deviceId) {
-          stream = await tryGUM({ video: { deviceId: { exact: vidDev.deviceId } } });
+        const vidDevs = devs.filter(d => d.kind === 'videoinput');
+        for (const vidDev of vidDevs) {
+          if (vidDev && vidDev.deviceId) {
+            stream = await tryGUM({ video: { deviceId: { ideal: vidDev.deviceId } } });
+            if (stream) break;
+          }
         }
       } catch(_) {}
     }
@@ -3008,7 +3212,9 @@ async function startCameraScanner(){
           ${esc(errName || 'Notice')}: ${esc(errMsg || tr('Camera could not start','కెమెరా తెరవబడలేదు'))}
         </div>
         <p class="m" style="font-size:12px;line-height:1.45;margin:0 0 12px">
-          ${tr('Tip: If browser site settings or another application is previewing the camera, close that panel and tap Try Camera Again. Or snap/upload a photo of the receipt below:', 'సూచన: బ్రౌజర్ సెట్టింగ్స్ లేదా వేరే యాప్ కెమెరా వాడుతుంటే, దాన్ని మూసివేసి మళ్ళీ ప్రయత్నించండి. లేదా క్రింద ఫోటో ఎంచుకోండి:')}
+          ${(errName === 'NotAllowedError' || errMsg.toLowerCase().includes('permission') || errMsg.toLowerCase().includes('denied')) ?
+            tr('Important: If Chrome settings / camera preview popup is open in your address bar, please close it first so Windows can release the camera hardware. If you just toggled Camera to Allow in the address bar, tap Reload Page below.', 'ముఖ్య గమనిక: బ్రౌజర్ సెట్టింగ్స్ లేదా వేరే యాప్ కెమెరా వాడుతుంటే దాన్ని మూసివేయండి. అడ్రస్ బార్‌లో కెమెరా అలో చేసిన తర్వాత పేజీ రీలోడ్ చేయండి.') :
+            tr('Tip: You can retry camera, reload the page, or instantly snap/choose a photo of the receipt below:', 'సూచన: కెమెరా మళ్ళీ ప్రయత్నించండి లేదా క్రింద ఫోటో ఎంచుకోండి:')}
         </p>
         <div class="acts" style="gap:8px;flex-wrap:wrap">
           <button class="p sm" onclick="startCameraScanner()" style="font-weight:700">
@@ -5320,126 +5526,154 @@ function renderStandaloneReceiptPage(receiptId){
         <span>${tr('AUTHENTIC RECORD · VERIFIED ON GOOGLE','గూగుల్‌లో ధృవీకరించబడిన రసీదు')}</span>
       </div>
 
-      <!-- Receipt Card -->
-      <div class="gf-receipt-modal" style="margin:0;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,0.22)">
-        <div class="gf-receipt-paper">
-          <div class="gf-receipt-header">
-            <div class="gf-receipt-brand">
-              <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
-              <span>Gangaya Finance</span>
+      <!-- Receipt Card with Thermal Dispenser Animation (code.xr style) -->
+      <div class="gf-receipt-dispenser-wrap" role="dialog" aria-modal="true" onclick="this.classList.add('skip-anim');">
+        <!-- Metallic Dispenser Slot -->
+        <div class="gf-dispenser-slot">
+          <div class="gf-dispenser-slot-bar">
+            <div class="gf-dispenser-brand">
+              <span class="gf-dispenser-badge">GF POS</span>
+              <span>${tr('THERMAL RECEIPT DISPENSER','థర్మల్ రసీదు ప్రింటర్')}</span>
             </div>
-            <div class="gf-receipt-sub">${isPay ? tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు') : tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
-            <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
-          </div>
-
-          <div class="gf-receipt-hero">
-            <div class="gf-receipt-amt-lbl">${isPay ? tr('Amount Paid','చెల్లించిన మొత్తం') : tr('Loan Amount','మంజూరైన అప్పు')}</div>
-            <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
-            <div class="gf-receipt-mode-badge">
-              ${isPay ? (t.mode === 'upi' ? 'UPI · VERIFIED ✓' : tr('CASH PAYMENT','నగదు చెల్లింపు')) : tr('SANCTIONED LOAN','మంజూరైన అప్పు')}
+            <div class="gf-dispenser-status">
+              <span class="gf-dispenser-led"></span>
+              <span>${tr('AUTHENTIC RECORD ✓','ధృవీకరించిన రసీదు ✓')}</span>
             </div>
           </div>
-
-          <div class="gf-receipt-rows">
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
-              <span class="gf-receipt-v">${esc(borrowerName)} ${borrowerVillage ? `<span class="m">(${esc(borrowerVillage)})</span>` : ''}</span>
-            </div>
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
-              <span class="gf-receipt-v">${dateStr}${timeStr ? `, ${timeStr}` : ''}</span>
-            </div>
-            ${t.utr ? `
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">UPI UTR / Ref</span>
-              <span class="gf-receipt-v" style="font-family:monospace">${esc(t.utr)}</span>
-            </div>` : ''}
-            ${(balDue > 0 || typeof t.bal !== 'undefined') ? `
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
-              <span class="gf-receipt-v" style="color:${balDue > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(balDue)}</span>
-            </div>` : (m.inst ? `
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${tr('Instalment','వాయిదా')}</span>
-              <span class="gf-receipt-v">${inr(m.inst)} (${m.freq === 1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')})</span>
-            </div>` : '')}
-            <div class="gf-receipt-row">
-              <span class="gf-receipt-k">${isPay ? tr('Logged / Recorded By','నమోదు చేసినవారు') : tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
-              <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(collector)}</span>
-            </div>
-          </div>
-
-          <div class="gf-receipt-stamp">
-            ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
-          </div>
-
-          ${(!isPay) ? `
-          <!-- Dynamic UPI Payment Scanner (Only for Loans or Due Slips) -->
-          <div class="gf-receipt-payment-scanner" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
-            <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
-              <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
-            </div>
-            <div style="font-size:13.5px;font-weight:800;color:var(--t);margin-bottom:2px">
-              ${tr('Scan to Pay ' + inr(payAmt) + ' using any UPI App', 'ఏదైనా UPI యాప్‌తో ' + inr(payAmt) + ' చెల్లించండి')}
-            </div>
-            <div class="m" style="font-size:11px;margin-bottom:10px">
-              GPay · PhonePe · Paytm · super.money · BHIM
-            </div>
-            <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
-              ${getUpiQrSvg(payAmt, recNo, 120)}
-            </div>
-            <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
-              ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
-            </div>
-            <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
-              <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
-            </a>
-          </div>
-
-          <!-- Micro QR Box -->
-          <div class="gf-receipt-verify-sec">
-            <div class="gf-receipt-verify-info">
-              <div class="gf-receipt-verify-badge">
-                <span class="gf-receipt-verify-dot"></span>
-                ${tr('DIGITAL VERIFIED RECEIPT','ధృవీకరించిన రసీదు')}
-              </div>
-              <div class="gf-receipt-verify-desc">
-                ${tr('Scanned & verified via official ledger database','అధికారిక లెడ్జర్ ద్వారా ధృవీకరించబడింది')}
-              </div>
-              <div class="gf-receipt-verify-id">${recNo}</div>
-            </div>
-            <div class="gf-receipt-qr-link">
-              <div class="gf-receipt-qr-box">
-                ${getReceiptQrSvg(t.id, 52)}
-              </div>
-              <span class="gf-receipt-qr-hint">${tr('VERIFIED ✓','ధృవీకరించబడింది')}</span>
-            </div>
-          </div>` : `
-          <!-- Paid Slip: Prominent Verification Scanner Only (Payment already made) -->
-          <div class="gf-receipt-verify-sec" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
-            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:3px 12px;border-radius:20px;color:#059669;font-weight:800;font-size:11px;margin-bottom:8px">
-              <span style="width:6px;height:6px;border-radius:50%;background:#059669"></span>
-              <span>${tr('OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓','అధికారిక ధృవీకరించిన రసీదు · పూర్తిగా చెల్లించబడింది ✓')}</span>
-            </div>
-            <div class="m" style="font-size:11.5px;max-width:320px;margin:0 auto 10px;line-height:1.4">
-              ${tr('Scan QR with any phone camera or Google to verify authentic ledger record','రికార్డు ధృవీకరణ కోసం ఫోన్ కెమెరా లేదా గూగుల్‌తో QR కోడ్ స్కాన్ చేయండి')}
-            </div>
-            <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;border:1px solid var(--b);box-shadow:0 4px 12px rgba(0,0,0,0.06);text-decoration:none">
-              ${getReceiptQrSvg(t.id, 120)}
-            </a>
-            <div style="font-family:monospace;font-size:12px;font-weight:800;color:var(--t);margin-top:6px">${recNo}</div>
-            <div class="m" style="font-size:10.5px">${tr('Authenticated by Collector · Gangaya Finance','కలెక్టర్ ద్వారా ధృవీకరించబడింది · గంగయ్య ఫైనాన్స్')}</div>
-          </div>`}
-
-          <!-- Actions (Strictly View-Only For Public Verification) -->
-          <div class="gf-receipt-acts" style="justify-content:center;margin-top:18px">
-            <button class="sm" onclick="window.print()" style="padding:8px 24px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;background:var(--c);border:1px solid var(--b);color:var(--t);cursor:pointer">
-              <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              <span>${tr('Print Receipt','రసీదు ప్రింట్')}</span>
-            </button>
+          <div class="gf-dispenser-mouth">
+            <div class="gf-dispenser-teeth"></div>
           </div>
         </div>
-        <div class="gf-receipt-sawtooth"></div>
+
+        <!-- Rolling Paper Viewport -->
+        <div class="gf-paper-viewport">
+          <div class="gf-receipt-paper-animated">
+            <!-- Circular Success Badge -->
+            <div class="gf-receipt-success-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+
+            <div class="gf-receipt-header gf-anim-header">
+              <div class="gf-receipt-brand">
+                <div class="brand-logo" style="width:28px;height:28px;font-size:12px;border-radius:8px">GF</div>
+                <span>Gangaya Finance</span>
+              </div>
+              <div class="gf-receipt-sub">${isPay ? tr('Payment Collection Receipt','చెల్లింపు వసూలు రసీదు') : tr('New Loan Sanction Receipt','కొత్త అప్పు మంజూరు రసీదు')}</div>
+              <div class="m" style="font-size:11px;font-family:monospace;letter-spacing:0.05em;margin-top:2px">${recNo}</div>
+            </div>
+
+            <div class="gf-receipt-hero gf-anim-hero">
+              <div class="gf-receipt-amt-lbl">${isPay ? tr('Amount Paid','చెల్లించిన మొత్తం') : tr('Loan Amount','మంజూరైన అప్పు')}</div>
+              <div class="gf-receipt-amt-val">${inr(t.amt)}</div>
+              <div class="gf-receipt-mode-badge">
+                ${isPay ? (t.mode === 'upi' ? 'UPI · VERIFIED ✓' : tr('CASH PAYMENT','నగదు చెల్లింపు')) : tr('SANCTIONED LOAN','మంజూరైన అప్పు')}
+              </div>
+            </div>
+
+            <div class="gf-receipt-rows gf-anim-rows">
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">${tr('Borrower','రుణగ్రహీత')}</span>
+                <span class="gf-receipt-v">${esc(borrowerName)} ${borrowerVillage ? `<span class="m">(${esc(borrowerVillage)})</span>` : ''}</span>
+              </div>
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">${tr('Date & Time','తేదీ & సమయం')}</span>
+                <span class="gf-receipt-v">${dateStr}${timeStr ? `, ${timeStr}` : ''}</span>
+              </div>
+              ${t.utr ? `
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">UPI UTR / Ref</span>
+                <span class="gf-receipt-v" style="font-family:monospace">${esc(t.utr)}</span>
+              </div>` : ''}
+              ${(balDue > 0 || typeof t.bal !== 'undefined') ? `
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">${tr('Balance Due','మిగిలిన బాకీ')}</span>
+                <span class="gf-receipt-v" style="color:${balDue > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(balDue)}</span>
+              </div>` : (m.inst ? `
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">${tr('Instalment','వాయిదా')}</span>
+                <span class="gf-receipt-v">${inr(m.inst)} (${m.freq === 1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')})</span>
+              </div>` : '')}
+              <div class="gf-receipt-row">
+                <span class="gf-receipt-k">${isPay ? tr('Logged / Recorded By','నమోదు చేసినవారు') : tr('Sanctioned By','మంజూరు చేసినవారు')}</span>
+                <span class="gf-receipt-v" style="font-weight:800;color:var(--p)">${esc(collector)}</span>
+              </div>
+            </div>
+
+            <div class="gf-receipt-stamp gf-anim-stamp">
+              ${isPay ? 'PAID ✓' : 'SANCTIONED ✓'}
+            </div>
+
+            ${(!isPay) ? `
+            <!-- Dynamic UPI Payment Scanner (Only for Loans or Due Slips) -->
+            <div class="gf-receipt-payment-scanner gf-anim-qr" style="margin-top:14px;padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(59,130,246,0.08));border:1.5px solid rgba(99,102,241,0.22);border-radius:14px;text-align:center">
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+                <span style="font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p);background:rgba(99,102,241,0.12);padding:2px 8px;border-radius:6px">UPI · SCAN &amp; PAY</span>
+              </div>
+              <div style="font-size:13.5px;font-weight:800;color:var(--t);margin-bottom:2px">
+                ${tr('Scan to Pay ' + inr(payAmt) + ' using any UPI App', 'ఏదైనా UPI యాప్‌తో ' + inr(payAmt) + ' చెల్లించండి')}
+              </div>
+              <div class="m" style="font-size:11px;margin-bottom:10px">
+                GPay · PhonePe · Paytm · super.money · BHIM
+              </div>
+              <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
+                ${getUpiQrSvg(payAmt, recNo, 120)}
+              </div>
+              <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
+                ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
+              </div>
+              <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+                <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
+              </a>
+            </div>
+
+            <!-- Micro QR Box -->
+            <div class="gf-receipt-verify-sec gf-anim-qr">
+              <div class="gf-receipt-verify-info">
+                <div class="gf-receipt-verify-badge">
+                  <span class="gf-receipt-verify-dot"></span>
+                  ${tr('DIGITAL VERIFIED RECEIPT','ధృవీకరించిన రసీదు')}
+                </div>
+                <div class="gf-receipt-verify-desc">
+                  ${tr('Scanned & verified via official ledger database','అధికారిక లెడ్జర్ ద్వారా ధృవీకరించబడింది')}
+                </div>
+                <div class="gf-receipt-verify-id">${recNo}</div>
+              </div>
+              <div class="gf-receipt-qr-link">
+                <div class="gf-receipt-qr-box">
+                  ${getReceiptQrSvg(t.id, 52)}
+                </div>
+                <span class="gf-receipt-qr-hint">${tr('VERIFIED ✓','ధృవీకరించబడింది')}</span>
+              </div>
+            </div>` : `
+            <!-- Paid Slip: Prominent Verification Scanner Only (Payment already made) -->
+            <div class="gf-receipt-verify-sec gf-anim-qr" style="margin-top:14px;padding:16px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.28);border-radius:14px;text-align:center;display:block">
+              <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:3px 12px;border-radius:20px;color:#059669;font-weight:800;font-size:11px;margin-bottom:8px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#059669"></span>
+                <span>${tr('OFFICIAL VERIFIED RECEIPT · PAID IN FULL ✓','అధికారిక ధృవీకరించిన రసీదు · పూర్తిగా చెల్లించబడింది ✓')}</span>
+              </div>
+              <div class="m" style="font-size:11.5px;max-width:320px;margin:0 auto 10px;line-height:1.4">
+                ${tr('Scan QR with any phone camera or Google to verify authentic ledger record','రికార్డు ధృవీకరణ కోసం ఫోన్ కెమెరా లేదా గూగుల్‌తో QR కోడ్ స్కాన్ చేయండి')}
+              </div>
+              <a href="/?vr=${encodeURIComponent(t.id)}" target="_blank" style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;border:1px solid var(--b);box-shadow:0 4px 12px rgba(0,0,0,0.06);text-decoration:none">
+                ${getReceiptQrSvg(t.id, 120)}
+              </a>
+              <div style="font-family:monospace;font-size:12px;font-weight:800;color:var(--t);margin-top:6px">${recNo}</div>
+              <div class="m" style="font-size:10.5px">${tr('Authenticated by Collector · Gangaya Finance','కలెక్టర్ ద్వారా ధృవీకరించబడింది · గంగయ్య ఫైనాన్స్')}</div>
+            </div>`}
+
+            <!-- Actions (Strictly View-Only For Public Verification) -->
+            <div class="gf-receipt-acts gf-anim-acts" style="justify-content:center;margin-top:18px">
+              <button class="sm" onclick="window.print()" style="padding:8px 24px;border-radius:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;background:var(--c);border:1px solid var(--b);color:var(--t);cursor:pointer">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>${tr('Print Receipt','రసీదు ప్రింట్')}</span>
+              </button>
+            </div>
+          </div>
+          <!-- Perforated Sawtooth Cut -->
+          <div class="gf-receipt-sawtooth-cut"></div>
+        </div>
       </div>
 
       <!-- Staff Login Link at the bottom -->
@@ -5528,7 +5762,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v70</span>
+          <span class="v18-pill">v71</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5637,5 +5871,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=66').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=71').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
