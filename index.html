@@ -1355,7 +1355,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=74"></script>
+<script src="/runtime.js?v=75"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1668,15 +1668,13 @@ function msg(t, mem){
   const col = getCollectorDisplay(t.by);
   const byLine = t.type == 'pay' ? 'నమోదు చేసినవారు: ' + col : 'మంజూరు చేసినవారు: ' + col;
   const recNo = 'GF-' + t.id.slice(0, 8).toUpperCase();
-  const vUrl = (typeof window !== 'undefined' && window.location && window.location.origin ? window.location.origin : 'https://gangaya-finance.vercel.app') + '/?vr=' + encodeURIComponent(t.id);
   const nameStr = m.te || m.name || tr('Customer', 'ఖాతాదారుడు');
   return 'నమస్కారం ' + nameStr + ' గారు,\n' +
-    BIZ + ' నుండి అధికారిక డిజిటల్ రసీదు (' + recNo + '):\n' +
+    BIZ + ' - రసీదు నంబర్: ' + recNo + '\n' +
     (t.type == 'pay' ? 'చెల్లింపు మొత్తం: ' + inr(t.amt) + ' (' + (t.mode == 'upi' ? 'UPI · ధృవీకరించబడింది' : 'నగదు') + ')' : 'కొత్త అప్పు: ' + inr(t.amt) + '\nతిరిగి చెల్లించాల్సిన మొత్తం: ' + inr(t.repay) + '\nవాయిదా: ' + inr(t.inst || m.inst || 0) + ' (' + fq + ')') +
     '\n' + byLine + '\n' +
     'తేదీ & సమయం: ' + (t.d ? fdt(t.d) : today()) + ', ' + (t.ts ? ft(t.ts) : '') + '\n' +
     'మిగిలిన బాకీ: ' + inr(Math.max(s.due || 0, 0)) + (s.due > 0 && s.next ? ('\nతదుపరి చెల్లింపు: ' + fdt(s.next) + ' - ' + inr(m.inst || 0)) : '') + '\n\n' +
-    'ఆన్‌లైన్ డిజిటల్ రసీదు / View Digital Receipt:\n' + vUrl + '\n\n' +
     ((typeof loanClosed === 'function' && m.id && loanClosed(m, t)) ? 'మీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు\n' : 'ధన్యవాదాలు\n') + BIZ;
 }
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
@@ -3250,9 +3248,6 @@ rmsg=(m,s,l)=>{
   const isEn=(l==='en'||(!l&&rmLang==='en'));
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
   const isOd=dl!==null&&dl<0,isTd=dl===0,instAmt=m.inst||0,dueAmt=Math.max(s.due,0);
-  const payAmt=isOd?dueAmt:(instAmt>0?instAmt:dueAmt);
-  const upiPayUrl=getUpiPayUrl(payAmt, m.name);
-  const scanLink=SCANNER_URL();
   if(isEn){
     const biz='Gangaya Finance';
     let sched='';
@@ -3263,8 +3258,8 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`Your regular instalment is ${inr(instAmt)}.\n`;
     }
-    const urg=isOd?'Please repay your overdue instalment immediately using the QR scanner or UPI link below:\n':'Please repay your instalment on time using the QR scanner or UPI link below:\n';
-    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\nClick to Pay ${inr(payAmt)}: ${upiPayUrl}\n\nOfficial QR Scanner:\n${scanLink}\n\nThank you\n${biz}`;
+    const urg=isOd?'Please repay your overdue instalment immediately:\n':'Please repay your instalment on time:\n';
+    return `Hello,\nThis is a payment reminder from ${biz}:\n`+sched+`Remaining balance: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nThank you\n${biz}`;
   }else{
     const biz='గంగయ్య ఫైనాన్స్';
     let sched='';
@@ -3275,8 +3270,8 @@ rmsg=(m,s,l)=>{
     }else if(instAmt>0){
       sched=`మీ వాయిదా: ${inr(instAmt)}\n`;
     }
-    const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ లేదా UPI లింక్ ద్వారా చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును క్రింది QR స్కానర్ లేదా UPI లింక్ ద్వారా పూర్తి చేయగలరు:\n';
-    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n${inr(payAmt)} చెల్లించడానికి లింక్: ${upiPayUrl}\n\nఅధికారిక QR స్కానర్:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
+    const urg=isOd?'దయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే చెల్లించగలరు:\n':'దయచేసి మీ వాయిదా చెల్లింపును సమయానికి పూర్తి చేయగలరు:\n';
+    return `నమస్కారం,\n${biz} నుండి గుర్తు చేస్తున్నాము:\n`+sched+`మిగిలిన బాకీ: ${inr(dueAmt)}\n`+urg+`UPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nధన్యవాదాలు\n${biz}`;
   }
 };
 function qitems(h){const o=[],td=today();
@@ -3383,18 +3378,17 @@ async function dlReminders(){
 function getRemTemplate(m,s,tpl,l){
   const isEn=(l==='en'),biz=isEn?'Gangaya Finance':'గంగయ్య ఫైనాన్స్',inst=inr(m.inst||0),due=inr(Math.max(s.due,0)),nextDate=s.next?(isEn?fde(s.next):fdt(s.next)):'';
   const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(today()+'T00:00:00'))/864e5):null;
-  const scanLink=SCANNER_URL();
   if(tpl==='od'){
-    if(isEn)return `Hello,\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (was due on '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nPlease repay your overdue instalment immediately using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nదయచేసి ఆలస్యమైన మీ వాయిదాను వెంటనే క్రింది QR స్కానర్ ద్వారా చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
+    if(isEn)return `Hello,\nUrgent payment notice from ${biz}:\nYour instalment of ${inst} is overdue${nextDate?' (was due on '+nextDate+')':''}${dl!==null?' by '+Math.abs(dl)+' days':''}.\nTotal balance due: ${due}\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి అత్యవసర నోటీసు:\nమీ వాయిదా ${inst} చెల్లింపు గడువు ముగిసింది${nextDate?' ('+nextDate+' న)':''}${dl!==null?' ('+Math.abs(dl)+' రోజులు ఆలస్యం)':''}.\nమొత్తం మిగిలిన బాకీ: ${due}\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nధన్యవాదాలు\n${biz}`;
   }
   if(tpl==='bal'){
-    if(isEn)return `Hello,\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nPlease arrange to repay your balance using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nదయచేసి మీ బాకీని క్రింది QR స్కానర్ ద్వారా చెల్లించి పూర్తి చేయగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
+    if(isEn)return `Hello,\nAccount balance update from ${biz}:\nYour current outstanding balance is ${due}.\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి సమాచారం:\nమీ ప్రస్తుత మిగిలిన మొత్తం బాకీ: ${due}.\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nధన్యవాదాలు\n${biz}`;
   }
   if(tpl==='gen'){
-    if(isEn)return `Hello,\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nPlease repay your instalment using the QR scanner below:\n${scanLink}\n\nThank you\n${biz}`;
-    return `నమస్కారం,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nదయచేసి క్రింది QR స్కానర్ ద్వారా మీ వాయిదాను చెల్లించగలరు:\n${scanLink}\n\nధన్యవాదాలు\n${biz}`;
+    if(isEn)return `Hello,\nGreetings from ${biz}.\nThis is a friendly reminder regarding your finance account.\nInstalment: ${inst}\nRemaining balance: ${due}\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nThank you\n${biz}`;
+    return `నమస్కారం,\n${biz} నుండి నమస్కారములు.\nమీ ఫైనాన్స్ ఖాతా సమాచారం:\nవాయిదా: ${inst}\nమిగిలిన బాకీ: ${due}\nUPI ID: ${DEFAULT_UPI_ID} (${DEFAULT_UPI_NAME})\n\nధన్యవాదాలు\n${biz}`;
   }
   return rmsg(m,s,l);
 }
@@ -6090,7 +6084,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v74</span>
+          <span class="v18-pill">v75</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -6200,5 +6194,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=74').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=75').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
