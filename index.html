@@ -1355,7 +1355,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=73"></script>
+<script src="/runtime.js?v=74"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1382,11 +1382,193 @@ function timeoutSignal(ms){
 }
 const DEFAULT_UPI_ID = 'challagolla.sravan@superyes';
 const DEFAULT_UPI_NAME = 'CHALLAGOLLA DURGA SRAVAN';
-function getUpiPayUrl(amount, note){
-  const a = (Number(amount) > 0) ? Number(amount).toFixed(2) : '';
-  const tn = encodeURIComponent(note || 'Gangaya Finance');
-  return `upi://pay?pa=${DEFAULT_UPI_ID}&pn=${encodeURIComponent(DEFAULT_UPI_NAME)}${a ? `&am=${a}` : ''}&cu=INR&tn=${tn}`;
+let upiModalData = null;
+
+function getUpiPayUrl(amount, note, appScheme){
+  const cleanUpiId = DEFAULT_UPI_ID;
+  const cleanName = encodeURIComponent(DEFAULT_UPI_NAME);
+  const numAmt = Number(amount);
+  const a = (numAmt > 0) ? (numAmt % 1 === 0 ? String(Math.round(numAmt)) : numAmt.toFixed(2)) : '';
+  const cleanNote = encodeURIComponent(String(note || 'Gangaya Finance').replace(/[^a-zA-Z0-9 ]/g, ' ').trim().slice(0, 40));
+  const baseQuery = `pa=${cleanUpiId}&pn=${cleanName}${a ? `&am=${a}` : ''}&cu=INR${cleanNote ? `&tn=${cleanNote}` : ''}`;
+  
+  if(appScheme === 'gpay') return `tez://upi/pay?${baseQuery}`;
+  if(appScheme === 'phonepe') return `phonepe://upi/pay?${baseQuery}`;
+  if(appScheme === 'paytm') return `paytmmp://upi/pay?${baseQuery}`;
+  if(appScheme === 'bhim') return `bhim://upi/pay?${baseQuery}`;
+  return `upi://pay?${baseQuery}`;
 }
+
+function copyTextToClipboard(text, successMsg){
+  if(!text) return;
+  if(typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{
+      toast(successMsg || tr('Copied to clipboard ✓', 'క్లిప్‌బోర్డ్‌కి కాపీ చేయబడింది ✓'));
+    }).catch(()=>{
+      fallbackCopyText(text, successMsg);
+    });
+  } else {
+    fallbackCopyText(text, successMsg);
+  }
+}
+
+function fallbackCopyText(text, successMsg){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast(successMsg || tr('Copied to clipboard ✓', 'క్లిప్‌బోర్డ్‌కి కాపీ చేయబడింది ✓'));
+  }catch(_){
+    prompt(tr('Copy this:','కాపీ చేయండి:'), text);
+  }
+}
+
+function copyUpiId(){
+  copyTextToClipboard(DEFAULT_UPI_ID, tr('UPI ID copied: ' + DEFAULT_UPI_ID + ' ✓', 'UPI ID కాపీ చేయబడింది: ' + DEFAULT_UPI_ID + ' ✓'));
+}
+
+function triggerUpiPayment(amount, note, mid){
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const upiUrl = getUpiPayUrl(amount, note);
+  
+  // Copy UPI ID automatically so user has it ready
+  copyTextToClipboard(DEFAULT_UPI_ID, tr('UPI ID copied: ' + DEFAULT_UPI_ID + ' ✓', 'UPI ID కాపీ చేయబడింది: ' + DEFAULT_UPI_ID + ' ✓'));
+  
+  if(isMobile){
+    try{
+      window.location.href = upiUrl;
+    }catch(_){}
+  }
+  
+  // Also open rich UPI dialog so user can pick GPay, PhonePe, Paytm, or scan QR
+  openUpiPayDialog(amount, note, mid);
+}
+
+function openUpiPayDialog(amount, note, mid){
+  const numAmt = Number(amount) || 0;
+  const dispAmt = inr(numAmt);
+  const recCode = note || 'Gangaya Finance';
+  const m = mid ? M.find(x => x.id == mid) : null;
+  const memName = m ? nm(m) : '';
+  const upiUrl = getUpiPayUrl(amount, note);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  upiModalData = {
+    amount: numAmt,
+    dispAmt,
+    recCode,
+    mid,
+    memName,
+    upiUrl,
+    isMobile
+  };
+  draw();
+}
+
+function closeUpiPayDialog(){
+  upiModalData = null;
+  draw();
+}
+
+function recordPayFromReceipt(mid, defaultAmt){
+  vr = '';
+  upiModalData = null;
+  tab = 'fa';
+  const m = M.find(x => x.id == mid);
+  if(m){
+    sel = m;
+    pmode = 'upi';
+    draw();
+    setTimeout(()=>{
+      const amtInput = document.getElementById('amt');
+      if(amtInput && defaultAmt > 0){
+        amtInput.value = defaultAmt;
+        amtInput.focus();
+        amtInput.select();
+      }
+    }, 60);
+  } else {
+    draw();
+  }
+}
+
+function upiPayModalHtml(){
+  if(!upiModalData) return '';
+  const d = upiModalData;
+  const isMobile = d.isMobile;
+  const gpayUrl = getUpiPayUrl(d.amount, d.recCode, 'gpay');
+  const phonepeUrl = getUpiPayUrl(d.amount, d.recCode, 'phonepe');
+  const paytmUrl = getUpiPayUrl(d.amount, d.recCode, 'paytm');
+  const bhimUrl = getUpiPayUrl(d.amount, d.recCode, 'bhim');
+  const upiUrl = d.upiUrl;
+
+  return `<div id="upiModalOv" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px" onclick="if(event.target.id=='upiModalOv')closeUpiPayDialog()">
+    <div style="background:var(--c);color:var(--t);border:1px solid var(--b);border-radius:18px;max-width:420px;width:100%;box-shadow:0 20px 40px rgba(0,0,0,0.35);padding:20px;box-sizing:border-box;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--b);padding-bottom:10px">
+        <div>
+          <div style="font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.06em;color:var(--p)">UPI · SCAN &amp; PAY</div>
+          <div style="font-size:17px;font-weight:900;color:var(--t)">${tr('Pay ' + d.dispAmt + ' via UPI', 'UPI ద్వారా ' + d.dispAmt + ' చెల్లించండి')}</div>
+        </div>
+        <button onclick="closeUpiPayDialog()" style="background:transparent;border:none;font-size:18px;font-weight:700;color:var(--m);cursor:pointer;padding:4px 8px">✕</button>
+      </div>
+
+      ${!isMobile ? `
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:12px;line-height:1.4;color:var(--t)">
+        <b>${tr('Desktop Notice:','డెస్క్‌టాప్ గమనిక:')}</b> ${tr('UPI apps run on mobile devices. Scan the QR code below using any UPI app on your phone, or copy the UPI ID.','UPI యాప్‌లు ఫోన్‌లో పనిచేస్తాయి. ఫోన్‌లోని ఏదైనా UPI యాప్‌తో కింద ఉన్న QR కోడ్‌ని స్కాన్ చేయండి లేదా UPI IDని కాపీ చేయండి.')}
+      </div>` : ''}
+
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="display:inline-block;padding:10px;background:#ffffff;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.1)">
+          ${getUpiQrSvg(d.amount, d.recCode, 140)}
+        </div>
+        <div style="font-size:12px;font-weight:700;margin-top:8px;color:var(--t)">${DEFAULT_UPI_NAME}</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
+          <span style="font-family:monospace;font-size:12.5px;font-weight:700;color:var(--p);background:rgba(99,102,241,0.1);padding:3px 8px;border-radius:6px">${DEFAULT_UPI_ID}</span>
+          <button type="button" onclick="copyUpiId()" class="sm" style="font-size:11px;padding:3px 8px;font-weight:700">${tr('Copy UPI ID','కాపీ చేయండి')}</button>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+        <a href="${upiUrl}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:11px 14px;border-radius:10px;font-size:13.5px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 3px 10px rgba(37,99,235,0.3)">
+          <span>${tr('Open Default UPI App (' + d.dispAmt + ') →', 'UPI యాప్ తెరవండి (' + d.dispAmt + ') →')}</span>
+        </a>
+
+        <!-- Fast Specific App Chooser Grid -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+          <a href="${gpayUrl}" class="sm" style="text-align:center;padding:7px 4px;font-weight:800;border:1px solid var(--b);border-radius:8px;text-decoration:none;background:var(--c);color:var(--t)">GPay</a>
+          <a href="${phonepeUrl}" class="sm" style="text-align:center;padding:7px 4px;font-weight:800;border:1px solid var(--b);border-radius:8px;text-decoration:none;background:var(--c);color:var(--t)">PhonePe</a>
+          <a href="${paytmUrl}" class="sm" style="text-align:center;padding:7px 4px;font-weight:800;border:1px solid var(--b);border-radius:8px;text-decoration:none;background:var(--c);color:var(--t)">Paytm</a>
+          <a href="${bhimUrl}" class="sm" style="text-align:center;padding:7px 4px;font-weight:800;border:1px solid var(--b);border-radius:8px;text-decoration:none;background:var(--c);color:var(--t)">BHIM</a>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;border-top:1px solid var(--b);padding-top:10px">
+        <button type="button" class="sm" onclick="copyTextToClipboard('${d.amount}', tr('Amount copied: ' + '${d.amount}' + ' ✓', 'మొత్తం కాపీ చేయబడింది: ' + '${d.amount}' + ' ✓'))" style="flex:1;padding:8px">
+          ${tr('Copy Amount ₹','మొత్తం కాపీ ₹')}
+        </button>
+        ${(d.mid && (owner || role=='a' || role=='f')) ? `
+        <button type="button" class="sm p" onclick="recordPayFromReceipt('${d.mid}', ${d.amount})" style="flex:1.5;padding:8px;font-weight:800">
+          ${tr('Record in Ledger ✓','లెడ్జర్‌లో నమోదు చేయి ✓')}
+        </button>` : ''}
+        <button type="button" class="sm" onclick="closeUpiPayDialog()" style="padding:8px 12px">
+          ${tr('Close','మూసివేయి')}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+window.copyUpiId = copyUpiId;
+window.copyTextToClipboard = copyTextToClipboard;
+window.triggerUpiPayment = triggerUpiPayment;
+window.openUpiPayDialog = openUpiPayDialog;
+window.closeUpiPayDialog = closeUpiPayDialog;
+window.recordPayFromReceipt = recordPayFromReceipt;
 function getUpiQrSvg(amount, note, dim = 110){
   try{
     if(typeof QRCode === 'function'){
@@ -2633,12 +2815,25 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);ba
           <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
             ${getUpiQrSvg(payAmt, recNo, 120)}
           </div>
-          <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
-            ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
+          <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+            <span>${DEFAULT_UPI_NAME} ·</span>
+            <span onclick="copyUpiId()" style="font-family:monospace;font-weight:700;color:var(--p);cursor:pointer;text-decoration:underline" title="${tr('Tap to copy UPI ID','UPI ID కాపీ చేయడానికి నొక్కండి')}">${DEFAULT_UPI_ID}</span>
+            <button type="button" class="sm" onclick="copyUpiId()" style="font-size:10px;padding:1px 6px;margin:0">${tr('Copy','కాపీ')}</button>
           </div>
-          <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+          <button type="button" onclick="triggerUpiPayment('${payAmt}', '${recNo}', '${t.mid || ''}')" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;border:none;cursor:pointer;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
             <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
-          </a>
+          </button>
+          <!-- Quick App Row -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px">
+            <a href="${getUpiPayUrl(payAmt, recNo, 'gpay')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">GPay</a>
+            <a href="${getUpiPayUrl(payAmt, recNo, 'phonepe')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">PhonePe</a>
+            <a href="${getUpiPayUrl(payAmt, recNo, 'paytm')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">Paytm</a>
+            <button type="button" class="sm" onclick="copyUpiId()" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;background:var(--c);color:var(--t);margin:0">${tr('Copy ID','కాపీ')}</button>
+          </div>
+          ${(t.mid && (owner || role=='a' || role=='f')) ? `
+          <button type="button" onclick="recordPayFromReceipt('${t.mid}', ${payAmt})" style="margin-top:8px;background:rgba(16,185,129,0.12);color:#059669;border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:8px 12px;width:100%;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span>${tr('Record / Log Payment in Ledger (' + inr(payAmt) + ') ✓', 'లెడ్జర్‌లో చెల్లింపు నమోదు చేయండి (' + inr(payAmt) + ') ✓')}</span>
+          </button>` : ''}
         </div>
 
         <!-- Verification Micro QR Code -->
@@ -5742,12 +5937,21 @@ function renderStandaloneReceiptPage(receiptId){
               <div style="display:inline-block;padding:8px;background:#ffffff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,0.08);margin-bottom:8px">
                 ${getUpiQrSvg(payAmt, recNo, 120)}
               </div>
-              <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px">
-                ${DEFAULT_UPI_NAME} · <span style="font-family:monospace;font-weight:700;color:var(--t)">${DEFAULT_UPI_ID}</span>
+              <div style="font-size:11px;color:var(--m);font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+                <span>${DEFAULT_UPI_NAME} ·</span>
+                <span onclick="copyUpiId()" style="font-family:monospace;font-weight:700;color:var(--p);cursor:pointer;text-decoration:underline" title="${tr('Tap to copy UPI ID','UPI ID కాపీ చేయడానికి నొక్కండి')}">${DEFAULT_UPI_ID}</span>
+                <button type="button" class="sm" onclick="copyUpiId()" style="font-size:10px;padding:1px 6px;margin:0">${tr('Copy','కాపీ')}</button>
               </div>
-              <a href="${getUpiPayUrl(payAmt, recNo)}" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;text-decoration:none;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+              <button type="button" onclick="triggerUpiPayment('${payAmt}', '${recNo}', '${t.mid || ''}')" class="p" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:800;border:none;cursor:pointer;background:#2563eb;color:#ffffff;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
                 <span>${tr('Tap to Pay ' + inr(payAmt) + ' via UPI App', inr(payAmt) + ' UPI యాప్‌తో చెల్లించండి')} →</span>
-              </a>
+              </button>
+              <!-- Quick App Row -->
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px">
+                <a href="${getUpiPayUrl(payAmt, recNo, 'gpay')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">GPay</a>
+                <a href="${getUpiPayUrl(payAmt, recNo, 'phonepe')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">PhonePe</a>
+                <a href="${getUpiPayUrl(payAmt, recNo, 'paytm')}" target="_blank" class="sm" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;text-decoration:none;background:var(--c);color:var(--t)">Paytm</a>
+                <button type="button" class="sm" onclick="copyUpiId()" style="text-align:center;padding:5px 2px;font-size:11px;font-weight:700;border:1px solid var(--b);border-radius:6px;background:var(--c);color:var(--t);margin:0">${tr('Copy ID','కాపీ')}</button>
+              </div>
             </div>
 
             <!-- Micro QR Box -->
@@ -5806,6 +6010,7 @@ function renderStandaloneReceiptPage(receiptId){
         </button>
         <div class="m" style="font-size:11px;margin-top:6px">${tr('Gangaya Finance • Official Verified Receipt','గంగయ్య ఫైనాన్స్ • అధికారిక ధృవీకరించిన రసీదు')}</div>
       </div>
+      ${upiPayModalHtml()}
     </div>
   `;
 }
@@ -5885,7 +6090,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v73</span>
+          <span class="v18-pill">v74</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -5939,6 +6144,7 @@ ${fatherNoteModal()}
 ${manualRemModal()}
 ${scannerModal()}
 ${upiScannedModalHtml()}
+${upiPayModalHtml()}
 ${fatherNewLoanModal()}`;
 for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
 (async()=>{
@@ -5994,5 +6200,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=73').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=74').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
