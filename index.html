@@ -533,28 +533,33 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   opacity: 0.45;
 }
 
-/* Paper Viewport & Hardware-Accelerated Smooth Rollout (Zero Lag / GPU Composited) */
+/* Paper Viewport & Hardware-Accelerated Ultra-Smooth Thermal Feed (Zero Lag / GPU Composited) */
 .gf-paper-viewport {
   width: 100%;
   position: relative;
   border-radius: 0 0 16px 16px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
-  animation: receiptRollOut 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.42);
   transform-origin: top center;
-  will-change: transform, clip-path;
+  animation: thermalPrintFeed 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: clip-path, transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
-@keyframes receiptRollOut {
+@keyframes thermalPrintFeed {
   0% {
     clip-path: inset(0 0 100% 0 round 0 0 16px 16px);
-    transform: translate3d(0, -32px, 0) scale(0.985);
-    opacity: 0.85;
+    transform: translate3d(0, -22px, 0);
+    opacity: 0.95;
+  }
+  78% {
+    clip-path: inset(0 0 0% 0 round 0 0 16px 16px);
+    transform: translate3d(0, 2px, 0);
+    opacity: 1;
   }
   100% {
     clip-path: inset(0 0 0% 0 round 0 0 16px 16px);
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
@@ -581,6 +586,18 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   flex-direction: column;
   gap: 8px;
   box-sizing: border-box;
+  animation: actsSlideUp 0.38s 0.68s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes actsSlideUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .gf-btn-hero-wa {
@@ -696,7 +713,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   box-sizing: border-box;
 }
 
-/* Success Checkmark Badge Pop */
+/* Success Checkmark Badge Pop (Fluid Spring) */
 .gf-receipt-success-badge {
   width: 44px;
   height: 44px;
@@ -708,7 +725,8 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   justify-content: center;
   margin: 0 auto 10px;
   box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
-  animation: successBadgePop 0.5s 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: successBadgePop 0.52s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  will-change: transform;
 }
 
 @keyframes successBadgePop {
@@ -716,8 +734,8 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
     transform: scale(0);
     opacity: 0;
   }
-  60% {
-    transform: scale(1.18);
+  65% {
+    transform: scale(1.15);
     opacity: 1;
   }
   100% {
@@ -729,7 +747,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 .gf-receipt-success-badge svg {
   stroke-dasharray: 24;
   stroke-dashoffset: 24;
-  animation: checkmarkStroke 0.4s 0.4s ease forwards;
+  animation: checkmarkStroke 0.35s 0.32s ease forwards;
 }
 
 @keyframes checkmarkStroke {
@@ -738,35 +756,13 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   }
 }
 
-/* Staggered Content Reveals */
-.gf-anim-header {
-  animation: receiptItemFade 0.45s 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.gf-anim-hero {
-  animation: receiptItemFade 0.45s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.gf-anim-rows {
-  animation: receiptItemFade 0.45s 0.52s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.gf-anim-stamp {
-  animation: receiptItemFade 0.45s 0.62s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+/* Receipt content renders solid on paper (no flickering/jumping) */
+.gf-anim-header,
+.gf-anim-hero,
+.gf-anim-rows,
 .gf-anim-qr {
-  animation: receiptItemFade 0.45s 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.gf-anim-acts {
-  animation: receiptItemFade 0.45s 0.82s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes receiptItemFade {
-  0% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  opacity: 1;
+  transform: none;
 }
 
 /* Perforated Sawtooth Tear Edge */
@@ -1139,7 +1135,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   border-radius: 7px;
   transform: rotate(-12deg);
   opacity: 0;
-  animation: stampImpact 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.35s forwards;
+  animation: stampImpact 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.65s forwards;
   pointer-events: none;
   box-shadow: inset 0 0 0 1px rgba(5, 150, 105, 0.2);
   z-index: 5;
@@ -1359,7 +1355,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=72"></script>
+<script src="/runtime.js?v=73"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1685,15 +1681,15 @@ function playPosPrintSound(){
     initAudio();
     if(!audioCtx) return;
     const now = audioCtx.currentTime;
-    for(let i = 0; i < 5; i++){
+    for(let i = 0; i < 3; i++){
       const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
-      const t = now + 0.25 + (i * 0.42);
+      const t = now + 0.06 + (i * 0.18);
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1250 + (i * 70), t);
-      g.gain.setValueAtTime(0.04, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      osc.frequency.setValueAtTime(1400 + (i * 90), t);
+      g.gain.setValueAtTime(0.025, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
       osc.connect(g); g.connect(audioCtx.destination);
-      osc.start(t); osc.stop(t + 0.08);
+      osc.start(t); osc.stop(t + 0.05);
     }
   }catch(_){}
 }
@@ -1946,10 +1942,7 @@ function openReceipt(id){
   dismissedNotifIds.add(id);
   dismissedNotifIds.add('t_' + id);
   try{ localStorage.setItem('gf_dismissed_notifs', JSON.stringify([...dismissedNotifIds])); }catch(_){}
-  const t = T.find(x => x.id == id);
-  if(owner && role == 'a' && isFatherTxn(t)){
-    playPosPrintSound();
-  }
+  playPosPrintSound();
   draw();
 }
 
@@ -2534,7 +2527,7 @@ if(showPosTheme){
   setTimeout(()=>{
     const el = document.getElementById('posStatusText');
     if(el) el.textContent = tr('PRINT DISPENSED ✓', 'ప్రింట్ పూర్తయింది ✓');
-  }, 2350);
+  }, 850);
 }
 return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;z-index:99;padding:16px 12px 60px;overflow-y:auto;overflow-x:hidden" onclick="if(event.target.id=='ov'){vr='';draw()}">
   <div class="gf-receipt-dispenser-wrap" role="dialog" aria-modal="true" onclick="this.classList.add('skip-anim');">
@@ -5892,7 +5885,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v72</span>
+          <span class="v18-pill">v73</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -6001,5 +5994,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=72').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=73').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
