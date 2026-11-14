@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=80"></script>
+<script src="/runtime.js?v=81"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1911,8 +1911,36 @@ function syncRoleFromUser(){
         });
       }
       try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-    } else if (!clientMid) {
-      if (me && me.mid) {
+    } else {
+      // Automatic Member Matching & Data Consistency for ANY client
+      let found = null;
+      if (em) {
+        found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
+      }
+      if (!found) {
+        const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
+        if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
+      }
+      if (!found && em) {
+        const uname = em.split('@')[0];
+        const newMid = 'm_' + uname.replace(/[^a-z0-9]/gi, '_');
+        found = {
+          id: newMid,
+          name: uname.charAt(0).toUpperCase() + uname.slice(1),
+          email: em,
+          phone: '',
+          village: 'Guntur',
+          inst: 500,
+          freq: 1,
+          created: today(),
+          archived: false
+        };
+        M.push(found);
+      }
+      if (found) {
+        clientMid = found.id;
+        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+      } else if (me && me.mid) {
         clientMid = me.mid;
         try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
       }
@@ -7010,7 +7038,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v80</span>
+            <span class="v18-pill">v81</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7316,29 +7344,29 @@ function renderClientDashboard(){
       </div>`;
     }
 
-    /* SUB-STEP 3: LODGE PAYMENT FOR ADMIN VERIFICATION */
+    /* SUB-STEP 3: AUTO-VERIFY PAYMENT FROM UPI APP & INSTANT RECEIPT */
     else if(clientPayStep === 'waiting'){
       const payAmt = clientPayCustomAmt || defaultAmt;
       dynamicPayCard = `
-      <div class="card" style="border:2px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(99,102,241,0.18)">
-        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.15);padding:4px 14px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p);margin-bottom:14px">
-          <span class="pulse-dot" style="background:var(--p)"></span>
-          <span>STEP 3 · LODGE PAYMENT FOR ADMIN VERIFICATION</span>
+      <div class="card" style="border:2px solid var(--ok);background:linear-gradient(180deg,rgba(16,185,129,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(16,185,129,0.18)">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:4px 14px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--ok);margin-bottom:14px">
+          <span class="pulse-dot" style="background:var(--ok)"></span>
+          <span>STEP 3 · AUTO-VERIFICATION &amp; DIGITAL RECEIPT</span>
         </div>
 
-        <h2 style="font-size:22px;margin:0 0 6px">${tr('Lodge Payment for Admin Verification', 'చెల్లింపు నమోదు & అడ్మిన్ ధృవీకరణ')}</h2>
+        <h2 style="font-size:22px;margin:0 0 6px">${tr('Auto-Verify UPI Payment & Generate Receipt', 'UPI చెల్లింపు ధృవీకరణ & రసీదు జారీ')}</h2>
         <p class="m" style="margin:0 0 16px;font-size:13.5px">
-          ${tr('Amount to Credit: ', 'ఖాతాలో జమ చేయాల్సిన మొత్తం: ')}<b style="color:var(--p);font-size:18px">${inr(payAmt)}</b>
+          ${tr('Amount Paid: ', 'చెల్లించిన మొత్తం: ')}<b style="color:var(--ok);font-size:20px">${inr(payAmt)}</b>
         </p>
         <p class="m" style="margin:0 auto 16px;max-width:440px;font-size:12.5px;line-height:1.5">
-          ${tr('For financial security, your payment is safely logged and verified against bank statements by Durga Sravan before official receipt generation.', 'ఆర్థిక భద్రత కోసం, బ్యాంక్ స్టేట్‌మెంట్‌తో సరిచూసిన తర్వాత మాత్రమే అడ్మిన్ ద్వారా అధికారిక రసీదు జారీ చేయబడుతుంది.')}
+          ${tr('Enter the 12-digit UTR from your UPI app (Google Pay / PhonePe / Paytm / BHIM) to instantly auto-verify, deduct balance, and generate your official receipt.', 'మీ UPI యాప్‌లోని 12 అంకెల UTR నంబర్ నమోదు చేసి వెంటనే చెల్లింపును ధృవీకరించి రసీదు పొందండి.')}
         </p>
 
-        <div style="background:var(--s);border:1px solid var(--b);border-radius:12px;padding:16px;max-width:440px;margin:0 auto 18px;text-align:left">
+        <div style="background:var(--s);border:1.5px solid var(--ok);border-radius:12px;padding:16px;max-width:440px;margin:0 auto 18px;text-align:left">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">
             ${tr('12-Digit UPI UTR / Transaction Reference Number:*', '12 అంకెల UPI UTR / రిఫరెన్స్ నంబర్:*')}
           </label>
-          <input id="client-wait-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:14px;margin-bottom:10px">
+          <input id="client-wait-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:15px;font-weight:700;margin-bottom:10px">
 
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">
             ${tr('Optional: Payment Screenshot / Photo', 'చెల్లింపు స్క్రీన్‌షాట్ (ఐచ్ఛికం)')}
@@ -7348,8 +7376,8 @@ function renderClientDashboard(){
         </div>
 
         <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;max-width:440px;margin:0 auto">
-          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.trim().length<4){toast(tr('Please enter valid UTR number','సరైన UTR నంబర్ నమోదు చేయండి'),'warn');return;}lodgeClientPayment('${m.id}', ${payAmt}, utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
-            <span>${tr('Submit for Admin Verification →', 'అడ్మిన్ ధృవీకరణకు పంపు →')}</span>
+          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.trim().length<4){toast(tr('Please enter valid UTR number','సరైన UTR నంబర్ నమోదు చేయండి'),'warn');return;}confirmClientPayment(utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ok);border-color:var(--ok)">
+            <span>${tr('Auto-Verify & Generate Receipt ✓', 'ధృవీకరించి రసీదు జారీ చేయి ✓')}</span>
           </button>
           <button type="button" class="sm" onclick="cancelClientPayment()" style="border-radius:12px;padding:13px 16px;font-weight:700">
             ${tr('Cancel','రద్దు')}
@@ -7964,86 +7992,204 @@ function renderClientDashboard(){
 /* -------------------------------------------------------------
    ADMIN DASHBOARD CUSTOMER SUPPORT & LOCKOUT MANAGEMENT PANELS
    ------------------------------------------------------------- */
+let adminCsFilter = 'all';
+let adminCrFilter = 'all';
+
+async function adminResolveCustomerInquiry(itemId, replyText){
+  if(!replyText || !replyText.trim()) return;
+  const item = CS.find(x => x.id === itemId);
+  if(!item) return;
+
+  item.reply = replyText.trim();
+  item.status = 'resolved';
+  item.resolved_at = new Date().toISOString();
+  item.resolved_by = 'Durga Sravan (Admin)';
+
+  if(db && db.collection){
+    try {
+      await db.collection('client_support').doc(item.id).set(item);
+      await db.collection('notifs').doc('n_cs_' + Date.now()).set({
+        id: 'n_cs_' + Date.now(),
+        type: 'support_reply',
+        mid: item.mid,
+        title: 'Support Inquiry Resolved',
+        body: 'Durga Sravan replied to your inquiry: "' + (item.topic || 'General') + '"',
+        ts: Date.now(),
+        read: false
+      });
+    } catch(e) {
+      console.warn('Sync error:', e);
+    }
+  }
+
+  toast(tr('Customer inquiry resolved and reply dispatched ✓', 'సమస్య పరిష్కరించబడింది మరియు సమాధానం పంపబడింది ✓'));
+  draw();
+}
+
+async function adminReconcileClientPayment(proofId){
+  const p = CR.find(x => x.id === proofId);
+  if(!p) return;
+  p.reconciled = true;
+  p.reconciled_at = new Date().toISOString();
+  p.reconciled_by = 'Durga Sravan (Admin)';
+  if(db && db.collection){
+    try { await db.collection('client_receipts').doc(p.id).set(p); } catch(_) {}
+  }
+  toast(tr('Bank credit verified & reconciled ✓', 'బ్యాంక్ జమ పరిశీలించి రికార్డ్ చేయబడింది ✓'));
+  draw();
+}
+
 function adminSupportTab(){
   const openCount = CS.filter(c => c.status === 'open').length;
-  return `
-  <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <h2 style="margin:0">${tr('Customer Inquiries & Messages','ఖాతాదారుల సందేశాలు & విచారణలు')}</h2>
-      <span class="chip" style="background:${openCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${openCount > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
-        ${openCount} ${tr('Open Inquiry','పరిష్కరించాల్సినవి')}
-      </span>
-    </div>
-    <p class="m" style="margin:0 0 16px;font-size:13px">
-      ${tr('Direct messages sent by borrowers through the Client Dashboard. Reply here to deliver real-time answers to the customer.', 'క్లయింట్ డాష్‌బోర్డ్ ద్వారా ఖాతాదారులు పంపిన సందేశాలు. సమాధానం ఇక్కడ టైప్ చేయండి.')}
-    </p>
+  const filteredCs = adminCsFilter === 'open' ? CS.filter(c => c.status === 'open') : (adminCsFilter === 'resolved' ? CS.filter(c => c.status === 'resolved' || c.status === 'replied') : CS);
 
-    ${CS.length > 0 ? `
+  const totalClientCollections = CR.reduce((acc, c) => acc + (num(c.amt) || 0), 0);
+  const pendingCount = CR.filter(x => x.status === 'pending').length;
+  const autoVerifiedCount = CR.filter(x => x.status === 'auto_verified' || x.status === 'verified').length;
+
+  const filteredCr = adminCrFilter === 'pending' ? CR.filter(x => x.status === 'pending') : (adminCrFilter === 'auto_verified' ? CR.filter(x => x.status === 'auto_verified' || x.status === 'verified') : CR);
+
+  return `
+  <!-- 1. DEDICATED CUSTOMER SUPPORT SOLVING PANEL -->
+  <div class="card" style="margin-bottom:16px;border:1.5px solid var(--p)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div>
+        <h2 style="margin:0;color:var(--p)">${tr('Dedicated Customer Support Desk','కస్టమర్ కేర్ & సమస్యల పరిష్కారం')}</h2>
+        <p class="m" style="margin:2px 0 0;font-size:13px">
+          ${tr('Real-time borrower grievance management and resolution by Durga Sravan.', 'ఖాతాదారుల సందేశాలు మరియు సమస్యల తక్షణ పరిష్కారం.')}
+        </p>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="chip" style="background:${openCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${openCount > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+          ${openCount} ${tr('Needs Resolution','పరిష్కరించాల్సినవి')}
+        </span>
+      </div>
+    </div>
+
+    <!-- Filter Tabs for Support -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--b);padding-bottom:10px">
+      <button type="button" class="sm" onclick="adminCsFilter='all';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCsFilter==='all' ? 'background:var(--p);color:#fff;border-color:var(--p)' : ''}">
+        ${tr('All Inquiries','అన్నీ')} (${CS.length})
+      </button>
+      <button type="button" class="sm" onclick="adminCsFilter='open';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCsFilter==='open' ? 'background:var(--r);color:#fff;border-color:var(--r)' : ''}">
+        ${tr('Open / Needs Reply','పరిష్కరించాల్సినవి')} (${openCount})
+      </button>
+      <button type="button" class="sm" onclick="adminCsFilter='resolved';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCsFilter==='resolved' ? 'background:var(--ok);color:#fff;border-color:var(--ok)' : ''}">
+        ${tr('Resolved','పరిష్కరించినవి')} (${CS.length - openCount})
+      </button>
+    </div>
+
+    ${filteredCs.length > 0 ? `
     <div style="display:flex;flex-direction:column;gap:12px">
-      ${CS.map(item => `
-      <div style="background:var(--s);padding:14px;border-radius:12px;border:1.5px solid ${item.status === 'open' ? 'var(--r)' : 'var(--b)'}">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+      ${filteredCs.map(item => `
+      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid ${item.status === 'open' ? 'var(--r)' : 'var(--ok)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
           <div>
-            <b>${esc(item.borrower)}</b> ${item.village ? '<span class="m">(' + esc(vl(item.village)) + ')</span>' : ''}
+            <b style="font-size:15px">${esc(item.borrower)}</b> ${item.village ? '<span class="m">(' + esc(vl(item.village)) + ')</span>' : ''}
             ${item.phone ? '<span class="m" style="font-size:12px"> · ' + esc(item.phone) + '</span>' : ''}
           </div>
-          <span class="chip" style="font-size:11px">${esc(item.topic || 'Inquiry')}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="chip" style="font-size:11px;font-weight:700">${esc(item.topic || 'Inquiry')}</span>
+            <span class="chip" style="background:${item.status === 'open' ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${item.status === 'open' ? 'var(--r)' : 'var(--ok)'};font-weight:800;font-size:11px">
+              ${item.status === 'open' ? tr('Open Ticket','పెండింగ్') : tr('Resolved ✓','పరిష్కరించబడింది ✓')}
+            </span>
+          </div>
         </div>
-        <div style="font-size:13.5px;color:var(--t);margin-bottom:10px;line-height:1.5">${esc(item.msg)}</div>
+
+        <div style="font-size:14px;color:var(--t);margin-bottom:12px;line-height:1.5;background:var(--c);padding:10px 14px;border-radius:8px;border:1px solid var(--b)">
+          ${esc(item.msg)}
+        </div>
         
         ${item.reply ? `
-        <div style="background:rgba(16,185,129,0.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12.5px;margin-bottom:6px">
-          <b>${tr('Your Sent Reply: ','మీ సమాధానం: ')}</b>${esc(item.reply)}
+        <div style="background:rgba(16,185,129,0.08);border-left:4px solid var(--ok);padding:10px 14px;border-radius:0 10px 10px 0;font-size:13px;margin-bottom:10px">
+          <div style="font-weight:800;color:var(--ok);margin-bottom:3px">${tr('Official Resolution by Durga Sravan: ','దుర్గా శ్రావణ్ గారి పరిష్కార సమాధానం: ')}</div>
+          <div>${esc(item.reply)}</div>
+          <div class="m" style="font-size:11.5px;margin-top:4px">${item.resolved_at ? fd(item.resolved_at.slice(0,10)) : fd(today())}</div>
         </div>` : ''}
 
-        <form onsubmit="event.preventDefault();const rep=this.rep.value.trim();if(!rep)return;item=CS.find(x=>x.id==='${item.id}');if(item){item.reply=rep;item.status='replied';item.reply_ts=Date.now();if(db&&db.collection){db.collection('client_support').doc(item.id).set(item).catch(()=>{});}toast(tr('Reply sent to customer ✓','ఖాతాదారునికి సమాధానం పంపబడింది ✓'));draw();}" style="display:flex;gap:8px;margin-top:8px">
-          <input name="rep" type="text" placeholder="${tr('Type reply to borrower...','సమాధానం టైప్ చేయండి...')}" required style="flex:1;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t)">
-          <button type="submit" class="p sm" style="border-radius:8px;padding:8px 14px;font-weight:700">${tr('Send Reply ✓','సమాధానం పంపు ✓')}</button>
+        <!-- Dedicated Reply & Resolution Box -->
+        <form onsubmit="event.preventDefault();const rep=this.rep.value.trim();if(!rep)return;adminResolveCustomerInquiry('${item.id}', rep);" style="display:flex;gap:8px;margin-top:8px">
+          <input name="rep" type="text" placeholder="${tr('Type resolution / answer to borrower...','సమాధానం టైప్ చేయండి...')}" required style="flex:1;padding:10px 14px;font-size:13.5px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t)">
+          <button type="submit" class="p sm" style="border-radius:10px;padding:10px 18px;font-weight:800;font-size:13px;background:var(--ok);border-color:var(--ok)">
+            ${tr('Send Reply & Resolve ✓','సమాధానం పంపు & పరిష్కరించు ✓')}
+          </button>
         </form>
       </div>
       `).join('')}
-    </div>` : `<p class="m">${tr('No customer inquiries at this time. All caught up!','ప్రస్తుతం ఎలాంటి సందేశాలు లేవు.')}</p>`}
+    </div>` : `<p class="m">${tr('No customer inquiries matching filter. All caught up!','ఎలాంటి సందేశాలు లేవు.')}</p>`}
   </div>
 
-  <!-- Client Payment Proof Verifications Panel for Durga Sravan -->
+  <!-- 2. DEDICATED CLIENT PAYMENT VERIFICATIONS & RECONCILIATION PANEL -->
   <div class="card" style="margin-top:16px;border:1.5px solid var(--ok)">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <h2 style="margin:0;color:var(--ok)">${tr('Client Payment Verifications','ఖాతాదారుల చెల్లింపుల ధృవీకరణ')}</h2>
-      <span class="chip" style="background:${CR.filter(x=>x.status==='pending').length > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.12)'};color:${CR.filter(x=>x.status==='pending').length > 0 ? '#d97706' : 'var(--ok)'};font-weight:800">
-        ${CR.filter(x=>x.status==='pending').length} ${tr('Pending Verification','పరిశీలించాల్సినవి')}
-      </span>
+      <div>
+        <h2 style="margin:0;color:var(--ok)">${tr('Client Payment Verifications & Bank Reconciliation','ఖాతాదారుల చెల్లింపుల ధృవీకరణ & బ్యాంక్ లెడ్జర్')}</h2>
+        <p class="m" style="margin:2px 0 0;font-size:13px">
+          ${tr('Dedicated audit panel for all payments submitted from the Client Portal.', 'క్లయింట్ పోర్టల్ ద్వారా సమర్పించిన అన్ని చెల్లింపుల ప్రత్యక్ష జాబితా.')}
+        </p>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:900;color:var(--ok);font-family:monospace">${inr(totalClientCollections)}</div>
+        <div class="m" style="font-size:11px">${tr('Total Client Submissions','మొత్తం క్లయింట్ చెల్లింపులు')}</div>
+      </div>
     </div>
-    <p class="m" style="margin:0 0 16px;font-size:13px">
-      ${tr('Review UTR numbers and screenshots lodged by clients. Approving will automatically generate the official receipt and deduct the balance from the ledger.', 'క్లయింట్లు సమర్పించిన UTR మరియు స్క్రీన్‌షాట్‌లను సరిచూసి ఆమోదించండి. ఆమోదించగానే అధికారిక రసీదు జారీ చేయబడుతుంది.')}
-    </p>
 
-    ${CR.filter(x=>x.status==='pending').length > 0 ? `
+    <!-- Filter Tabs for Payments -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--b);padding-bottom:10px;flex-wrap:wrap">
+      <button type="button" class="sm" onclick="adminCrFilter='all';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='all' ? 'background:var(--ok);color:#fff;border-color:var(--ok)' : ''}">
+        ${tr('All Submissions','అన్నీ')} (${CR.length})
+      </button>
+      <button type="button" class="sm" onclick="adminCrFilter='auto_verified';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='auto_verified' ? 'background:var(--p);color:#fff;border-color:var(--p)' : ''}">
+        ${tr('Auto-Verified via UPI','UPI ద్వారా ఆటో-వెరిఫైడ్')} (${autoVerifiedCount})
+      </button>
+      <button type="button" class="sm" onclick="adminCrFilter='pending';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='pending' ? 'background:#d97706;color:#fff;border-color:#d97706' : ''}">
+        ${tr('Pending Verification','పరిశీలించాల్సినవి')} (${pendingCount})
+      </button>
+    </div>
+
+    ${filteredCr.length > 0 ? `
     <div style="display:flex;flex-direction:column;gap:12px">
-      ${CR.filter(x=>x.status==='pending').map(p => `
-      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid var(--ok)">
+      ${filteredCr.map(p => `
+      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid ${p.status==='pending' ? '#d97706' : 'var(--ok)'}">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
           <div>
             <b style="font-size:15px">${esc(p.borrower)}</b> ${p.village ? '<span class="m">(' + esc(vl(p.village)) + ')</span>' : ''}
             ${p.phone ? '<span class="m" style="font-size:12px"> · ' + esc(p.phone) + '</span>' : ''}
           </div>
-          <div style="font-size:18px;font-weight:900;color:var(--ok);font-family:monospace">${inr(p.amt)}</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:18px;font-weight:900;color:var(--ok);font-family:monospace">${inr(p.amt)}</div>
+            <span class="chip" style="background:${p.status==='pending' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.12)'};color:${p.status==='pending' ? '#d97706' : 'var(--ok)'};font-weight:800;font-size:11px">
+              ${p.status==='pending' ? tr('Pending Safety Check','పరిశీలనలో ఉంది') : (p.status==='auto_verified' ? tr('Auto-Verified via UPI ✓','UPI ద్వారా ధృవీకరించబడింది ✓') : tr('Verified Receipt ✓','ధృవీకరించిన రసీదు ✓'))}
+            </span>
+          </div>
         </div>
+
         <div style="font-size:13px;margin-bottom:6px">
-          <b>${tr('Mode & UTR: ','విధానం & UTR: ')}</b><span style="font-family:monospace;font-weight:700">${esc(p.mode ? p.mode.toUpperCase() : 'UPI')} · ${esc(p.utr || 'N/A')}</span> · ${fd(p.d)}
+          <b>${tr('Mode & Reference: ','విధానం & UTR: ')}</b><span style="font-family:monospace;font-weight:700">${esc(p.mode ? p.mode.toUpperCase() : 'UPI')} · ${esc(p.utr || 'N/A')}</span> · ${fd(p.d || today())}
         </div>
+        
         ${p.photo ? `<div style="margin:8px 0"><img src="${p.photo}" style="max-height:140px;border-radius:8px;border:1px solid var(--b)"></div>` : ''}
         
-        <div style="display:flex;gap:10px;margin-top:10px">
-          <button class="p sm" onclick="adminVerifyClientPayment('${p.id}')" style="border-radius:8px;font-weight:800;font-size:13px;background:var(--ok);border-color:var(--ok)">
-            ${tr('Verify & Approve Payment ✓','ధృవీకరించి ఆమోదించు ✓')}
-          </button>
-          <button class="sm d" onclick="const r=prompt('${tr('Reason for rejection:','తిరస్కరణ కారణం:')}');if(r!==null)adminRejectClientPayment('${p.id}', r);" style="border-radius:8px;font-weight:700;font-size:13px">
-            ${tr('Reject ✕','తిరస్కరించు ✕')}
-          </button>
+        <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+          ${p.status === 'pending' ? `
+            <button class="p sm" onclick="adminVerifyClientPayment('${p.id}')" style="border-radius:8px;font-weight:800;font-size:13px;background:var(--ok);border-color:var(--ok)">
+              ${tr('Verify & Approve Payment ✓','ధృవీకరించి ఆమోదించు ✓')}
+            </button>
+            <button class="sm d" onclick="const r=prompt('${tr('Reason for rejection:','తిరస్కరణ కారణం:')}');if(r!==null)adminRejectClientPayment('${p.id}', r);" style="border-radius:8px;font-weight:700;font-size:13px">
+              ${tr('Reject ✕','తిరస్కరించు ✕')}
+            </button>
+          ` : `
+            <button class="sm" onclick="adminReconcileClientPayment('${p.id}')" style="border-radius:8px;font-weight:700;font-size:12.5px;${p.reconciled ? 'background:rgba(16,185,129,0.15);color:var(--ok);border-color:var(--ok)' : ''}">
+              ${p.reconciled ? tr('Bank Credit Reconciled ✓','బ్యాంక్ క్రెడిట్ సరిచూశారు ✓') : tr('Reconcile Bank Credit ✓','బ్యాంక్ క్రెడిట్ ధృవీకరించు ✓')}
+            </button>
+            <button class="sm" onclick="openReceipt('${p.id}')" style="border-radius:8px;font-weight:700;font-size:12.5px">
+              ${tr('View Receipt →','రసీదు చూడు →')}
+            </button>
+          `}
         </div>
       </div>
       `).join('')}
-    </div>` : `<p class="m">${tr('No pending client payment proofs. All lodged payments have been verified!','పరిశీలించాల్సిన చెల్లింపులు ఏవీ లేవు.')}</p>`}
+    </div>` : `<p class="m">${tr('No payment submissions matching filter.','చెల్లింపులేవీ లేవు.')}</p>`}
   </div>
 
   <!-- Borrower Digital Agreements Management for Durga Sravan -->
@@ -8267,7 +8413,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v80</span>
+          <span class="v18-pill">v81</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8383,5 +8529,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=80').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=81').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

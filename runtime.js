@@ -50,10 +50,41 @@
         email: em,
         options: { emailRedirectTo: redirectTarget }
       });
-      if (error) return { success: false, message: error.message };
-      return { success: true, message: 'Confirmation link sent to ' + em + '! Check your inbox and spam folder.' };
+      if (error) {
+        if (/already confirmed|user already/i.test(error.message)) {
+          return { success: true, message: 'Email already verified! Please sign in with your password, or use Instant Magic Link below.' };
+        }
+        if (/rate limit|too many/i.test(error.message)) {
+          return { success: false, message: 'Email provider rate limit reached. Please check Spam/Junk folder, or use Instant Magic Link.' };
+        }
+        return { success: false, message: error.message };
+      }
+      return { success: true, message: 'Confirmation link dispatched to ' + em + '! Please check your Inbox and Spam/Junk folder.' };
     } catch (e) {
       return { success: false, message: e.message || 'Could not resend confirmation email.' };
+    }
+  };
+
+  window.sendMagicLoginLink = async function(emailVal) {
+    if (!sb) return { success: false, message: 'Database not initialized' };
+    const em = String(emailVal || '').trim().toLowerCase();
+    if (!em || !em.includes('@')) return { success: false, message: 'Please enter a valid email address.' };
+
+    const rl = checkAuthRateLimit('otp_' + em, 5, 60000);
+    if (!rl.allowed) {
+      return { success: false, message: 'Rate limit reached: Maximum 5 requests per minute. Please wait ' + rl.waitSec + 's.' };
+    }
+
+    const redirectTarget = (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) ? window.location.origin : 'https://gangaya-finance.vercel.app';
+    try {
+      const { error } = await sb.auth.signInWithOtp({
+        email: em,
+        options: { emailRedirectTo: redirectTarget }
+      });
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: 'Instant Magic Login link sent to ' + em + '! Check your inbox/spam to log in directly.' };
+    } catch (e) {
+      return { success: false, message: e.message || 'Could not send Magic Link.' };
     }
   };
 
@@ -68,7 +99,7 @@
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
           '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
-          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b)"><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a></div></form>');
+          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b);display:flex;flex-direction:column;gap:5px"><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a><a href="#" id="rt-magic" style="color:var(--p);font-size:12px;font-weight:700;text-decoration:none">Email not arriving? Send Instant Magic Login Link &rsaquo;</a></div></form>');
         o.querySelector('#rt-th').onclick = () => {
           const next = isDark ? 'light' : 'dark';
           document.documentElement.setAttribute('data-theme', next);
@@ -105,6 +136,27 @@
             o.querySelector('#rt-m').textContent = resRes.message;
           };
         }
+        const magicBtn = o.querySelector('#rt-magic');
+        if (magicBtn) {
+          magicBtn.onclick = async ev => {
+            ev.preventDefault();
+            const emailInput = o.querySelector('#rt-e');
+            const em = emailInput ? emailInput.value.trim() : '';
+            if (!em || !em.includes('@')) {
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              o.querySelector('#rt-m').textContent = 'Please enter your email above to receive Magic Link.';
+              if (emailInput) emailInput.focus();
+              return;
+            }
+            magicBtn.textContent = 'Sending Magic Link...';
+            magicBtn.style.pointerEvents = 'none';
+            const magicRes = await window.sendMagicLoginLink(em);
+            magicBtn.textContent = 'Email not arriving? Send Instant Magic Login Link ›';
+            magicBtn.style.pointerEvents = 'auto';
+            o.querySelector('#rt-m').style.color = magicRes.success ? 'var(--ok)' : 'var(--r)';
+            o.querySelector('#rt-m').textContent = magicRes.message;
+          };
+        }
         o.querySelector('#rt-f').onsubmit = async ev => {
           ev.preventDefault();
           const b = o.querySelector('button'); b.disabled = true;
@@ -128,7 +180,16 @@
             try { localStorage.removeItem('gf_prof'); } catch(_) {}
             const { error } = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
             b.disabled = false;
-            if (error) { o.querySelector('#rt-m').textContent = error.message || 'Wrong email or password.'; return; }
+            if (error) {
+              const msg = error.message || 'Wrong email or password.';
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              if (/not confirmed/i.test(msg)) {
+                o.querySelector('#rt-m').textContent = 'Email not confirmed yet. Click "Resend confirmation" or "Send Instant Magic Link" below, and check Spam folder.';
+              } else {
+                o.querySelector('#rt-m').textContent = msg;
+              }
+              return;
+            }
             s = null;
             prof = null;
             window.location.href = '/';
