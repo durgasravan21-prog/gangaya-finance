@@ -7,14 +7,14 @@ create table if not exists public.profiles (
 );
 
 create table if not exists public.docs (
-  collection text not null check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits')),
+  collection text not null check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits','client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts')),
   id         text not null check (id ~ '^[A-Za-z0-9_-]{1,128}$'),
   data       jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   primary key (collection, id)
 );
 alter table public.docs drop constraint if exists docs_collection_check;
-alter table public.docs add constraint docs_collection_check check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits'));
+alter table public.docs add constraint docs_collection_check check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits','client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts'));
 
 create index if not exists docs_collection_created on public.docs (collection, created_at);
 

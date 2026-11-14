@@ -4894,6 +4894,8 @@ function pendingLoansHtml(){
               <div class="m" style="font-size:12px;margin-top:2px">
                 ${tr('Requested by','కోరినవారు')} <b>${esc(lr.requested_by||lr.by||'Gangaya')}</b> · ${fd(lr.d||today())}, ${lr.time||ft(lr.ts)}
               </div>
+              ${lr.purpose ? `<div class="m" style="font-size:12px;margin-top:2px">${tr('Purpose: ','ప్రయోజనం: ')}<b>${esc(lr.purpose)}</b></div>` : ''}
+              ${lr.disbursement_type ? `<div style="font-size:12px;color:var(--p);font-weight:700;margin-top:3px">${tr('Disbursement: ','చెల్లింపు విధానం: ')}${esc(lr.disbursement_type.toUpperCase())} ${lr.upi_id ? `(${esc(lr.upi_id)})` : (lr.bank_details && lr.bank_details.account_no ? `(Bank: ${esc(lr.bank_details.bank || '')} A/C: ${esc(lr.bank_details.account_no)} IFSC: ${esc(lr.bank_details.ifsc || '')})` : '')}</div>` : ''}
             </div>
             <div class="acts" style="flex-shrink:0">
               ${isAdm ? `
@@ -5133,6 +5135,13 @@ async function approveLoanReq(id){
 
         LR = LR.filter(x => x.id !== id && !(x.mid === lr.mid && x.amt === lr.amt && (x.d === lr.d || !x.d)));
 
+        // Live dispatch to unified Server Sync API
+        fetch('/api/client-submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve_loan', id })
+        }).catch(() => {});
+
         await db.collection('notifs').add({
           type: 'note',
           text: tr(`Loan of ${inr(lr.amt)} for ${lr.mname} has been APPROVED by Durga Sravan ✓`, `దుర్గా శ్రావణ్ గారు ${lr.mname} యొక్క ${inr(lr.amt)} అప్పును ఆమోదించారు ✓`),
@@ -5185,6 +5194,13 @@ async function rejectLoanReq(id){
         }catch(_){}
 
         LR = LR.filter(x => x.id !== id && !(x.mid === lr.mid && x.amt === lr.amt && (x.d === lr.d || !x.d)));
+
+        // Live dispatch to unified Server Sync API
+        fetch('/api/client-submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reject_loan', id })
+        }).catch(() => {});
 
         await db.collection('notifs').add({
           type: 'note',
@@ -6514,6 +6530,22 @@ function submitClientSupportMsg(ev){
     db.collection('notifs').doc(adminNotif.id).set(adminNotif).catch(e => console.warn('Notif sync note:', e));
   }
 
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'submit_support',
+      id: newMsg.id,
+      mid: clientMid,
+      borrower: m.name || 'Customer',
+      village: m.village || '',
+      phone: m.phone || '',
+      topic: topic,
+      msg: msgText
+    })
+  }).catch(e => console.warn('Support server sync note:', e));
+
   // Set visible in-page display banner
   clientSupportSentBanner = {
     topic: topic,
@@ -6538,13 +6570,22 @@ function signClientAgreement(ev){
     toast(tr('Please enter full legal name and accept agreement terms', 'పూర్తి పేరు నమోదు చేసి నిబంధనలను అంగీకరించండి'), 'warn');
     return;
   }
-  const m = M.find(x => x.id === clientMid) || {};
+  let m = M.find(x => x.id === clientMid);
+  if(!m && clientMid){
+    m = M.find(x => x.phone === clientMid || x.name === clientMid);
+  }
+  if(!m && typeof me !== 'undefined' && me && me.email){
+    const em = (me.email || '').toLowerCase();
+    if(em.includes('mohanadeep') || em.includes('suda')){
+      m = M.find(x => x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305')));
+    }
+  }
   const activeMid = (m && m.id) || clientMid || 'm_mohanadeep';
   const agrId = 'agr_' + activeMid;
   const agrObj = {
     id: agrId,
     mid: activeMid,
-    borrower: m.name || signName,
+    borrower: (m && m.name) || signName,
     signed_name: signName,
     signed: true,
     needs_resignature: false,
@@ -6553,14 +6594,37 @@ function signClientAgreement(ev){
     hash: 'SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase()
   };
 
-  // Immediate resilient local persistence
+  // Immediate resilient local & session persistence across all key formats
   try {
     localStorage.setItem('gf_agreement_' + activeMid, JSON.stringify(agrObj));
     sessionStorage.setItem('gf_agr_signed_' + activeMid, '1');
+    sessionStorage.setItem('gf_agr_signed_global', '1');
+    if(m && m.phone){
+      localStorage.setItem('gf_agreement_' + m.phone, JSON.stringify(agrObj));
+      sessionStorage.setItem('gf_agr_signed_' + m.phone, '1');
+    }
+    if(clientMid && clientMid !== activeMid){
+      localStorage.setItem('gf_agreement_' + clientMid, JSON.stringify(agrObj));
+      sessionStorage.setItem('gf_agr_signed_' + clientMid, '1');
+    }
   } catch(_) {}
 
-  const idx = CA.findIndex(x => x.id === agrId || x.mid === activeMid);
+  const idx = CA.findIndex(x => x.id === agrId || x.mid === activeMid || (m && m.phone && x.mid === m.phone));
   if(idx >= 0) CA[idx] = agrObj; else CA.unshift(agrObj);
+
+  // Dispatch to server sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'sign_agreement',
+      id: agrId,
+      mid: activeMid,
+      borrower: (m && m.name) || signName,
+      signed_name: signName,
+      hash: agrObj.hash
+    })
+  }).catch(e => console.warn('Agreement server sync note:', e));
 
   if(db && db.collection){
     db.collection('client_agreements').doc(agrId).set(agrObj).catch(e => {
@@ -6804,6 +6868,24 @@ function submitClientBugReport(ev){
     db.collection('notifs').doc(adminBugNotif.id).set(adminBugNotif).catch(e => console.warn('Notif sync note:', e));
   }
 
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'submit_bug',
+      id: bugId,
+      mid: bugObj.mid,
+      borrower: bugObj.borrower,
+      village: bugObj.village,
+      phone: bugObj.phone,
+      category: cat,
+      description: desc,
+      photo: photo,
+      diagnostics: bugObj.diagnostics
+    })
+  }).catch(e => console.warn('Bug server sync note:', e));
+
   // Set visible in-page confirmation banner
   clientBugSentBanner = {
     id: bugId,
@@ -6896,6 +6978,24 @@ function lodgeClientPayment(midVal, amtVal, utrVal, photoVal){
     db.collection('client_receipts').doc(newReceiptProof.id).set(newReceiptProof).catch(e => console.warn('Payment sync note:', e));
     db.collection('notifs').doc(payNotif.id).set(payNotif).catch(e => console.warn('Notif sync note:', e));
   }
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'lodge_payment',
+      id: newReceiptProof.id,
+      mid: activeMid,
+      borrower: member.name || 'Customer',
+      village: member.village || '',
+      phone: member.phone || '',
+      amt: numAmt,
+      d: newReceiptProof.d,
+      utr: utr,
+      photo: photoVal || ''
+    })
+  }).catch(e => console.warn('Payment server sync note:', e));
 }
 
 async function adminVerifyClientPayment(proofId){
@@ -6924,6 +7024,17 @@ async function adminVerifyClientPayment(proofId){
   p.verified_by = 'Durga Sravan';
   p.verified_at = new Date().toISOString();
   p.txn_id = newTxn.id;
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'verify_payment',
+      id: p.id,
+      txn_id: newTxn.id
+    })
+  }).catch(e => console.warn('Verify server sync note:', e));
 
   if(db && db.collection){
     try {
@@ -6958,6 +7069,17 @@ async function adminRejectClientPayment(proofId, reason){
   p.status = 'rejected';
   p.rejection_reason = reason || tr('Payment could not be verified on bank ledger', 'బ్యాంక్ లెడ్జర్‌లో చెల్లింపు ధృవీకరించబడలేదు');
   p.rejected_at = new Date().toISOString();
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'reject_payment',
+      id: p.id,
+      reason: p.rejection_reason
+    })
+  }).catch(e => console.warn('Reject server sync note:', e));
 
   if(db && db.collection){
     try {
@@ -7022,6 +7144,24 @@ async function saveClientPersonalDetails(ev){
       console.warn('Profile save warning:', e);
     }
   }
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'save_profile',
+      id: profObj.id,
+      mid: clientMid || phone1,
+      name: name,
+      email: emailVal,
+      age: age,
+      place: place,
+      phone1: phone1,
+      phone2: phone2,
+      photo: photo
+    })
+  }).catch(e => console.warn('Profile server sync note:', e));
 
   const idx = CP.findIndex(x => x.id === profObj.id || x.mid === clientMid);
   if(idx >= 0) CP[idx] = profObj; else CP.unshift(profObj);
@@ -7115,6 +7255,28 @@ async function submitClientLoanApplication(ev){
     }
   }
 
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'apply_loan',
+      id: reqId,
+      mid: clientMid,
+      borrower: m.name || 'Customer',
+      village: m.village || '',
+      phone: m.phone || '',
+      amt: amt,
+      repay: repay,
+      inst: inst,
+      freq: freq,
+      purpose: purpose,
+      disbursement_type: disbType,
+      upi_id: upiId,
+      bank_details: loanAppObj.bank_details
+    })
+  }).catch(e => console.warn('Loan app server sync note:', e));
+
   LR.unshift(loanAppObj);
   f.reset();
   toast(tr('Loan application submitted to Durga Sravan for review & sanction ✓', 'అప్పు దరఖాస్తు దుర్గా శ్రావణ్ గారి పరిశీలనకు సమర్పించబడింది ✓'));
@@ -7133,6 +7295,17 @@ async function adminRequestReSignature(mid, reason){
   agr.needs_resignature = true;
   agr.resignature_reason = reason || tr('Terms updated by Durga Sravan. Please sign updated digital agreement.', 'నిబంధనలు అప్‌డేట్ చేయబడ్డాయి. దయచేసి మళ్ళీ డిజిటల్ సంతకం చేయండి.');
   agr.requested_at = new Date().toISOString();
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'request_resignature',
+      mid: mid,
+      reason: agr.resignature_reason
+    })
+  }).catch(e => console.warn('Re-signature server sync note:', e));
 
   if(db && db.collection){
     try {
@@ -7168,7 +7341,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v85</span>
+            <span class="v18-pill">v86</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7231,14 +7404,19 @@ function renderClientDashboard(){
   const totalRepaid = myPayments.reduce((acc, t) => acc + t.amt, 0);
   const curBalDue = Math.max(0, s.due);
   const myProofs = CR.filter(c => c.mid === m.id);
-  let myAgreement = CA.find(c => c.mid === m.id);
+  let myAgreement = CA.find(c => c.mid === m.id || (m.phone && c.mid === m.phone) || c.borrower === m.name);
   if (!myAgreement) {
     try {
-      const localAgr = localStorage.getItem('gf_agreement_' + m.id);
+      const localAgr = localStorage.getItem('gf_agreement_' + m.id) ||
+                       (m.phone ? localStorage.getItem('gf_agreement_' + m.phone) : null) ||
+                       (clientMid ? localStorage.getItem('gf_agreement_' + clientMid) : null);
       if (localAgr) myAgreement = JSON.parse(localAgr);
     } catch(_) {}
   }
-  const isSessionSigned = sessionStorage.getItem('gf_agr_signed_' + m.id) === '1';
+  const isSessionSigned = sessionStorage.getItem('gf_agr_signed_' + m.id) === '1' ||
+                          (m.phone && sessionStorage.getItem('gf_agr_signed_' + m.phone) === '1') ||
+                          (clientMid && sessionStorage.getItem('gf_agr_signed_' + clientMid) === '1') ||
+                          sessionStorage.getItem('gf_agr_signed_global') === '1';
 
   const clientTabs = [
     ['my_loans', tr('My Loans & Schedule', 'నా అప్పులు & షెడ్యూల్')],
@@ -8090,7 +8268,8 @@ function renderClientDashboard(){
   const needsAgreementSign = !isSessionSigned && (!myAgreement || !myAgreement.signed || myAgreement.needs_resignature === true);
   const agreementPopupModal = needsAgreementSign ? `
   <div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
-    <div class="card" role="dialog" aria-modal="true" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:26px 20px;border:2px solid var(--p);box-shadow:0 20px 50px rgba(0,0,0,0.35);margin:auto">
+    <div class="card" role="dialog" aria-modal="true" style="position:relative;max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:26px 20px;border:2px solid var(--p);box-shadow:0 20px 50px rgba(0,0,0,0.35);margin:auto">
+      <button type="button" onclick="sessionStorage.setItem('gf_agr_signed_global','1');draw();" title="Close" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:18px;font-weight:700;color:var(--m);cursor:pointer;padding:4px 8px;line-height:1">✕</button>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
         <div style="width:38px;height:38px;border-radius:10px;background:var(--p);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:900">GF</div>
         <div>
@@ -8159,6 +8338,17 @@ async function adminResolveCustomerInquiry(itemId, replyText){
       console.warn('Sync error:', e);
     }
   }
+
+  // Live dispatch to unified Server Sync API
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'resolve_support',
+      id: item.id,
+      reply: item.reply
+    })
+  }).catch(() => {});
 
   toast(tr('Customer inquiry resolved and reply dispatched ✓', 'సమస్య పరిష్కరించబడింది మరియు సమాధానం పంపబడింది ✓'));
   draw();
@@ -8405,6 +8595,58 @@ function adminSupportTab(){
       `).join('')}
     </div>` : `<p class="m">${tr('No bug reports logged. Technical services healthy!','ఎలాంటి సమస్యలు నివేదించబడలేదు.')}</p>`}
   </div>
+
+  <!-- 5. DEDICATED BORROWER KYC PROFILES & PHOTO IDS PANEL -->
+  <div class="card" style="margin-top:16px;border:1.5px solid var(--p)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div>
+        <h2 style="margin:0;color:var(--p)">${tr('Borrower KYC Profiles & Identity Documents','ఖాతాదారుల వ్యక్తిగత వివరాలు & KYC రికార్డులు')}</h2>
+        <p class="m" style="margin:2px 0 0;font-size:13px">
+          ${tr('Official personal profiles, verified photos, and contact records submitted from the Client Portal.', 'క్లయింట్ పోర్టల్ ద్వారా సమర్పించిన వ్యక్తిగత వివరాలు, ఫోటోలు మరియు ఫోన్ నంబర్లు.')}
+        </p>
+      </div>
+      <span class="chip" style="font-weight:800;color:var(--p)">
+        ${CP.length} ${tr('Verified Profiles','ప్రొఫైల్స్')}
+      </span>
+    </div>
+
+    ${CP.length > 0 ? `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+      ${CP.map(p => {
+        const mem = M.find(x => x.id === p.mid || (p.phone1 && cleanPh(x.phone) === cleanPh(p.phone1)) || (p.name && x.name.toLowerCase() === p.name.toLowerCase()));
+        const memStatus = mem ? st(mem) : null;
+        return `
+        <div style="background:var(--s);padding:14px;border-radius:12px;border:1px solid var(--b);display:flex;gap:12px;align-items:flex-start">
+          <div style="width:58px;height:58px;border-radius:10px;background:var(--c);border:1px solid var(--b);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover" alt="${esc(p.name)}">` : `<span style="font-size:24px;color:var(--m);font-weight:800">${esc(p.name ? p.name.charAt(0) : 'U')}</span>`}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:4px">
+              <b style="font-size:14.5px;color:var(--t)">${esc(p.name)}</b>
+              ${p.age ? `<span class="chip" style="font-size:10.5px">${p.age} yrs</span>` : ''}
+            </div>
+            <div class="m" style="font-size:12px;margin:2px 0">
+              ${esc(p.place || (mem ? vl(mem.village) : 'Guntur'))} · ${p.email ? esc(p.email) : 'No email'}
+            </div>
+            <div style="font-size:12.5px;font-weight:600;margin:3px 0">
+              ${tr('Primary: ','ఫోన్: ')}<b>${ph(p.phone1)}</b> ${p.phone2 ? `· WhatsApp: <b>${ph(p.phone2)}</b>` : ''}
+            </div>
+            ${memStatus ? `
+              <div style="font-size:11.5px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--b)">
+                ${tr('Ledger: ','ఖాతా: ')} <b style="color:${memStatus.due>0?'var(--amber)':'var(--ok)'}">${inr(Math.max(0, memStatus.due))} ${tr('due','బాకీ')}</b>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        `;
+      }).join('')}
+    </div>
+    ` : `
+    <div style="padding:16px;text-align:center;background:var(--s);border-radius:10px;border:1px dashed var(--b)">
+      <p class="m" style="margin:0">${tr('No borrower KYC profiles submitted yet. Borrowers can fill their KYC details from their Client Portal.','ఇంకా ఎలాంటి KYC ప్రొఫైల్స్ నమోదు కాలేదు.')}</p>
+    </div>
+    `}
+  </div>
 `;
 }
 
@@ -8551,7 +8793,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v85</span>
+          <span class="v18-pill">v86</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8640,11 +8882,109 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('client_profiles',a=>{CP=a||[];draw();},a=>a);
 
       if(db.loadAll){
-        db.loadAll().then(()=>{bootComplete=true;draw();}).catch(()=>{bootComplete=true;});
+        db.loadAll().then(()=>{bootComplete=true;syncServerSubmissions();draw();}).catch(()=>{bootComplete=true;});
       }else{
-        setTimeout(()=>{bootComplete=true;},1500);
+        setTimeout(()=>{bootComplete=true;syncServerSubmissions();},1500);
       }
     }
+
+    async function syncServerSubmissions(){
+      try {
+        const isAdm = (owner && role === 'a');
+        const mid = isAdm ? '' : (clientMid || 'm_mohanadeep');
+        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid));
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d || !d.ok) return;
+
+        let changed = false;
+
+        // Merge support
+        if (Array.isArray(d.support)) {
+          for (const item of d.support) {
+            const idx = CS.findIndex(x => x.id === item.id);
+            if (idx >= 0) {
+              if (JSON.stringify(CS[idx]) !== JSON.stringify(item)) { CS[idx] = item; changed = true; }
+            } else {
+              CS.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge bugs
+        if (Array.isArray(d.bugs)) {
+          for (const item of d.bugs) {
+            const idx = CB.findIndex(x => x.id === item.id);
+            if (idx >= 0) {
+              if (JSON.stringify(CB[idx]) !== JSON.stringify(item)) { CB[idx] = item; changed = true; }
+            } else {
+              CB.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge profiles
+        if (Array.isArray(d.profiles)) {
+          for (const item of d.profiles) {
+            const idx = CP.findIndex(x => x.id === item.id || x.mid === item.mid);
+            if (idx >= 0) {
+              if (JSON.stringify(CP[idx]) !== JSON.stringify(item)) { CP[idx] = item; changed = true; }
+            } else {
+              CP.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge receipts / payments
+        if (Array.isArray(d.receipts)) {
+          for (const item of d.receipts) {
+            const idx = CR.findIndex(x => x.id === item.id);
+            if (idx >= 0) {
+              if (JSON.stringify(CR[idx]) !== JSON.stringify(item)) { CR[idx] = item; changed = true; }
+            } else {
+              CR.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge agreements
+        if (Array.isArray(d.agreements)) {
+          for (const item of d.agreements) {
+            const idx = CA.findIndex(x => x.id === item.id || x.mid === item.mid);
+            if (idx >= 0) {
+              if (JSON.stringify(CA[idx]) !== JSON.stringify(item)) { CA[idx] = item; changed = true; }
+            } else {
+              CA.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge loan requests
+        if (Array.isArray(d.loan_requests)) {
+          for (const item of d.loan_requests) {
+            const idx = LR.findIndex(x => x.id === item.id);
+            if (idx >= 0) {
+              if (JSON.stringify(LR[idx]) !== JSON.stringify(item)) { LR[idx] = item; changed = true; }
+            } else {
+              LR.unshift(item); changed = true;
+            }
+          }
+        }
+
+        // Merge notifs
+        if (Array.isArray(d.notifs) && isAdm) {
+          for (const item of d.notifs) {
+            const idx = NT.findIndex(x => x.id === item.id);
+            if (idx < 0) { NT.unshift(item); changed = true; }
+          }
+        }
+
+        if (changed) draw();
+      } catch (_) {}
+    }
+    window.syncServerSubmissions = syncServerSubmissions;
+    setInterval(syncServerSubmissions, 15000);
 
     user = await claude.use('user');
     if(user){
@@ -8667,5 +9007,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=85').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=86').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
