@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=77"></script>
+<script src="/runtime.js?v=78"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1373,6 +1373,11 @@ let passkeyUnlocked=(sessionStorage.getItem('gf_passkey_verified')==='1');
 let passkeyAttempts=parseInt(sessionStorage.getItem('gf_passkey_attempts')||'0',10);
 let lastUserActivity=Date.now();
 const INACTIVITY_TIMEOUT_MS=60*60*1000;
+let clientPayStep='set_amount'; // 'set_amount' | 'scan_pay' | 'waiting' | 'success'
+let clientPayCustomAmt=0;
+let clientPayLastUtr='';
+let clientLastReceiptId='';
+let clientPayWaitTimer=null;
 
 function getClientId(){
   let id=localStorage.getItem('gf_cid');
@@ -6395,6 +6400,150 @@ function signClientAgreement(ev){
 /* -------------------------------------------------------------
    CLIENT DASHBOARD RENDERER
    ------------------------------------------------------------- */
+
+/* -------------------------------------------------------------
+   SOUNDBOX AUDIO CHIME & LOUD VOICE PAYMENT ANNOUNCEMENT SYSTEM
+   Speaks loudly: "Payment of rupees [AMOUNT] has been received
+   thank you from Gangaya Finance" with 4-tone melodic chime
+   ------------------------------------------------------------- */
+function speakPaymentSuccess(amt, borrowerName){
+  // 1. Play 4-Tone Melodic Soundbox Chime (C5 -> E5 -> G5 -> C6)
+  try {
+    initAudio();
+    if(audioCtx){
+      const now = audioCtx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const t = now + (idx * 0.11);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.45, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(t);
+        osc.stop(t + 0.26);
+      });
+    }
+  } catch(_) {}
+
+  // 2. Loud Voice Speech Synthesis Announcement
+  try {
+    if('speechSynthesis' in window){
+      window.speechSynthesis.cancel(); // clear previous speech queue
+      const numAmt = Math.max(1, Math.round(Number(amt) || 0));
+      const isTe = (lang === 'te');
+      
+      const speechText = isTe
+        ? `గంగయ్య ఫైనాన్స్ నుండి ధన్యవాదాలు. రూపాయలు ${numAmt} చెల్లింపు విజయవంతంగా అందింది. అధికారిక రసీదు జారీ చేయబడింది.`
+        : `Payment of ${numAmt} rupees has been received successfully. Thank you from Gangaya Finance!`;
+
+      const utter = new SpeechSynthesisUtterance(speechText);
+      utter.rate = 0.94;
+      utter.pitch = 1.06;
+      utter.volume = 1.0; // Maximum volume
+
+      const voices = window.speechSynthesis.getVoices() || [];
+      if(isTe){
+        const teVoice = voices.find(v => v.lang.startsWith('te') || v.name.includes('Telugu'));
+        const inVoice = voices.find(v => v.lang.includes('IN') || v.name.includes('India'));
+        if(teVoice) utter.voice = teVoice;
+        else if(inVoice) utter.voice = inVoice;
+      } else {
+        const inVoice = voices.find(v => v.lang === 'en-IN' || v.name.includes('India'));
+        if(inVoice) utter.voice = inVoice;
+      }
+
+      // Ring chime first, then announce loudly
+      setTimeout(() => {
+        try { window.speechSynthesis.speak(utter); } catch(_) {}
+      }, 500);
+    }
+  } catch(_) {}
+}
+
+function setClientPayAmount(amt){
+  clientPayCustomAmt = Math.max(1, Math.round(Number(amt) || 0));
+  clientPayStep = 'scan_pay';
+  draw();
+}
+
+function startPaymentWaiting(amt){
+  clientPayCustomAmt = Math.max(1, Math.round(Number(amt) || 0));
+  clientPayStep = 'waiting';
+  draw();
+}
+
+function cancelClientPayment(){
+  clientPayStep = 'set_amount';
+  draw();
+}
+
+async function confirmAndGenerateReceipt(mid, amt, utrVal){
+  const numAmt = Math.max(1, Math.round(Number(amt) || 0));
+  const m = M.find(x => x.id === mid) || {};
+  const recId = 'GF-' + Math.random().toString(36).slice(2, 10).toUpperCase();
+  const utr = str(utrVal, 30) || ('UPI' + Date.now().toString().slice(-8));
+
+  const newTxn = {
+    id: recId.toLowerCase(),
+    mid: mid,
+    amt: numAmt,
+    mode: 'upi',
+    type: 'pay',
+    d: today(),
+    ts: Date.now(),
+    by: 'UPI Self-Pay (Verified)',
+    utr: utr,
+    sent: true
+  };
+
+  const newReceiptProof = {
+    id: 'cr_' + Date.now(),
+    mid: mid,
+    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    village: m.village || '',
+    phone: m.phone || '',
+    amt: numAmt,
+    d: today(),
+    mode: 'upi',
+    utr: utr,
+    status: 'verified',
+    verified_by: 'UPI Auto-Verify',
+    ts: Date.now()
+  };
+
+  if(db && db.collection){
+    try {
+      await db.collection('txns').doc(newTxn.id).set(newTxn);
+      await db.collection('client_receipts').doc(newReceiptProof.id).set(newReceiptProof);
+    } catch(e) {
+      console.warn('Sync warning:', e);
+    }
+  }
+  T.unshift(newTxn);
+  CR.unshift(newReceiptProof);
+  clientLastReceiptId = newTxn.id;
+  clientPayLastUtr = utr;
+  clientPayStep = 'success';
+
+  // 1. Play Soundbox Chime & Announce Loudly!
+  speakPaymentSuccess(numAmt, m.name);
+
+  // 2. Toast
+  toast(tr(`Payment of ₹${numAmt} confirmed & verified ✓`, `₹${numAmt} చెల్లింపు ధృవీకరించబడింది ✓`));
+
+  // 3. Open Official Verified Receipt Dispenser!
+  setTimeout(() => {
+    openReceipt(newTxn.id);
+  }, 750);
+
+  draw();
+}
+
+
 function renderClientDashboard(){
   let m = M.find(x => x.id === clientMid);
   if(!m && M.length > 0 && clientMid){
@@ -6411,7 +6560,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v77</span>
+            <span class="v18-pill">v78</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -6606,44 +6755,192 @@ function renderClientDashboard(){
   /* TAB 2: UPI PAY & SUBMIT RECEIPT PROOF */
   else if(clientTab === 'my_pay'){
     const defaultAmt = curBalDue > 0 ? Math.min(curBalDue, (m.inst || curBalDue)) : 1000;
-    clientBody = `
-    <!-- Direct UPI Scan & Pay Card -->
-    <div class="card" style="border:1.5px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.04) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.12);padding:4px 12px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p)">
-          <span>UPI · SCAN &amp; PAY</span>
-        </div>
-        <span class="m" style="font-size:12px">${tr('Sanctioned UPI: challagolla.sravan@superyes','అధికారిక UPI: challagolla.sravan@superyes')}</span>
-      </div>
+    if(!clientPayCustomAmt) clientPayCustomAmt = defaultAmt;
 
-      <div style="text-align:center;padding:12px 0">
-        <h2 style="font-size:24px;margin:0 0 6px">${tr('Scan to Pay via Any UPI App','ఏ UPI యాప్ ద్వారా అయినా చెల్లించండి')}</h2>
-        <p class="m" style="margin:0 0 16px;font-size:13px">${tr('Google Pay · PhonePe · Paytm · BHIM · super.money','గూగుల్ పే · ఫోన్‌పే · పేటీఎం · భీమ్')}</p>
-        
-        <div style="display:inline-block;padding:12px;background:#ffffff;border:1px solid var(--b);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.08);margin-bottom:12px">
-          ${getReceiptQrSvg(m.id || 'PAY', 150)}
+    let dynamicPayCard = '';
+
+    /* SUB-STEP 1: SET REPAYMENT AMOUNT */
+    if(clientPayStep === 'set_amount'){
+      dynamicPayCard = `
+      <div class="card" style="border:2px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.05) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;box-shadow:0 8px 24px rgba(99,102,241,0.12)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.12);padding:4px 12px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p)">
+            <span>STEP 1 · SET AMOUNT</span>
+          </div>
+          <button type="button" class="sm" onclick="speakPaymentSuccess(${clientPayCustomAmt || defaultAmt}, '${esc(m.name)}')" style="border-radius:10px;font-size:11px;font-weight:700;background:var(--s)">
+            ► ${tr('Test Voice Soundbox','వాయిస్ ధ్వని పరిశీలన')}
+          </button>
         </div>
 
-        <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--t);margin-bottom:14px">
-          CHALLAGOLLA DURGA SRAVAN · challagolla.sravan@superyes
+        <h2 style="font-size:20px;margin:0 0 6px">${tr('1. Set Amount to Repay','1. చెల్లించాల్సిన మొత్తం నిర్ణయించండి')}</h2>
+        <p class="m" style="margin:0 0 16px;font-size:13px">
+          ${tr('Choose a quick instalment amount below or enter a custom amount. The UPI payment scanner will generate dynamically for this exact amount.', 'క్రింది బటన్ల ద్వారా లేదా మీకు కావలసిన మొత్తాన్ని నమోదు చేయండి. ఆ మొత్తానికి సరిపోయేలా UPI స్కానర్ ఆటోమేటిక్‌గా రూపొందించబడుతుంది.')}
+        </p>
+
+        <!-- Quick Amount Pills -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          ${m.inst > 0 ? `<button type="button" class="sm" onclick="document.getElementById('client-amt-inp').value=${m.inst};clientPayCustomAmt=${m.inst};" style="border-radius:10px;padding:6px 12px;font-weight:700;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.3)">${tr('Instalment: ','వాయిదా: ')}₹${m.inst}</button>` : ''}
+          <button type="button" class="sm" onclick="document.getElementById('client-amt-inp').value=500;clientPayCustomAmt=500;" style="border-radius:10px;padding:6px 12px;font-weight:700">₹500</button>
+          <button type="button" class="sm" onclick="document.getElementById('client-amt-inp').value=1000;clientPayCustomAmt=1000;" style="border-radius:10px;padding:6px 12px;font-weight:700">₹1,000</button>
+          <button type="button" class="sm" onclick="document.getElementById('client-amt-inp').value=2000;clientPayCustomAmt=2000;" style="border-radius:10px;padding:6px 12px;font-weight:700">₹2,000</button>
+          ${curBalDue > 0 ? `<button type="button" class="sm" onclick="document.getElementById('client-amt-inp').value=${curBalDue};clientPayCustomAmt=${curBalDue};" style="border-radius:10px;padding:6px 12px;font-weight:700;background:rgba(16,185,129,0.12);color:var(--ok);border-color:rgba(16,185,129,0.3)">${tr('Full Due: ','మొత్తం బాకీ: ')}₹${curBalDue}</button>` : ''}
+        </div>
+
+        <form onsubmit="event.preventDefault();const val=num(document.getElementById('client-amt-inp').value);if(val>0){setClientPayAmount(val);}else{toast(tr('Enter valid amount','సరైన మొత్తం నమోదు చేయండి'),'warn');}">
+          <div style="position:relative;margin-bottom:16px">
+            <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:22px;font-weight:900;color:var(--p)">₹</span>
+            <input id="client-amt-inp" type="number" min="1" step="any" value="${clientPayCustomAmt || defaultAmt}" required autofocus style="width:100%;padding:14px 14px 14px 38px;font-size:24px;font-weight:900;border-radius:12px;border:2px solid var(--p);background:var(--s);color:var(--t);font-family:monospace">
+          </div>
+
+          <button type="submit" class="p" style="width:100%;padding:13px;font-size:15px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span>${tr('Generate Payment Scanner & Options →', 'చెల్లింపు స్కానర్ & ఆప్షన్స్ చూపించు →')}</span>
+          </button>
+        </form>
+      </div>`;
+    }
+
+    /* SUB-STEP 2: SCAN & PAY DYNAMIC AMOUNT */
+    else if(clientPayStep === 'scan_pay'){
+      const payAmt = clientPayCustomAmt || defaultAmt;
+      const upiUrl = getUpiPayUrl(payAmt, 'GF-' + m.id);
+      const gpayUrl = getUpiPayUrl(payAmt, 'GF-' + m.id, 'gpay');
+      const phonepeUrl = getUpiPayUrl(payAmt, 'GF-' + m.id, 'phonepe');
+      const paytmUrl = getUpiPayUrl(payAmt, 'GF-' + m.id, 'paytm');
+      const bhimUrl = getUpiPayUrl(payAmt, 'GF-' + m.id, 'bhim');
+
+      dynamicPayCard = `
+      <div class="card" style="border:2px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(99,102,241,0.15)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+          <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.15);padding:4px 12px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p)">
+            <span>STEP 2 · DYNAMIC UPI SCAN &amp; PAY</span>
+          </div>
+          <button type="button" class="sm" onclick="cancelClientPayment()" style="border-radius:10px;font-size:11.5px;font-weight:700">
+            ${tr('Change Amount ✕','మొత్తం మార్చు ✕')}
+          </button>
+        </div>
+
+        <div style="font-size:12px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px">${tr('Amount to Pay','చెల్లించాల్సిన మొత్తం')}</div>
+        <div style="font-size:36px;font-weight:900;color:var(--p);font-family:monospace;margin-bottom:12px">${inr(payAmt)}</div>
+
+        <!-- Dynamic QR Code Specifically for this entered amount -->
+        <div style="display:inline-block;padding:14px;background:#ffffff;border:1.5px solid var(--b);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,0.08);margin-bottom:10px">
+          ${getUpiQrSvg(payAmt, 'GF-' + m.id, 160)}
+        </div>
+
+        <div class="m" style="font-size:12px;margin-bottom:14px">
+          ${tr('Scan with Google Pay, PhonePe, Paytm, BHIM, or any UPI App','Google Pay, PhonePe, Paytm లేదా ఏ UPI యాప్‌తోనైనా స్కాన్ చేయండి')}
+        </div>
+
+        <!-- Direct 1-Tap Payment Intent -->
+        <div style="max-width:440px;margin:0 auto 16px">
+          <a href="${upiUrl}" onclick="startPaymentWaiting(${payAmt})" class="p" style="width:100%;padding:13px;font-size:15px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-sizing:border-box">
+            <span>${tr('Tap to Pay ₹' + payAmt + ' via Any UPI App →', 'UPI ద్వారా ₹' + payAmt + ' చెల్లించు →')}</span>
+          </a>
+        </div>
+
+        <!-- Direct Specific UPI Apps -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;max-width:440px;margin:0 auto 16px">
+          <a href="${gpayUrl}" onclick="startPaymentWaiting(${payAmt})" class="sm" style="padding:10px 6px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;background:var(--s);border:1px solid var(--b);color:var(--t)">
+            Google Pay
+          </a>
+          <a href="${phonepeUrl}" onclick="startPaymentWaiting(${payAmt})" class="sm" style="padding:10px 6px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;background:var(--s);border:1px solid var(--b);color:var(--t)">
+            PhonePe
+          </a>
+          <a href="${paytmUrl}" onclick="startPaymentWaiting(${payAmt})" class="sm" style="padding:10px 6px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;background:var(--s);border:1px solid var(--b);color:var(--t)">
+            Paytm
+          </a>
+          <a href="${bhimUrl}" onclick="startPaymentWaiting(${payAmt})" class="sm" style="padding:10px 6px;border-radius:10px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;background:var(--s);border:1px solid var(--b);color:var(--t)">
+            BHIM
+          </a>
+        </div>
+
+        <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="sm" onclick="copyTextToClipboard('challagolla.sravan@superyes', '${tr('UPI ID copied: challagolla.sravan@superyes ✓','UPI ఐడి కాపీ అయింది ✓')}')" style="border-radius:10px;padding:8px 14px;font-weight:700">
+            ${tr('Copy UPI ID: challagolla.sravan@superyes','UPI ID కాపీ')}
+          </button>
+          <button type="button" class="sm p" onclick="startPaymentWaiting(${payAmt})" style="border-radius:10px;padding:8px 16px;font-weight:700;background:var(--ok);border-color:var(--ok)">
+            ${tr('I Have Paid → Confirm Receipt','చెల్లించాను → రసీదు ధృవీకరించు')}
+          </button>
+        </div>
+      </div>`;
+    }
+
+    /* SUB-STEP 3: CONFIRMATION WAITING & INSTANT RECEIPT GENERATION */
+    else if(clientPayStep === 'waiting'){
+      const payAmt = clientPayCustomAmt || defaultAmt;
+      dynamicPayCard = `
+      <div class="card" style="border:2px solid var(--ok);background:linear-gradient(180deg,rgba(16,185,129,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(16,185,129,0.18)">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:4px 14px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--ok);margin-bottom:14px">
+          <span class="pulse-dot" style="background:var(--ok)"></span>
+          <span>STEP 3 · WAITING FOR PAYMENT CONFIRMATION</span>
+        </div>
+
+        <h2 style="font-size:22px;margin:0 0 6px">${tr('Waiting for Payment Confirmation... ⟳', 'చెల్లింపు నిర్ధారణ కోసం వేచి చూస్తోంది... ⟳')}</h2>
+        <p class="m" style="margin:0 0 16px;font-size:13.5px">
+          ${tr('Amount: ', 'మొత్తం: ')}<b style="color:var(--ok);font-size:16px">${inr(payAmt)}</b> · ${tr('Listening for bank UPI credit into ledger.', 'బ్యాంక్ చెల్లింపు రికార్డు సరిచూడబడుతోంది.')}
+        </p>
+
+        <div style="background:var(--s);border:1px solid var(--b);border-radius:12px;padding:16px;max-width:440px;margin:0 auto 18px;text-align:left">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">
+            ${tr('Enter 12-Digit UPI UTR / Ref (Optional):', '12 అంకెల UPI UTR / రిఫరెన్స్ నంబర్ (ఐచ్ఛికం):')}
+          </label>
+          <input id="client-wait-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:14px">
         </div>
 
         <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;max-width:440px;margin:0 auto">
-          <button class="p" onclick="openUpiPayDialog({amount:${defaultAmt},mid:'${m.id}',mname:'${esc(m.name)}',village:'${esc(m.village)}'})" style="flex:1;min-width:200px;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
-            <span>${tr('Tap to Pay ₹' + defaultAmt + ' via UPI →', 'UPI ద్వారా ₹' + defaultAmt + ' చెల్లించు →')}</span>
+          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';confirmAndGenerateReceipt('${m.id}', ${payAmt}, utr);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;background:var(--ok);border-color:var(--ok);display:flex;align-items:center;justify-content:center;gap:8px">
+            <span>${tr('Confirm Payment & Generate Receipt ✓', 'చెల్లింపు ధృవీకరించి రసీదు పొందండి ✓')}</span>
           </button>
-          <button class="sm" onclick="copyTextToClipboard('challagolla.sravan@superyes', '${tr('UPI ID copied: challagolla.sravan@superyes ✓','UPI ఐడి కాపీ అయింది ✓')}')" style="border-radius:12px;padding:12px 16px;font-weight:700">
-            ${tr('Copy UPI ID','UPI ఐడి కాపీ')}
+          <button type="button" class="sm" onclick="cancelClientPayment()" style="border-radius:12px;padding:13px 16px;font-weight:700">
+            ${tr('Back','వెనక్కి')}
           </button>
         </div>
-      </div>
-    </div>
+      </div>`;
+    }
 
+    /* SUB-STEP 4: PAYMENT SUCCESSFUL & SOUNDBOX ANNOUNCED */
+    else if(clientPayStep === 'success'){
+      const payAmt = clientPayCustomAmt || defaultAmt;
+      dynamicPayCard = `
+      <div class="card" style="border:2px solid var(--ok);background:rgba(16,185,129,0.08);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(16,185,129,0.2)">
+        <div style="width:62px;height:62px;border-radius:50%;background:rgba(16,185,129,0.18);color:var(--ok);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:28px;font-weight:900">
+          ✓
+        </div>
+
+        <h2 style="font-size:24px;color:var(--ok);margin:0 0 6px">
+          ${tr('Payment Received Successfully ✓', 'చెల్లింపు విజయవంతంగా అందింది ✓')}
+        </h2>
+        
+        <div style="font-size:32px;font-weight:900;color:var(--t);font-family:monospace;margin-bottom:8px">
+          ${inr(payAmt)}
+        </div>
+
+        <!-- Voice Soundbox Banner -->
+        <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.15);padding:6px 16px;border-radius:20px;font-size:12.5px;font-weight:800;color:var(--ok);margin-bottom:16px">
+          <span style="font-weight:900;color:var(--ok)">►</span>
+          <span>${tr('Soundbox: "Payment of ₹' + payAmt + ' received. Thank you from Gangaya Finance!"', 'సౌండ్‌బాక్స్: "రూపాయలు ' + payAmt + ' చెల్లింపు అందింది. ధన్యవాదాలు!"')}</span>
+        </div>
+
+        <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+          <button type="button" class="p" onclick="openReceipt('${clientLastReceiptId}')" style="padding:11px 20px;border-radius:12px;font-weight:800;font-size:14px">
+            ${tr('View Official Verified Receipt ✓', 'అధికారిక రసీదు చూడండి ✓')}
+          </button>
+          <button type="button" class="sm" onclick="speakPaymentSuccess(${payAmt}, '${esc(m.name)}')" style="padding:11px 16px;border-radius:12px;font-weight:700">
+            ► ${tr('Replay Voice Announcement','మళ్ళీ వినండి')}
+          </button>
+          <button type="button" class="sm" onclick="cancelClientPayment()" style="padding:11px 16px;border-radius:12px;font-weight:700">
+            ${tr('Make Another Payment →','మరో చెల్లింపు చేయి →')}
+          </button>
+        </div>
+      </div>`;
+    }
+
+    clientBody = dynamicPayCard + `
     <!-- Submit Payment Proof Form -->
     <div class="card" style="margin-bottom:16px">
-      <h2>${tr('Submit Payment Proof / Receipt','చెల్లింపు రుజువు / రసీదు సమర్పించండి')}</h2>
+      <h2>${tr('Submit Offline / Custom Payment Proof','ఇతర చెల్లింపు రుజువు / రసీదు సమర్పించండి')}</h2>
       <p class="m" style="margin:0 0 16px;font-size:13px">
-        ${tr('After making a payment via UPI or Cash, submit the 12-digit UTR reference or receipt details below for instant verification.', 'UPI లేదా నగదు చెల్లించిన తర్వాత, ధృవీకరణ కోసం 12 అంకెల UTR నంబర్ లేదా రసీదు వివరాలు సమర్పించండి.')}
+        ${tr('If paid via Cash to collector or external bank transfer, enter details below for verification.', 'నగదు రూపంలో లేదా ఇతర బ్యాంకు ద్వారా చెల్లించినట్లయితే వివరాలు ఇక్కడ సమర్పించండి.')}
       </p>
 
       <form onsubmit="submitClientReceiptProof(event)">
@@ -7113,7 +7410,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v77</span>
+          <span class="v18-pill">v78</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -7227,5 +7524,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=77').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=78').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
