@@ -17,6 +17,46 @@
     }
     o.innerHTML = html; return o;
   }
+  
+  const authRateMap = new Map();
+  function checkAuthRateLimit(key, maxReq = 5, windowMs = 60000) {
+    const now = Date.now();
+    const timestamps = (authRateMap.get(key) || []).filter(t => (now - t) < windowMs);
+    if (timestamps.length >= maxReq) {
+      const oldest = timestamps[0];
+      const waitSec = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 1000));
+      return { allowed: false, waitSec, remaining: 0 };
+    }
+    timestamps.push(now);
+    authRateMap.set(key, timestamps);
+    return { allowed: true, remaining: maxReq - timestamps.length };
+  }
+
+  window.resendConfirmationEmail = async function(emailVal) {
+    if (!sb) return { success: false, message: 'Database not initialized' };
+    const em = String(emailVal || '').trim().toLowerCase();
+    if (!em || !em.includes('@')) return { success: false, message: 'Please enter a valid email address.' };
+    
+    // Check 5 requests per minute rate limit
+    const rl = checkAuthRateLimit('resend_' + em, 5, 60000);
+    if (!rl.allowed) {
+      return { success: false, message: 'Rate limit reached: Maximum 5 requests per minute. Please wait ' + rl.waitSec + 's.' };
+    }
+
+    const redirectTarget = (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) ? window.location.origin : 'https://gangaya-finance.vercel.app';
+    try {
+      const { error } = await sb.auth.resend({
+        type: 'signup',
+        email: em,
+        options: { emailRedirectTo: redirectTarget }
+      });
+      if (error) return { success: false, message: error.message };
+      return { success: true, message: 'Confirmation link sent to ' + em + '! Check your inbox and spam folder.' };
+    } catch (e) {
+      return { success: false, message: e.message || 'Could not resend confirmation email.' };
+    }
+  };
+
   window.__showLogin = (m) => loginUI(m);
   function loginUI(msg) {
     return new Promise(res => {
@@ -27,7 +67,8 @@
         const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? 'Light' : 'Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
-          '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
+          '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
+          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b)"><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a></div></form>');
         o.querySelector('#rt-th').onclick = () => {
           const next = isDark ? 'light' : 'dark';
           document.documentElement.setAttribute('data-theme', next);
@@ -43,6 +84,27 @@
           msg = '';
           render();
         };
+        const resendBtn = o.querySelector('#rt-resend');
+        if (resendBtn) {
+          resendBtn.onclick = async ev => {
+            ev.preventDefault();
+            const emailInput = o.querySelector('#rt-e');
+            const em = emailInput ? emailInput.value.trim() : '';
+            if (!em || !em.includes('@')) {
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              o.querySelector('#rt-m').textContent = 'Please enter your email above, then click resend.';
+              if (emailInput) emailInput.focus();
+              return;
+            }
+            resendBtn.textContent = 'Sending confirmation email...';
+            resendBtn.style.pointerEvents = 'none';
+            const resRes = await window.resendConfirmationEmail(em);
+            resendBtn.textContent = 'Link expired? Resend confirmation email ›';
+            resendBtn.style.pointerEvents = 'auto';
+            o.querySelector('#rt-m').style.color = resRes.success ? 'var(--ok)' : 'var(--r)';
+            o.querySelector('#rt-m').textContent = resRes.message;
+          };
+        }
         o.querySelector('#rt-f').onsubmit = async ev => {
           ev.preventDefault();
           const b = o.querySelector('button'); b.disabled = true;
@@ -146,7 +208,7 @@
   }
 
   async function loadAllStores(cols, force) {
-    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits', 'client_receipts', 'client_support', 'client_agreements', 'lockouts'];
+    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits', 'client_receipts', 'client_support', 'client_agreements', 'lockouts', 'client_bugs'];
     initSharedRealtime();
     for (let attempt = 0; attempt < 2; attempt++) {
       try {

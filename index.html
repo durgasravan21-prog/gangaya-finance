@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=78"></script>
+<script src="/runtime.js?v=79"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1365,7 +1365,7 @@ window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offl
 const _urlP=new URLSearchParams(window.location.search);
 let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='verify',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,upiScannedDlg=false,upiScannedData=null,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
-let CR=[],CS=[],CA=[],LK=[];
+let CR=[],CS=[],CA=[],LK=[],CB=[];
 let clientMid=localStorage.getItem('gf_client_mid')||'';
 let clientTab=(_urlP.get('ctab')||'my_loans');
 const MASTER_PASSKEY='12101992';
@@ -1378,6 +1378,26 @@ let clientPayCustomAmt=0;
 let clientPayLastUtr='';
 let clientLastReceiptId='';
 let clientPayWaitTimer=null;
+
+
+/* -------------------------------------------------------------
+   SLIDING WINDOW RATE LIMITER (Strict Max 5 Requests / Minute)
+   ------------------------------------------------------------- */
+const clientRateLimiter = {
+  limits: new Map(),
+  check(key, maxReq = 5, windowMs = 60000) {
+    const now = Date.now();
+    const timestamps = (this.limits.get(key) || []).filter(t => (now - t) < windowMs);
+    if (timestamps.length >= maxReq) {
+      const oldest = timestamps[0];
+      const waitSec = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 1000));
+      return { allowed: false, waitSec, remaining: 0 };
+    }
+    timestamps.push(now);
+    this.limits.set(key, timestamps);
+    return { allowed: true, remaining: maxReq - timestamps.length };
+  }
+};
 
 function getClientId(){
   let id=localStorage.getItem('gf_cid');
@@ -6574,6 +6594,95 @@ async function confirmAndGenerateReceipt(mid, amt, utrVal){
 }
 
 
+
+/* -------------------------------------------------------------
+   CLIENT BUG REPORTING & RESOLUTION SYSTEM
+   ------------------------------------------------------------- */
+function getSystemDiagnostics(){
+  const nav = typeof navigator !== 'undefined' ? navigator : {};
+  const ua = nav.userAgent || 'Unknown';
+  let os = 'Unknown OS';
+  if (ua.includes('Win')) os = 'Windows';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Mac')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+
+  let browser = 'Unknown Browser';
+  if (ua.includes('Chrome')) browser = 'Chrome';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Safari')) browser = 'Safari';
+  else if (ua.includes('Edge')) browser = 'Edge';
+
+  const screenDim = (typeof window !== 'undefined') ? (window.innerWidth + 'x' + window.innerHeight) : 'N/A';
+  return os + ' · ' + browser + ' · Screen: ' + screenDim + ' · Online: ' + (nav.onLine ? 'Yes' : 'No');
+}
+
+function submitClientBugReport(ev){
+  ev.preventDefault();
+  const f = ev.target;
+  const cat = f.querySelector('#bug-cat').value || 'Other';
+  const desc = str(f.querySelector('#bug-desc').value, 600);
+  const photo = f.querySelector('#bug-photo-data') ? f.querySelector('#bug-photo-data').value : '';
+
+  if (!desc || desc.trim().length < 5) {
+    toast(tr('Please provide more details in the bug description', 'దయచేసి సమస్య వివరాలను నమోదు చేయండి'), 'warn');
+    return;
+  }
+
+  // Rate Limiting: Max 5 bug reports per minute per borrower
+  const rl = clientRateLimiter.check('bug_' + (clientMid || 'anon'), 5, 60000);
+  if (!rl.allowed) {
+    toast(tr('Rate limit reached: Maximum 5 requests per minute. Please wait ' + rl.waitSec + 's.', 'గరిష్ట పరిమితి చేరింది: నిమిషానికి 5 అభ్యర్థనలు మాత్రమే. ' + rl.waitSec + ' సెకన్లు వేచి ఉండండి.'), 'warn');
+    return;
+  }
+
+  const m = M.find(x => x.id === clientMid) || {};
+  const bugId = 'bug_' + Date.now();
+  const bugObj = {
+    id: bugId,
+    mid: clientMid || 'guest',
+    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    village: m.village || '',
+    phone: m.phone || '',
+    category: cat,
+    description: desc,
+    diagnostics: getSystemDiagnostics(),
+    photo: photo,
+    status: 'investigating',
+    resolution_notes: '',
+    ts: Date.now(),
+    d: today()
+  };
+
+  if (db && db.collection) {
+    db.collection('client_bugs').doc(bugId).set(bugObj).then(() => {
+      toast(tr('Bug report submitted to technical team ✓ We are resolving it!', 'సమస్య నివేదించబడింది ✓ సాంకేతిక బృందం పరిశీలిస్తోంది!'));
+    }).catch(e => {
+      toast('Error: ' + (e && e.message || e));
+    });
+  } else {
+    toast(tr('Bug report logged ✓', 'సమస్య నమోదు చేయబడింది ✓'));
+  }
+  CB.unshift(bugObj);
+  f.reset();
+  draw();
+}
+
+function resolveBugReport(bugId, status, notes){
+  const b = CB.find(x => x.id === bugId);
+  if (!b) return;
+  b.status = status;
+  b.resolution_notes = notes || tr('Investigated and fixed by Durga Sravan ✓', 'దుర్గా శ్రావణ్ ద్వారా పరిశీలించి పరిష్కరించబడింది ✓');
+  b.resolved_at = new Date().toISOString();
+
+  if (db && db.collection) {
+    db.collection('client_bugs').doc(bugId).set(b).catch(() => {});
+  }
+  toast(tr('Bug status updated to: ' + status + ' ✓', 'సమస్య స్థితి అప్‌డేట్ చేయబడింది ✓'));
+  draw();
+}
+
 function renderClientDashboard(){
   let m = M.find(x => x.id === clientMid);
   if(!m && M.length > 0 && clientMid){
@@ -6590,7 +6699,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v78</span>
+            <span class="v18-pill">v79</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -6660,6 +6769,7 @@ function renderClientDashboard(){
     ['my_pay', tr('UPI Pay & Receipts', 'చెల్లింపులు & రసీదులు')],
     ['my_agreement', tr('Loan Agreement & Sign', 'ఒప్పందం & ఇ-సంతకం')],
     ['my_support', tr('Customer Support', 'సహాయం & మెసేజ్‌లు')],
+    ['report_bug', tr('Report a Bug', 'సమస్య నివేదించు')],
     ['faqs', tr('FAQs', 'ప్రశ్నలు & సమాధానాలు')],
     ['privacy', tr('Privacy Policy', 'గోప్యతా విధానం')]
   ];
@@ -7189,6 +7299,84 @@ function renderClientDashboard(){
     </div>`;
   }
 
+
+  /* TAB: REPORT A BUG & ISSUE RESOLUTION */
+  else if(clientTab === 'report_bug'){
+    const myBugs = CB.filter(c => c.mid === m.id || (m.phone && c.phone === m.phone));
+    clientBody = `
+    <!-- Bug Report Form -->
+    <div class="card" style="margin-bottom:16px;border:1.5px solid var(--r);background:linear-gradient(180deg,rgba(239,68,68,0.03) 0%,rgba(255,255,255,0) 100%)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <h2 style="margin:0;color:var(--r)">${tr('Report a Technical Bug or Issue','సాంకేతిక సమస్యను నివేదించండి')}</h2>
+        <span class="chip" style="font-size:11px;font-weight:700">${tr('Rate Limit: Max 5 / min','పరిమితి: నిమిషానికి గరిష్టంగా 5')}</span>
+      </div>
+      <p class="m" style="margin:0 0 16px;font-size:13px">
+        ${tr('Notice a problem, payment discrepancy, expired email link, or button glitch? Submit the details below. Our technical team receives this directly to resolve immediately.', 'చెల్లింపులు, రసీదులు లేదా యాప్‌లో ఏదైనా సాంకేతిక లోపం కనిపిస్తే క్రింది ఫారమ్ ద్వారా నివేదించండి. వెంటనే పరిష్కరించబడుతుంది.')}
+      </p>
+
+      <form onsubmit="submitClientBugReport(event)">
+        <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:14px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Bug Category*','సమస్య విభాగం*')}</label>
+            <select id="bug-cat" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px">
+              <option value="Payment / UPI Issue">${tr('Payment / UPI Scanner Glitch','చెల్లింపు / UPI స్కానర్ సమస్య')}</option>
+              <option value="Receipt Display / Print">${tr('Receipt Not Dispensing or Printing','రసీదు రావడం లేదు / ప్రింట్ అవ్వడం లేదు')}</option>
+              <option value="Voice Soundbox Audio">${tr('Voice Soundbox Announcement Issue','వాయిస్ ధ్వని రావడం లేదు')}</option>
+              <option value="Email Link Expired">${tr('Confirmation Email Link Expired','ధృవీకరణ ఇమెయిల్ లింక్ గడువు ముగిసింది')}</option>
+              <option value="Balance Calculation">${tr('Balance or Instalment Discrepancy','బాకీ లేదా వాయిదా లెక్క తప్పు')}</option>
+              <option value="Page Display Glitch">${tr('Screen Lag / Display Layout Glitch','స్క్రీన్ లాగ్ / డిస్‌ప్లే సమస్య')}</option>
+              <option value="Other">${tr('Other Technical Problem','ఇతర సమస్య')}</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('System Diagnostics (Auto-Captured)','సిస్టమ్ సమాచారం (ఆటోమేటిక్)')}</label>
+            <input type="text" value="${esc(getSystemDiagnostics())}" readonly style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--b);background:var(--s);color:var(--m);font-size:12px;font-family:monospace">
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Describe the Bug / What Happened*','సమస్య వివరణ*')}</label>
+          <textarea id="bug-desc" rows="3" placeholder="${tr('Explain what went wrong or what you were doing when the error occurred...','సమస్య ఏమిటి మరియు ఎప్పుడు జరిగిందో వివరించండి...')}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px;resize:vertical"></textarea>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Optional: Attach Screenshot or Error Photo','స్క్రీన్‌షాట్ లేదా ఎర్రర్ ఫోటో జతచేయండి')}</label>
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('bug-photo-data');if(hid)hid.value=e.target.result;const prev=document.getElementById('bug-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input id="bug-photo-data" type="hidden">
+          <img id="bug-photo-prev" style="display:none;max-height:140px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
+        </div>
+
+        <button type="submit" class="p" style="padding:11px 22px;border-radius:10px;font-weight:800;font-size:14px;background:var(--r);border-color:var(--r)">
+          ${tr('Submit Bug Report →','సమస్యను నివేదించు →')}
+        </button>
+      </form>
+    </div>
+
+    <!-- My Reported Bugs Tracking -->
+    <div class="card">
+      <h2>${tr('Your Submitted Bug Reports & Status','మీరు నివేదించిన సమస్యల స్థితి')}</h2>
+      ${myBugs.length > 0 ? `
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+        ${myBugs.map(b => `
+        <div style="background:var(--s);padding:14px;border-radius:12px;border:1.5px solid ${b.status === 'resolved' ? 'var(--ok)' : 'rgba(239,68,68,0.3)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+            <span class="chip" style="font-weight:700;font-size:11px">${esc(b.category)}</span>
+            <span class="chip" style="background:${b.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'};color:${b.status === 'resolved' ? 'var(--ok)' : '#d97706'};font-weight:800;font-size:11px">
+              ${b.status === 'resolved' ? tr('FIXED & RESOLVED ✓','పరిష్కరించబడింది ✓') : tr('INVESTIGATING ⟳','పరిశీలనలో ఉంది ⟳')}
+            </span>
+          </div>
+          <div style="font-size:13.5px;color:var(--t);margin-bottom:8px;line-height:1.5">${esc(b.description)}</div>
+          <div class="m" style="font-size:11.5px;margin-bottom:6px">${fd(b.d || today())} · ${esc(b.diagnostics || '')}</div>
+          ${b.resolution_notes ? `
+          <div style="background:rgba(16,185,129,0.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12.5px;margin-top:6px">
+            <b>${tr('Resolution: ','పరిష్కారం: ')}</b>${esc(b.resolution_notes)}
+          </div>` : ''}
+        </div>
+        `).join('')}
+      </div>` : `<p class="m">${tr('No bugs reported yet. The system is operating smoothly!','ఇప్పటివరకు ఎలాంటి సమస్యలు నివేదించబడలేదు. సిస్టమ్ సజావుగా నడుస్తోంది!')}</p>`}
+    </div>`;
+  }
+
   /* TAB 5: FAQS */
   else if(clientTab === 'faqs'){
     const faqs = [
@@ -7292,7 +7480,52 @@ function adminSupportTab(){
       </div>
       `).join('')}
     </div>` : `<p class="m">${tr('No customer inquiries at this time. All caught up!','ప్రస్తుతం ఎలాంటి సందేశాలు లేవు.')}</p>`}
-  </div>`;
+  </div>
+  <!-- Bug Reports Management Panel for Durga Sravan -->
+  <div class="card" style="margin-top:16px;border:1.5px solid var(--p)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <h2 style="margin:0">${tr('Client Bug Reports & System Diagnostics','ఖాతాదారుల సమస్యల నివేదికలు')}</h2>
+      <span class="chip" style="background:${CB.filter(x=>x.status!=='resolved').length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${CB.filter(x=>x.status!=='resolved').length > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+        ${CB.filter(x=>x.status!=='resolved').length} ${tr('Active Bug(s)','పరిష్కరించాల్సినవి')}
+      </span>
+    </div>
+    <p class="m" style="margin:0 0 16px;font-size:13px">
+      ${tr('Bugs submitted by borrowers with auto-captured device diagnostics. Review and mark them as fixed below.', 'వినియోగదారులు నివేదించిన సమస్యలు. పరిష్కరించి స్థితిని అప్‌డేట్ చేయండి.')}
+    </p>
+
+    ${CB.length > 0 ? `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${CB.map(bug => `
+      <div style="background:var(--s);padding:14px;border-radius:12px;border:1.5px solid ${bug.status === 'resolved' ? 'var(--b)' : 'var(--r)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <div>
+            <b>${esc(bug.borrower)}</b> ${bug.village ? '<span class="m">(' + esc(vl(bug.village)) + ')</span>' : ''}
+            ${bug.phone ? '<span class="m" style="font-size:12px"> · ' + esc(bug.phone) + '</span>' : ''}
+          </div>
+          <span class="chip" style="font-weight:700;font-size:11px">${esc(bug.category)}</span>
+        </div>
+        <div style="font-size:13.5px;color:var(--t);margin-bottom:6px;line-height:1.5">${esc(bug.description)}</div>
+        <div class="m" style="font-size:11.5px;font-family:monospace;margin-bottom:8px">${esc(bug.diagnostics || 'No diagnostics')}</div>
+        
+        ${bug.photo ? `<div style="margin-bottom:8px"><img src="${bug.photo}" style="max-height:120px;border-radius:6px;border:1px solid var(--b)"></div>` : ''}
+        
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          ${bug.status !== 'resolved' ? `
+          <button class="p sm" onclick="resolveBugReport('${bug.id}', 'resolved', 'Fixed & verified by Durga Sravan ✓')" style="border-radius:8px;font-weight:700;font-size:12px;background:var(--ok);border-color:var(--ok)">
+            ${tr('Mark as Fixed & Resolved ✓','పరిష్కరించబడింది అని గుర్తించు ✓')}
+          </button>
+          <button class="sm" onclick="resolveBugReport('${bug.id}', 'investigating', 'Durga Sravan is investigating this issue')" style="border-radius:8px;font-size:12px">
+            ${tr('Mark Investigating ⟳','పరిశీలిస్తున్నట్లు గుర్తించు ⟳')}
+          </button>` : `
+          <span class="chip" style="background:rgba(16,185,129,0.15);color:var(--ok);font-weight:800;font-size:11.5px">
+            ${tr('RESOLVED ✓','పరిష్కరించబడింది ✓')}
+          </span>`}
+        </div>
+      </div>
+      `).join('')}
+    </div>` : `<p class="m">${tr('No bug reports logged. Technical services healthy!','ఎలాంటి సమస్యలు నివేదించబడలేదు.')}</p>`}
+  </div>
+`;
 }
 
 function adminLockoutsTab(){
@@ -7438,7 +7671,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v78</span>
+          <span class="v18-pill">v79</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -7523,6 +7756,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('client_support',a=>{CS=a||[];draw();},a=>a);
       sub('client_agreements',a=>{CA=a||[];draw();},a=>a);
       sub('lockouts',a=>{LK=a||[];draw();},a=>a);
+      sub('client_bugs',a=>{CB=a||[];draw();},a=>a);
 
       if(db.loadAll){
         db.loadAll().then(()=>{bootComplete=true;draw();}).catch(()=>{bootComplete=true;});
@@ -7552,5 +7786,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=78').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=79').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
