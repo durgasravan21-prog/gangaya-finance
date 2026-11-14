@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=76"></script>
+<script src="/runtime.js?v=77"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1365,6 +1365,87 @@ window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offl
 const _urlP=new URLSearchParams(window.location.search);
 let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
 let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='verify',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,upiScannedDlg=false,upiScannedData=null,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
+let CR=[],CS=[],CA=[],LK=[];
+let clientMid=localStorage.getItem('gf_client_mid')||'';
+let clientTab=(_urlP.get('ctab')||'my_loans');
+const MASTER_PASSKEY='12101992';
+let passkeyUnlocked=(sessionStorage.getItem('gf_passkey_verified')==='1');
+let passkeyAttempts=parseInt(sessionStorage.getItem('gf_passkey_attempts')||'0',10);
+let lastUserActivity=Date.now();
+const INACTIVITY_TIMEOUT_MS=60*60*1000;
+
+function getClientId(){
+  let id=localStorage.getItem('gf_cid');
+  if(!id){id='c_'+Math.random().toString(36).slice(2,11);try{localStorage.setItem('gf_cid',id)}catch(_){}}
+  return id;
+}
+
+function isDeviceLockedOut(){
+  try{
+    if(localStorage.getItem('gf_locked_status')==='locked') return true;
+    const cid=getClientId();
+    const lk=LK.find(x=>(x.cid===cid||x.ip==='this_device')&&x.status==='locked');
+    return !!lk;
+  }catch(_){return false;}
+}
+
+function triggerDeviceLockout(reason){
+  try{localStorage.setItem('gf_locked_status','locked')}catch(_){}
+  const lockId='lock_'+Date.now();
+  const cid=getClientId();
+  const lockObj={
+    id:lockId,
+    cid:cid,
+    ip:'this_device',
+    user:(me&&me.email)||(user&&user.email)||'Admin/Collector Session',
+    attempts:3,
+    reason:reason||'Exceeded 3 failed security passkey attempts',
+    ts:Date.now(),
+    d:today(),
+    status:'locked'
+  };
+  if(db&&db.collection){
+    db.collection('lockouts').doc(lockId).set(lockObj).catch(()=>{});
+  }
+  LK.unshift(lockObj);
+  draw();
+}
+
+function unlockDevice(lockId){
+  try{localStorage.removeItem('gf_locked_status')}catch(_){}
+  try{sessionStorage.removeItem('gf_passkey_attempts')}catch(_){}
+  passkeyAttempts=0;
+  const lk=LK.find(x=>x.id===lockId||(x.cid===getClientId()&&x.status==='locked'));
+  if(lk){
+    lk.status='unlocked';
+    lk.unlocked_at=new Date().toISOString();
+    if(db&&db.collection){
+      db.collection('lockouts').doc(lk.id).set(lk).catch(()=>{});
+    }
+  }
+  toast(tr('Access Unlocked & Restored ✓','యాక్సెస్ అన్‌లాక్ చేయబడింది ✓'));
+  draw();
+}
+
+function recordUserActivity(){
+  lastUserActivity=Date.now();
+}
+['mousedown','mousemove','keydown','scroll','touchstart','click'].forEach(evt=>{
+  window.addEventListener(evt,recordUserActivity,{passive:true});
+});
+
+setInterval(()=>{
+  if((role==='a'||role==='f'||role==='c')&&(Date.now()-lastUserActivity>INACTIVITY_TIMEOUT_MS)){
+    console.warn('1-Hour Inactivity Auto-Logout triggered');
+    try{sessionStorage.removeItem('gf_passkey_verified')}catch(_){}
+    if(window.__signout){
+      window.__signout('Session auto-logged out due to 1 hour of inactivity.');
+    }else{
+      alert('Session expired after 1 hour of inactivity. Please sign in again.');
+      location.reload();
+    }
+  }
+},15000);
 function getScannerSrc(){ return customQr || '/scanner.png'; }
 async function getScannerBlob(){
   if(customQr && customQr.startsWith('data:')){
@@ -1761,15 +1842,26 @@ cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=
 function syncRoleFromUser(){
   const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
   const uRole = String((me && me.role) || (user && user.role) || '').toLowerCase().trim();
+  const isPortalClient = (_urlP.get('portal') === 'client');
   const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || uRole === 'admin');
   const isCollectorUser = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || uRole === 'collector');
+  const isClientUser = (uRole === 'client' || uRole === 'borrower' || isPortalClient || role === 'c');
+
+  if (isClientUser && !isAdminUser && !isCollectorUser) {
+    owner = false;
+    role = 'c';
+    if (me && me.mid && !clientMid) { clientMid = me.mid; try{localStorage.setItem('gf_client_mid', clientMid)}catch(_){} }
+    return;
+  }
 
   if (isAdminUser) {
     owner = true;
-    if (!role || (role !== 'a' && role !== 'f')) role = 'a';
+    if (!role || (role !== 'a' && role !== 'f' && role !== 'c')) role = 'a';
   } else if (isCollectorUser) {
     owner = false;
-    role = 'f';
+    if (role !== 'c') role = 'f';
+  } else if (isClientUser) {
+    role = 'c';
   }
 }
 window.__onProfileUpdate = function(newProf){
@@ -6055,6 +6147,879 @@ function renderStandaloneReceiptPage(receiptId){
   `;
 }
 
+
+/* -------------------------------------------------------------
+   2-LEVEL SECURITY PASSKEY & BRUTE FORCE LOCKOUT SYSTEM
+   Passkey: 12101992 (Required for Admin and Collector)
+   Lockout: Banned if > 3 failed attempts; Unlock via Admin
+   ------------------------------------------------------------- */
+function verifyPasskeySubmit(ev){
+  if(ev) ev.preventDefault();
+  const inp = document.getElementById('gf-passkey-input');
+  if(!inp) return;
+  const val = inp.value.trim();
+  if(val === MASTER_PASSKEY){
+    passkeyUnlocked = true;
+    try{
+      sessionStorage.setItem('gf_passkey_verified', '1');
+      sessionStorage.removeItem('gf_passkey_attempts');
+    }catch(_){}
+    passkeyAttempts = 0;
+    toast(tr('2-Factor Passkey Verified ✓', '2-లెవెల్ సెక్యూరిటీ పాస్‌కీ ధృవీకరించబడింది ✓'));
+    draw();
+  } else {
+    passkeyAttempts++;
+    try{
+      sessionStorage.setItem('gf_passkey_attempts', String(passkeyAttempts));
+    }catch(_){}
+    if(passkeyAttempts >= 3){
+      triggerDeviceLockout('Exceeded 3 failed security passkey attempts');
+    } else {
+      toast(tr('Invalid passkey! Attempt ' + passkeyAttempts + ' of 3', 'తప్పుడు పాస్‌కీ! ప్రయత్నం ' + passkeyAttempts + ' / 3'), 'warn');
+      draw();
+    }
+  }
+}
+
+function renderLockoutScreen(){
+  const cid = getClientId();
+  const lk = LK.find(x => (x.cid === cid || x.ip === 'this_device') && x.status === 'locked');
+  const lockId = (lk && lk.id) || ('LOCK-' + cid.slice(-6).toUpperCase());
+  return `<div class="card" role="alert" style="max-width:540px;margin:50px auto;text-align:center;padding:36px 24px;border-color:var(--r);box-shadow:0 12px 36px rgba(239,68,68,0.18)">
+    <div style="width:68px;height:68px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;color:#ef4444;font-size:28px;font-weight:900">
+      ✕
+    </div>
+    <h2 style="color:var(--r);font-size:22px;margin:0 0 10px">${tr('Security Access Denied — Device Locked Out', 'సెక్యూరిటీ యాక్సెస్ తిరస్కరించబడింది — లాక్ చేయబడింది')}</h2>
+    <p style="font-size:14px;color:var(--t);margin:0 0 14px;line-height:1.6">
+      ${tr('3 consecutive failed security passkey attempts were recorded from this device. To protect financial ledger integrity, this session has been locked out.', 'ఈ పరికరం నుండి వరుసగా 3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేయబడింది. ఆర్థిక రికార్డుల రక్షణ కోసం ఈ సెషన్ తాత్కాలికంగా లాక్ చేయబడింది.')}
+    </p>
+    <div style="background:var(--s);padding:12px 16px;border-radius:10px;border:1px solid var(--b);margin-bottom:20px;font-family:monospace;font-size:12.5px;color:var(--m)">
+      <div>${tr('Device Security ID: ', 'పరికర సెక్యూరిటీ ఐడి: ')}<b>${esc(lockId)}</b></div>
+      <div>${tr('Timestamp: ', 'సమయం: ')}${fd(today())}, ${new Date().toLocaleTimeString()}</div>
+    </div>
+    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;padding:14px;text-align:left;margin-bottom:24px">
+      <div style="font-weight:700;font-size:13px;color:var(--p);margin-bottom:4px">${tr('How to Unlock / Restore Access:', 'యాక్సెస్ తిరిగి పొందడం ఎలా:')}</div>
+      <div class="m" style="font-size:12px;line-height:1.5">
+        ${tr('Please contact System Administrator (Durga Sravan). The admin can verify your identity and 1-click Unlock this device from the Admin Security Management Dashboard.', 'సిస్టమ్ అడ్మినిస్ట్రేటర్ (దుర్గా శ్రావణ్) ని సంప్రదించండి. అడ్మిన్ డాష్‌బోర్డ్ ద్వారా ఈ పరికరాన్ని సులభంగా అన్‌లాక్ చేయవచ్చు.')}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="p" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+        <span>${tr('Contact Admin via WhatsApp →', 'వాట్సాప్‌లో అడ్మిన్‌ని సంప్రదించు →')}</span>
+      </a>
+      <button class="sm" onclick="location.reload()" style="padding:10px 18px;border-radius:10px;font-size:13px">${tr('Check Status / Refresh ⟳', 'స్థితిని తనిఖీ చేయి ⟳')}</button>
+    </div>
+  </div>`;
+}
+
+function renderPasskeyModal(){
+  const attemptsLeft = Math.max(0, 3 - passkeyAttempts);
+  return `<div class="card" role="dialog" aria-modal="true" style="max-width:440px;margin:60px auto;padding:32px 24px;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.18);border:1.5px solid var(--p)">
+    <div style="width:58px;height:58px;border-radius:16px;background:linear-gradient(135deg,var(--p),#4338ca);color:#fff;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:24px;font-weight:900">
+      GF
+    </div>
+    <h2 style="margin:0 0 6px;font-size:20px">${tr('2-Factor Security Passkey', '2-లెవెల్ సెక్యూరిటీ పాస్‌కీ')}</h2>
+    <p class="m" style="margin:0 0 18px;font-size:13px;line-height:1.5">
+      ${tr('Enter the 8-digit management passkey to access financial ledgers and collection tools.', 'ఖాతా వివరాలు మరియు వసూలు టూల్స్ కోసం 8 అంకెల పాస్‌కీ నమోదు చేయండి.')}
+    </p>
+
+    <form onsubmit="verifyPasskeySubmit(event)" style="display:flex;flex-direction:column;gap:14px">
+      <div style="position:relative">
+        <input id="gf-passkey-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" placeholder="${tr('Enter 8-digit passkey','8 అంకెల పాస్‌కీ')}" required autofocus style="text-align:center;font-size:22px;letter-spacing:0.25em;padding:12px;font-family:monospace;border-radius:12px;border:2px solid var(--b);background:var(--s);color:var(--t)">
+      </div>
+      
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+        <span class="${passkeyAttempts > 0 ? 'warn' : 'm'}" style="font-weight:700">
+          ${passkeyAttempts > 0 ? tr('Failed attempts: ' + passkeyAttempts + ' / 3', 'విఫలమైన ప్రయత్నాలు: ' + passkeyAttempts + ' / 3') : tr('Level 2 Encryption Active', '2-లెవెల్ ఎన్‌క్రిప్షన్ యాక్టివ్')}
+        </span>
+        <span class="m">${attemptsLeft} ${tr('tries left before lockout', 'ప్రయత్నాలు మిగిలాయి')}</span>
+      </div>
+
+      <button type="submit" class="p" style="padding:13px;font-size:15px;font-weight:800;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>${tr('Unlock Dashboard ✓', 'డాష్‌బోర్డ్ అన్‌లాక్ చేయి ✓')}</span>
+      </button>
+
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:6px">
+        <button type="button" class="sm" onclick="setRole('c');draw()" style="border-radius:10px;font-size:12px">${tr('Borrower Portal ›', 'ఖాతాదారుల పోర్టల్ ›')}</button>
+        ${window.__signout ? `<button type="button" class="sm d" onclick="__signout()" style="border-radius:10px;font-size:12px">${tr('Sign Out', 'సైన్ అవుట్')}</button>` : ''}
+      </div>
+    </form>
+  </div>`;
+}
+
+/* -------------------------------------------------------------
+   CUSTOMER / CLIENT DASHBOARD SYSTEM (role === 'c')
+   Borrower Self-Service, UPI Payments, Digital Agreements,
+   Proof Upload, Repayment Schedule, Customer Support, FAQs
+   ------------------------------------------------------------- */
+function setClientTab(t){
+  clientTab = t;
+  try{
+    const u = new URL(window.location);
+    u.searchParams.set('ctab', t);
+    window.history.replaceState({}, '', u.toString());
+  }catch(_){}
+  draw();
+}
+
+function selectClientMember(mid){
+  clientMid = mid;
+  try{localStorage.setItem('gf_client_mid', mid)}catch(_){}
+  draw();
+}
+
+function clearClientMember(){
+  clientMid = '';
+  try{localStorage.removeItem('gf_client_mid')}catch(_){}
+  draw();
+}
+
+function submitClientReceiptProof(ev){
+  ev.preventDefault();
+  const f = ev.target;
+  const amt = num(f.querySelector('#cr-amt').value);
+  const d = f.querySelector('#cr-d').value || today();
+  const mode = f.querySelector('#cr-mode').value || 'upi';
+  const utr = str(f.querySelector('#cr-utr').value, 30);
+  const photo = f.querySelector('#cr-photo-data') ? f.querySelector('#cr-photo-data').value : '';
+
+  if(!amt || amt <= 0){
+    toast(tr('Please enter valid amount paid', 'సరైన మొత్తం నమోదు చేయండి'), 'warn');
+    return;
+  }
+  const m = M.find(x => x.id === clientMid) || {};
+  const newReceipt = {
+    id: 'cr_' + Date.now(),
+    mid: clientMid,
+    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    village: m.village || '',
+    phone: m.phone || '',
+    amt: amt,
+    d: d,
+    mode: mode,
+    utr: utr,
+    photo: photo,
+    status: 'pending',
+    ts: Date.now()
+  };
+
+  if(db && db.collection){
+    db.collection('client_receipts').doc(newReceipt.id).set(newReceipt).then(()=>{
+      toast(tr('Payment receipt submitted! Pending admin verification ✓', 'చెల్లింపు రసీదు సమర్పించబడింది! అడ్మిన్ పరిశీలనలో ఉంది ✓'));
+    }).catch(e=>{
+      toast('Error: ' + (e&&e.message||e));
+    });
+  } else {
+    toast(tr('Payment receipt submitted! ✓', 'రసీదు సమర్పించబడింది ✓'));
+  }
+  CR.unshift(newReceipt);
+  f.reset();
+  draw();
+}
+
+function submitClientSupportMsg(ev){
+  ev.preventDefault();
+  const f = ev.target;
+  const msgText = str(f.querySelector('#cs-msg').value, 500);
+  const topic = f.querySelector('#cs-topic').value || 'General';
+
+  if(!msgText || msgText.trim().length < 3){
+    toast(tr('Please enter a message', 'సందేశాన్ని నమోదు చేయండి'), 'warn');
+    return;
+  }
+  const m = M.find(x => x.id === clientMid) || {};
+  const newMsg = {
+    id: 'cs_' + Date.now(),
+    mid: clientMid,
+    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    village: m.village || '',
+    phone: m.phone || '',
+    topic: topic,
+    msg: msgText,
+    reply: '',
+    status: 'open',
+    ts: Date.now()
+  };
+
+  if(db && db.collection){
+    db.collection('client_support').doc(newMsg.id).set(newMsg).then(()=>{
+      toast(tr('Message sent to Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ కి మెసేజ్ పంపబడింది ✓'));
+    }).catch(e=>{
+      toast('Error: ' + (e&&e.message||e));
+    });
+  } else {
+    toast(tr('Message sent to Admin ✓', 'మెసేజ్ పంపబడింది ✓'));
+  }
+  CS.unshift(newMsg);
+  f.reset();
+  draw();
+}
+
+function signClientAgreement(ev){
+  ev.preventDefault();
+  const f = ev.target;
+  const signName = str(f.querySelector('#ca-name').value, 60);
+  const agreed = f.querySelector('#ca-check').checked;
+
+  if(!signName || !agreed){
+    toast(tr('Please enter full legal name and accept agreement terms', 'పూర్తి పేరు నమోదు చేసి నిబంధనలను అంగీకరించండి'), 'warn');
+    return;
+  }
+  const m = M.find(x => x.id === clientMid) || {};
+  const agrId = 'agr_' + clientMid;
+  const agrObj = {
+    id: agrId,
+    mid: clientMid,
+    borrower: m.name || signName,
+    signed_name: signName,
+    signed: true,
+    ts: Date.now(),
+    signed_at: new Date().toISOString(),
+    hash: 'SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase()
+  };
+
+  if(db && db.collection){
+    db.collection('client_agreements').doc(agrId).set(agrObj).then(()=>{
+      toast(tr('Agreement digitally signed & validated ✓', 'ఒప్పందం డిజిటల్ సంతకంతో ఆమోదించబడింది ✓'));
+    }).catch(e=>{
+      toast('Error: ' + (e&&e.message||e));
+    });
+  } else {
+    toast(tr('Agreement signed ✓', 'సంతకం పూర్తయింది ✓'));
+  }
+  const idx = CA.findIndex(x => x.id === agrId);
+  if(idx >= 0) CA[idx] = agrObj; else CA.unshift(agrObj);
+  draw();
+}
+
+/* -------------------------------------------------------------
+   CLIENT DASHBOARD RENDERER
+   ------------------------------------------------------------- */
+function renderClientDashboard(){
+  let m = M.find(x => x.id === clientMid);
+  if(!m && M.length > 0 && clientMid){
+    // If not found by ID, try finding by phone or name
+    m = M.find(x => x.phone === clientMid || x.name === clientMid);
+  }
+
+  // Top header for client portal
+  const topNav = `
+  <div class="hd" style="margin-bottom:16px">
+    <div class="top">
+      <div class="brand">
+        <div class="brand-logo" style="background:linear-gradient(135deg,#059669,#10b981)">GF</div>
+        <div>
+          <h1 class="brand-title">
+            ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
+            <span class="v18-pill">v77</span>
+          </h1>
+          <div class="brand-sub">
+            <span class="pulse-dot" style="background:#10b981"></span>
+            <span>${tr('Customer Self-Service & Verified Ledgers', 'ఖాతాదారుల సేవలు & ధృవీకరించిన ఖాతాలు')}</span>
+          </div>
+        </div>
+      </div>
+      <div class="acts">
+        ${m ? `<span class="chip" style="font-weight:700;color:var(--ok)">${esc(m.name)} (${esc(vl(m.village))})</span>` : ''}
+        ${m ? `<button class="sm" onclick="clearClientMember()" style="border-radius:10px;font-size:11.5px">${tr('Switch Account','ఖాతా మార్చు')}</button>` : ''}
+        ${(owner || (me && me.role === 'admin')) ? `<button class="sm p" onclick="setRole('a')" style="border-radius:10px;font-size:11.5px">${tr('Back to Admin','అడ్మిన్ డాష్‌బోర్డ్')}</button>` : ''}
+        ${langBtn()}
+        ${themeBtn()}
+        ${window.__signout ? `<button class="sm" onclick="__signout()" style="border-radius:10px;font-size:11.5px">${tr('Sign out','సైన్ అవుట్')}</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+
+  if(!m){
+    // Borrower selection / lookup screen
+    return topNav + `
+    <div class="card" style="max-width:520px;margin:24px auto;padding:28px 20px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.08)">
+      <div style="width:52px;height:52px;border-radius:50%;background:rgba(5,150,105,0.12);color:#059669;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:24px;font-weight:900">
+        ✓
+      </div>
+      <h2 style="margin:0 0 8px">${tr('Welcome to Customer Portal', 'ఖాతాదారుల పోర్టల్‌కు స్వాగతం')}</h2>
+      <p class="m" style="margin:0 0 20px;font-size:13.5px;line-height:1.5">
+        ${tr('Select your registered borrower name or enter your 10-digit phone number to view your active loans, repayment schedule, and download official receipts.', 'మీ అప్పు వివరాలు, చెల్లింపుల షెడ్యూల్ మరియు రసీదులు చూడటానికి మీ పేరు లేదా ఫోన్ నంబర్ ఎంచుకోండి.')}
+      </p>
+
+      <div style="text-align:left;margin-bottom:18px">
+        <label style="font-size:12.5px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">${tr('Select Your Name:','మీ పేరును ఎంచుకోండి:')}</label>
+        <select onchange="selectClientMember(this.value)" style="width:100%;padding:11px;font-size:14px;border-radius:10px;background:var(--s);border:1.5px solid var(--b);color:var(--t)">
+          <option value="">-- ${tr('Select Borrower Name', 'ఖాతాదారుని పేరును ఎంచుకోండి')} --</option>
+          ${M.filter(x => !x.archived).map(x => `<option value="${x.id}">${esc(x.name)} ${x.te ? '(' + esc(x.te) + ')' : ''} — ${esc(vl(x.village))} (${esc(x.phone || 'No phone')})</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="row" style="margin:16px 0;align-items:center">
+        <hr style="flex:1;border:none;border-top:1px solid var(--b)">
+        <span class="m" style="padding:0 10px;font-size:12px">${tr('OR SEARCH BY PHONE','లేదా ఫోన్ నంబర్ ద్వారా')}</span>
+        <hr style="flex:1;border:none;border-top:1px solid var(--b)">
+      </div>
+
+      <form onsubmit="event.preventDefault();const p=this.phone.value.replace(/\D/g,'');const found=M.find(x=>cleanPh(x.phone).includes(p));if(found){selectClientMember(found.id)}else{toast(tr('No record found with this phone number','ఈ ఫోన్ నంబర్‌తో రికార్డు కనపడలేదు'),'warn')}">
+        <div style="display:flex;gap:8px">
+          <input name="phone" type="tel" placeholder="${tr('Enter 10-digit Phone / WhatsApp','10 అంకెల ఫోన్ నంబర్')}" required style="flex:1;padding:11px;font-size:14px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t)">
+          <button type="submit" class="p" style="padding:11px 18px;border-radius:10px;font-weight:700">${tr('Find My Account →','ఖాతా వెతుకు →')}</button>
+        </div>
+      </form>
+    </div>`;
+  }
+
+  // Active Borrower Found! Calculate Borrower Ledger & Loan Status
+  const s = st(m);
+  const myTxns = T.filter(t => t.mid === m.id).sort((a,b) => b.ts - a.ts);
+  const myPayments = myTxns.filter(t => t.type === 'pay');
+  const myNewLoans = myTxns.filter(t => t.type === 'loan');
+  const totalBorrowed = myNewLoans.reduce((acc, t) => acc + (t.repay || t.amt || 0), 0);
+  const totalRepaid = myPayments.reduce((acc, t) => acc + t.amt, 0);
+  const curBalDue = Math.max(0, s.due);
+  const myProofs = CR.filter(c => c.mid === m.id);
+  const myAgreement = CA.find(c => c.mid === m.id);
+
+  const clientTabs = [
+    ['my_loans', tr('My Loans & Schedule', 'నా అప్పులు & షెడ్యూల్')],
+    ['my_pay', tr('UPI Pay & Receipts', 'చెల్లింపులు & రసీదులు')],
+    ['my_agreement', tr('Loan Agreement & Sign', 'ఒప్పందం & ఇ-సంతకం')],
+    ['my_support', tr('Customer Support', 'సహాయం & మెసేజ్‌లు')],
+    ['faqs', tr('FAQs', 'ప్రశ్నలు & సమాధానాలు')],
+    ['privacy', tr('Privacy Policy', 'గోప్యతా విధానం')]
+  ];
+
+  const clientTabButtons = `
+  <div class="tabs" role="tablist" style="margin-bottom:16px;overflow-x:auto;flex-wrap:nowrap">
+    ${clientTabs.map(([k, label]) => `
+      <button role="tab" aria-selected="${clientTab === k}" class="${clientTab === k ? 'on' : ''}" onclick="setClientTab('${k}')" style="white-space:nowrap">
+        <span>${label}</span>
+      </button>
+    `).join('')}
+  </div>`;
+
+  let clientBody = '';
+
+  /* TAB 1: MY LOANS & REPAYMENT SCHEDULE */
+  if(clientTab === 'my_loans'){
+    clientBody = `
+    <div class="g" style="margin-bottom:16px">
+      <div class="card stat">
+        <span class="m">${tr('Current Balance Due','మిగిలిన బాకీ')}</span>
+        <b style="color:${curBalDue > 0 ? 'var(--r)' : 'var(--ok)'}">${inr(curBalDue)}</b>
+        <span class="m">${curBalDue > 0 ? tr('Active Repayment Cycle','ప్రస్తుతం చెల్లించాల్సిన బాకీ') : tr('All Loans Cleared In Full ✓','అన్ని అప్పులు పూర్తిగా తీరిపోయాయి ✓')}</span>
+      </div>
+      <div class="card stat">
+        <span class="m">${tr('Instalment Due','వాయిదా మొత్తం')}</span>
+        <b style="color:var(--p)">${inr(m.inst)}</b>
+        <span class="m">${m.freq === 1 ? tr('Daily Instalment','రోజువారీ వాయిదా') : tr('Weekly Instalment','వారపు వాయిదా')}</span>
+      </div>
+      <div class="card stat">
+        <span class="m">${tr('Total Repaid to Date','ఇప్పటివరకు చెల్లించిన మొత్తం')}</span>
+        <b class="ok">${inr(totalRepaid)}</b>
+        <span class="m">${myPayments.length} ${tr('verified instalments','ధృవీకరించిన వాయిదాలు')}</span>
+      </div>
+      <div class="card stat">
+        <span class="m">${tr('Total Sanctioned Principal','మొత్తం మంజూరైన అప్పు')}</span>
+        <b>${inr(totalBorrowed)}</b>
+        <span class="m">${myNewLoans.length} ${tr('sanctioned loans','మంజూరైన అప్పులు')}</span>
+      </div>
+    </div>
+
+    <!-- Active Loan Card -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <h2 style="margin:0">${tr('Active Loan & Instalment Details','ప్రస్తుత అప్పు & వాయిదా వివరాలు')}</h2>
+        <span class="chip" style="background:${curBalDue > 0 ? 'rgba(99,102,241,0.12)' : 'rgba(16,185,129,0.15)'};color:${curBalDue > 0 ? 'var(--p)' : 'var(--ok)'};font-weight:800">
+          ${curBalDue > 0 ? tr('IN REPAYMENT','చెల్లింపులో ఉంది') : tr('PAID IN FULL ✓','పూర్తిగా చెల్లించబడింది ✓')}
+        </span>
+      </div>
+
+      <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px">
+        <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b)">
+          <div class="m" style="font-size:11.5px">${tr('Borrower Name','రుణగ్రహీత పేరు')}</div>
+          <div style="font-weight:700;font-size:14px">${esc(m.name)} ${m.te ? '(' + esc(m.te) + ')' : ''}</div>
+        </div>
+        <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b)">
+          <div class="m" style="font-size:11.5px">${tr('Village / Location','ఊరు / ప్రాంతం')}</div>
+          <div style="font-weight:700;font-size:14px">${esc(vl(m.village))}</div>
+        </div>
+        <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b)">
+          <div class="m" style="font-size:11.5px">${tr('Phone / WhatsApp','ఫోన్ నంబర్')}</div>
+          <div style="font-weight:700;font-size:14px">${esc(m.phone || 'N/A')}</div>
+        </div>
+        <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b)">
+          <div class="m" style="font-size:11.5px">${tr('Sanction Authority','మంజూరు చేసినవారు')}</div>
+          <div style="font-weight:700;font-size:14px;color:var(--p)">Durga Sravan (Gangaya Finance)</div>
+        </div>
+      </div>
+
+      <!-- Repayment Progress Bar -->
+      ${totalBorrowed > 0 ? `
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:6px">
+          <span>${tr('Repayment Progress:','చెల్లింపుల పురోగతి:')} ${Math.min(100, Math.round((totalRepaid / totalBorrowed) * 100))}%</span>
+          <span>${inr(totalRepaid)} / ${inr(totalBorrowed)}</span>
+        </div>
+        <div style="width:100%;height:10px;border-radius:6px;background:var(--b);overflow:hidden">
+          <div style="width:${Math.min(100, Math.round((totalRepaid / totalBorrowed) * 100))}%;height:100%;background:linear-gradient(90deg,#10b981,#059669);transition:width 0.4s ease"></div>
+        </div>
+      </div>` : ''}
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="p sm" onclick="setClientTab('my_pay')" style="border-radius:10px;padding:8px 16px;font-weight:700">${tr('Pay Instalment via UPI →','UPI ద్వారా వాయిదా చెల్లించు →')}</button>
+        <button class="sm" onclick="setClientTab('my_agreement')" style="border-radius:10px;padding:8px 16px">${tr('View Loan Agreement','అప్పు ఒప్పందం చూడండి')}</button>
+      </div>
+    </div>
+
+    <!-- Past / Historical Loans -->
+    <div class="card">
+      <h2>${tr('Past & Closed Loans History','గత అప్పుల చరిత్ర')}</h2>
+      ${myNewLoans.length > 0 ? `
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:10px">
+        <thead>
+          <tr style="border-bottom:1px solid var(--b);text-align:left">
+            <th style="padding:8px">${tr('Sanction Date','తేదీ')}</th>
+            <th style="padding:8px">${tr('Loan Amount','అప్పు మొత్తం')}</th>
+            <th style="padding:8px">${tr('Instalment','వాయిదా')}</th>
+            <th style="padding:8px">${tr('Status','స్థితి')}</th>
+            <th style="padding:8px">${tr('Receipt','రసీదు')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${myNewLoans.map(t => `
+          <tr style="border-bottom:1px solid var(--b)">
+            <td style="padding:8px">${fd(t.d)}</td>
+            <td style="padding:8px;font-weight:700">${inr(t.amt)}</td>
+            <td style="padding:8px">${inr(t.inst || m.inst)} (${m.freq === 1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')})</td>
+            <td style="padding:8px">
+              <span class="chip" style="background:rgba(16,185,129,0.12);color:var(--ok);font-size:11px;font-weight:800">
+                ${curBalDue === 0 ? tr('SETTLED ✓','క్లియర్ అయింది ✓') : tr('ACTIVE','యాక్టివ్')}
+              </span>
+            </td>
+            <td style="padding:8px">
+              <button class="sm" onclick="openReceipt('${t.id}')">${tr('View','చూడండి')}</button>
+            </td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>` : `<p class="m">${tr('No past loan records found.','గత అప్పుల రికార్డులు లేవు.')}</p>`}
+    </div>`;
+  }
+
+  /* TAB 2: UPI PAY & SUBMIT RECEIPT PROOF */
+  else if(clientTab === 'my_pay'){
+    const defaultAmt = curBalDue > 0 ? Math.min(curBalDue, (m.inst || curBalDue)) : 1000;
+    clientBody = `
+    <!-- Direct UPI Scan & Pay Card -->
+    <div class="card" style="border:1.5px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.04) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.12);padding:4px 12px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p)">
+          <span>UPI · SCAN &amp; PAY</span>
+        </div>
+        <span class="m" style="font-size:12px">${tr('Sanctioned UPI: challagolla.sravan@superyes','అధికారిక UPI: challagolla.sravan@superyes')}</span>
+      </div>
+
+      <div style="text-align:center;padding:12px 0">
+        <h2 style="font-size:24px;margin:0 0 6px">${tr('Scan to Pay via Any UPI App','ఏ UPI యాప్ ద్వారా అయినా చెల్లించండి')}</h2>
+        <p class="m" style="margin:0 0 16px;font-size:13px">${tr('Google Pay · PhonePe · Paytm · BHIM · super.money','గూగుల్ పే · ఫోన్‌పే · పేటీఎం · భీమ్')}</p>
+        
+        <div style="display:inline-block;padding:12px;background:#ffffff;border:1px solid var(--b);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,0.08);margin-bottom:12px">
+          ${getReceiptQrSvg(m.id || 'PAY', 150)}
+        </div>
+
+        <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--t);margin-bottom:14px">
+          CHALLAGOLLA DURGA SRAVAN · challagolla.sravan@superyes
+        </div>
+
+        <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;max-width:440px;margin:0 auto">
+          <button class="p" onclick="openUpiPayDialog({amount:${defaultAmt},mid:'${m.id}',mname:'${esc(m.name)}',village:'${esc(m.village)}'})" style="flex:1;min-width:200px;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span>${tr('Tap to Pay ₹' + defaultAmt + ' via UPI →', 'UPI ద్వారా ₹' + defaultAmt + ' చెల్లించు →')}</span>
+          </button>
+          <button class="sm" onclick="copyTextToClipboard('challagolla.sravan@superyes', '${tr('UPI ID copied: challagolla.sravan@superyes ✓','UPI ఐడి కాపీ అయింది ✓')}')" style="border-radius:12px;padding:12px 16px;font-weight:700">
+            ${tr('Copy UPI ID','UPI ఐడి కాపీ')}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Payment Proof Form -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>${tr('Submit Payment Proof / Receipt','చెల్లింపు రుజువు / రసీదు సమర్పించండి')}</h2>
+      <p class="m" style="margin:0 0 16px;font-size:13px">
+        ${tr('After making a payment via UPI or Cash, submit the 12-digit UTR reference or receipt details below for instant verification.', 'UPI లేదా నగదు చెల్లించిన తర్వాత, ధృవీకరణ కోసం 12 అంకెల UTR నంబర్ లేదా రసీదు వివరాలు సమర్పించండి.')}
+      </p>
+
+      <form onsubmit="submitClientReceiptProof(event)">
+        <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Amount Paid (₹)*','చెల్లించిన మొత్తం (₹)*')}</label>
+            <input id="cr-amt" type="number" min="1" step="any" value="${defaultAmt}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px;font-weight:700">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Payment Date*','చెల్లించిన తేదీ*')}</label>
+            <input id="cr-d" type="date" value="${today()}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Payment Mode*','చెల్లింపు విధానం*')}</label>
+            <select id="cr-mode" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px">
+              <option value="upi">UPI (GPay / PhonePe / Paytm / BHIM)</option>
+              <option value="cash">${tr('Cash to Collector','నగదు (కలెక్టర్‌కు)')}</option>
+              <option value="bank">${tr('Bank Transfer / IMPS / NEFT','బ్యాంక్ బదిలీ')}</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('UPI UTR / Reference No (12 Digits)','UPI UTR / రిఫరెన్స్ నంబర్ (12 అంకెలు)')}</label>
+            <input id="cr-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px;font-family:monospace">
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Optional: Upload Screenshot or Photo Proof','స్క్రీన్‌షాట్ లేదా ఫోటో రుజువును జతచేయండి')}</label>
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('cr-photo-data');if(hid)hid.value=e.target.result;const prev=document.getElementById('cr-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input id="cr-photo-data" type="hidden">
+          <img id="cr-photo-prev" style="display:none;max-height:140px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
+        </div>
+
+        <button type="submit" class="p" style="padding:11px 22px;border-radius:10px;font-weight:800;font-size:14px">
+          ${tr('Submit Payment Proof →','చెల్లింపు రుజువు సమర్పించు →')}
+        </button>
+      </form>
+    </div>
+
+    <!-- My Submitted Payment Proofs Status -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>${tr('Submitted Payment Proofs & Status','సమర్పించిన చెల్లింపు రుజువుల స్థితి')}</h2>
+      ${myProofs.length > 0 ? `
+      <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:10px">
+        <thead>
+          <tr style="border-bottom:1px solid var(--b);text-align:left">
+            <th style="padding:8px">${tr('Date','తేదీ')}</th>
+            <th style="padding:8px">${tr('Amount','మొత్తం')}</th>
+            <th style="padding:8px">${tr('Mode & UTR','విధానం & UTR')}</th>
+            <th style="padding:8px">${tr('Verification Status','ధృవీకరణ స్థితి')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${myProofs.map(p => `
+          <tr style="border-bottom:1px solid var(--b)">
+            <td style="padding:8px">${fd(p.d)}</td>
+            <td style="padding:8px;font-weight:700;color:var(--ok)">${inr(p.amt)}</td>
+            <td style="padding:8px">${p.mode ? p.mode.toUpperCase() : 'UPI'} ${p.utr ? '· <span style="font-family:monospace">' + esc(p.utr) + '</span>' : ''}</td>
+            <td style="padding:8px">
+              <span class="chip" style="background:${p.status === 'verified' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'};color:${p.status === 'verified' ? 'var(--ok)' : '#d97706'};font-weight:800;font-size:11px">
+                ${p.status === 'verified' ? tr('OFFICIAL VERIFIED RECEIPT ✓','ధృవీకరించిన రసీదు ✓') : tr('PENDING VERIFICATION ⟳','పరిశీలనలో ఉంది ⟳')}
+              </span>
+            </td>
+          </tr>
+          `).join('')}
+        </tbody>
+      </table>` : `<p class="m">${tr('No submitted payment proofs yet. Submit details above after paying.','ఇంకా చెల్లింపు రుజువులు సమర్పించలేదు.')}</p>`}
+    </div>
+
+    <!-- Official Verified Receipts from Ledger -->
+    <div class="card">
+      <h2>${tr('Official Ledger Payment Receipts','అధికారిక లెడ్జర్ చెల్లింపు రసీదులు')}</h2>
+      ${myPayments.length > 0 ? `
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        ${myPayments.map(t => `
+        <div class="rec" style="align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:var(--ok)">${inr(t.amt)} ${t.mode === 'upi' ? '<span class="chip" style="font-size:10.5px;padding:2px 6px">UPI</span>' : '<span class="chip" style="font-size:10.5px;padding:2px 6px">Cash</span>'}</div>
+            <div class="m" style="font-size:12px">${fd(t.d)}, ${tm(t)} · ${esc(getCollectorDisplay(t.by))}</div>
+          </div>
+          <div class="acts">
+            <button class="p sm" onclick="openReceipt('${t.id}')" style="border-radius:8px;padding:5px 12px;font-size:12px">${tr('View Official Receipt ✓','అధికారిక రసీదు చూడండి ✓')}</button>
+          </div>
+        </div>
+        `).join('')}
+      </div>` : `<p class="m">${tr('No official payment records logged yet.','ఇంకా చెల్లింపు రికార్డులు లేవు.')}</p>`}
+    </div>`;
+  }
+
+  /* TAB 3: LOAN AGREEMENT & DIGITAL E-SIGNATURE */
+  else if(clientTab === 'my_agreement'){
+    clientBody = `
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <h2 style="margin:0">${tr('Loan Agreement & Terms of Financing','అప్పు ఒప్పందం & ఆర్థిక నిబంధనలు')}</h2>
+        ${myAgreement && myAgreement.signed ? `
+        <span class="chip" style="background:rgba(16,185,129,0.15);color:var(--ok);font-weight:800;font-size:11.5px">
+          ${tr('DIGITALLY SIGNED & VALIDATED ✓','డిజిటల్ సంతకంతో ధృవీకరించబడింది ✓')}
+        </span>` : `
+        <span class="chip warn" style="font-weight:800;font-size:11.5px">
+          ${tr('PENDING SIGNATURE','సంతకం చేయాల్సి ఉంది')}
+        </span>`}
+      </div>
+
+      <!-- Agreement Document Text Box -->
+      <div style="background:var(--s);padding:20px;border-radius:12px;border:1px solid var(--b);font-size:13px;line-height:1.7;color:var(--t);margin-bottom:18px">
+        <div style="text-align:center;border-bottom:1.5px solid var(--b);padding-bottom:12px;margin-bottom:14px">
+          <div style="font-weight:800;font-size:16px;color:var(--p)">GANGAYA FINANCE • LOAN SANCTION AGREEMENT</div>
+          <div class="m" style="font-size:12px">Sanctioned by: Durga Sravan · Guntur, Andhra Pradesh</div>
+        </div>
+
+        <p><b>1. Parties:</b> This Agreement is executed between <b>Gangaya Finance</b> (Financier) and <b>${esc(m.name)}</b> (Borrower), resident of <b>${esc(vl(m.village))}</b>, Phone: <b>${esc(m.phone || 'N/A')}</b>.</p>
+        <p><b>2. Sanctioned Facility:</b> Total Sanctioned Facility of <b>${inr(totalBorrowed || s.due || 12000)}</b>, repayable in agreed instalments of <b>${inr(m.inst)}</b> on a <b>${m.freq === 1 ? 'Daily' : 'Weekly'}</b> basis.</p>
+        <p><b>3. Mode of Repayment:</b> Repayments shall be remitted via authorized UPI to <code>challagolla.sravan@superyes</code> or tendered in cash to designated Collector Gangaya against instant digital receipts.</p>
+        <p><b>4. Digital Verification:</b> Every payment recorded generates a cryptographic receipt verifiable via QR code on Google or phone cameras.</p>
+        <p><b>5. Default & Grievance:</b> In case of hardship or missed instalments, the Borrower shall promptly notify Durga Sravan via the Customer Support portal.</p>
+        
+        <div style="margin-top:12px;font-style:italic;color:var(--m)">
+          తెలుగు సంక్షిప్తం: ఈ ఒప్పందం ద్వారా రుణగ్రహీత మంజూరైన మొత్తాన్ని అంగీకరిస్తూ, నిర్ణీత వాయిదాలను రోజువారీ/వారపు విధానంలో క్రమం తప్పకుండా చెల్లించడానికి అంగీకరిస్తున్నారు. ప్రతి చెల్లింపునకు అధికారిక రసీదు అందించబడుతుంది.
+        </div>
+      </div>
+
+      <!-- E-Signature Section -->
+      ${myAgreement && myAgreement.signed ? `
+      <div style="background:rgba(16,185,129,0.08);border:1.5px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px;text-align:center">
+        <div style="font-weight:800;font-size:14px;color:var(--ok);margin-bottom:6px">
+          ✓ ${tr('Document Digitally Executed & Legally Bound','ఒప్పందం విజయవంతంగా ఆమోదించబడింది')}
+        </div>
+        <div class="m" style="font-size:12.5px;margin-bottom:10px">
+          ${tr('Signed by: ','సంతకం చేసినవారు: ')}<b>${esc(myAgreement.signed_name)}</b> · ${fd(today())} · Hash: ${esc(myAgreement.hash || 'SHA256-AUTHENTIC')}
+        </div>
+        <button class="sm" onclick="window.print()" style="border-radius:8px;font-weight:700">${tr('Print Agreement Copy','ఒప్పందం ప్రింట్ చేయి')}</button>
+      </div>` : `
+      <form onsubmit="signClientAgreement(event)" style="background:var(--s);border:1.5px dashed var(--p);border-radius:12px;padding:18px">
+        <h3 style="margin:0 0 8px;font-size:14.5px">${tr('Apply Digital E-Signature','డిజిటల్ ఇ-సంతకం వర్తింపజేయండి')}</h3>
+        <p class="m" style="margin:0 0 14px;font-size:12.5px">
+          ${tr('Type your full legal name below to execute this loan agreement electronically.', 'ఈ అప్పు ఒప్పందాన్ని ధృవీకరించడానికి మీ పూర్తి పేరును నమోదు చేయండి.')}
+        </p>
+
+        <div style="margin-bottom:12px">
+          <input id="ca-name" type="text" placeholder="${tr('Type your full legal name','మీ పూర్తి పేరును నమోదు చేయండి')}" value="${esc(m.name)}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:14px;font-weight:700">
+        </div>
+
+        <div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:8px">
+          <input id="ca-check" type="checkbox" required style="margin-top:3px">
+          <label for="ca-check" style="font-size:12px;color:var(--t);line-height:1.4">
+            ${tr('I confirm that I have reviewed the financing terms and I agree to abide by the repayment schedule.', 'నేను అప్పు నిబంధనలను పరిశీలించాను మరియు షెడ్యూల్ ప్రకారం వాయిదాలు చెల్లించడానికి అంగీకరిస్తున్నాను.')}
+          </label>
+        </div>
+
+        <button type="submit" class="p" style="padding:10px 20px;border-radius:10px;font-weight:800;font-size:13.5px">
+          ${tr('Apply Digital E-Signature ✓','డిజిటల్ సంతకం చేయి ✓')}
+        </button>
+      </form>`}
+    </div>`;
+  }
+
+  /* TAB 4: CUSTOMER SUPPORT & MESSAGES */
+  else if(clientTab === 'my_support'){
+    const myMsgs = CS.filter(c => c.mid === m.id);
+    clientBody = `
+    <!-- Send Message to Admin Form -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>${tr('Direct Customer Support & Inquiries','కస్టమర్ కేర్ & అడ్మిన్ సంప్రదింపులు')}</h2>
+      <p class="m" style="margin:0 0 16px;font-size:13px">
+        ${tr('Send a direct message or grievance to Durga Sravan (Admin). Inquiries reach the Admin Dashboard immediately.', 'మీ సందేశం లేదా సమస్యను నేరుగా దుర్గా శ్రావణ్ గారికి పంపండి. అడ్మిన్ డాష్‌బోర్డ్‌లో వెంటనే చూడబడుతుంది.')}
+      </p>
+
+      <form onsubmit="submitClientSupportMsg(event)">
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Inquiry Category*','సమస్య విభాగం*')}</label>
+          <select id="cs-topic" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px">
+            <option value="Payment Inquiry">${tr('Payment or Balance Query','చెల్లింపు లేదా బాకీ పరిశీలన')}</option>
+            <option value="Receipt Request">${tr('Receipt or Verification Request','రసీదు లేదా ధృవీకరణ అభ్యర్థన')}</option>
+            <option value="Top-up Loan">${tr('New / Top-up Loan Application','కొత్త అప్పు కోసం అభ్యర్థన')}</option>
+            <option value="General">${tr('General Question or Feedback','సాధారణ ప్రశ్న లేదా ఫీడ్‌బ్యాక్')}</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Your Message / Query*','మీ సందేశం*')}</label>
+          <textarea id="cs-msg" rows="3" placeholder="${tr('Type your message here...','మీ సందేశాన్ని ఇక్కడ రాయండి...')}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px;resize:vertical"></textarea>
+        </div>
+
+        <button type="submit" class="p" style="padding:10px 20px;border-radius:10px;font-weight:800;font-size:13.5px">
+          ${tr('Send Message to Durga Sravan →','దుర్గా శ్రావణ్ కి మెసేజ్ పంపు →')}
+        </button>
+      </form>
+    </div>
+
+    <!-- Live Conversation Thread -->
+    <div class="card">
+      <h2>${tr('Your Inquiries & Admin Responses','మీ సందేశాలు & అడ్మిన్ సమాధానాలు')}</h2>
+      ${myMsgs.length > 0 ? `
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
+        ${myMsgs.map(item => `
+        <div style="background:var(--s);border:1px solid var(--b);border-radius:12px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span class="chip" style="font-size:11px;font-weight:700">${esc(item.topic || 'Inquiry')}</span>
+            <span class="m" style="font-size:11.5px">${fd(today())}</span>
+          </div>
+          <div style="font-size:13.5px;color:var(--t);margin-bottom:8px;line-height:1.5">
+            ${esc(item.msg)}
+          </div>
+          ${item.reply ? `
+          <div style="background:rgba(99,102,241,0.08);border-left:3px solid var(--p);padding:10px 12px;border-radius:0 8px 8px 0;margin-top:8px">
+            <div style="font-weight:800;font-size:12px;color:var(--p);margin-bottom:3px">
+              ${tr('Reply from Durga Sravan (Admin) ✓','దుర్గా శ్రావణ్ (అడ్మిన్) సమాధానం ✓')}
+            </div>
+            <div style="font-size:13px;color:var(--t)">${esc(item.reply)}</div>
+          </div>` : `
+          <div class="m" style="font-size:11.5px;font-style:italic">
+            ${tr('Pending reply from Durga Sravan...','అడ్మిన్ పరిశీలనలో ఉంది...')}
+          </div>`}
+        </div>
+        `).join('')}
+      </div>` : `<p class="m">${tr('No messages sent yet. Use the form above to contact Admin.','ఇంకా ఎలాంటి సందేశాలు పంపలేదు.')}</p>`}
+    </div>`;
+  }
+
+  /* TAB 5: FAQS */
+  else if(clientTab === 'faqs'){
+    const faqs = [
+      {
+        q: tr('How can I pay my loan instalment through UPI?', 'UPI ద్వారా నా అప్పు వాయిదాను ఎలా చెల్లించాలి?'),
+        a: tr('Open the UPI Pay tab, tap "Pay via UPI App" or scan the QR code using Google Pay, PhonePe, Paytm, or BHIM. After paying, submit your 12-digit UTR number for instant verification.', 'UPI Pay ట్యాబ్ ఓపెన్ చేసి, "Pay via UPI App" బటన్ నొక్కండి లేదా Google Pay, PhonePe ద్వారా QR కోడ్ స్కాన్ చేసి చెల్లించండి.')
+      },
+      {
+        q: tr('How do I verify and download my official payment receipt?', 'నా అధికారిక చెల్లింపు రసీదును ఎలా సరిచూడాలి మరియు డౌన్‌లోడ్ చేసుకోవాలి?'),
+        a: tr('Every logged payment has an official receipt. Go to the "UPI Pay & Receipts" tab, click "View Official Receipt" next to any payment, and you can download a photo or scan the authentic QR code with any phone camera or Google.', 'ప్రతి చెల్లింపునకు అధికారిక రసీదు ఉంటుంది. రసీదుని ఫోటోగా సేవ్ చేసుకోవచ్చు లేదా Google Lens తో స్కాన్ చేసి సరిచూడవచ్చు.')
+      },
+      {
+        q: tr('What happens if I miss an instalment due to an emergency?', 'అత్యవసర పరిస్థితుల్లో వాయిదా ఆలస్యమైతే ఏమి జరుగుతుంది?'),
+        a: tr('Gangaya Finance values transparency. Please use the Customer Support tab to message Durga Sravan directly so we can accommodate your repayment schedule without penalties.', 'దయచేసి కస్టమర్ సపోర్ట్ ట్యాబ్ ద్వారా అడ్మిన్ దుర్గా శ్రావణ్ గారికి సందేశం పంపండి.')
+      },
+      {
+        q: tr('Can I pay in cash to Collector Gangaya?', 'నేను కలెక్టర్ గంగయ్య గారికి నగదు రూపంలో చెల్లించవచ్చా?'),
+        a: tr('Yes, cash payments are accepted during field collection rounds. Collector Gangaya immediately generates an authenticated digital receipt on the spot.', 'అవును, కలెక్టర్ గంగయ్య గారు వచ్చినప్పుడు నగదు చెల్లించవచ్చు. వెంటనే డిజిటల్ రసీదు ఇవ్వబడుతుంది.')
+      }
+    ];
+
+    clientBody = `
+    <div class="card">
+      <h2>${tr('Frequently Asked Questions (FAQs)','తరచుగా అడిగే ప్రశ్నలు')}</h2>
+      <p class="m" style="margin:0 0 16px;font-size:13px">${tr('Quick guidance on repayments, receipts, and ledger verification.','చెల్లింపులు, రసీదులు మరియు ఖాతా నిర్వహణపై మార్గదర్శకం.')}</p>
+      
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${faqs.map(f => `
+        <div style="background:var(--s);padding:16px;border-radius:12px;border:1px solid var(--b)">
+          <div style="font-weight:800;font-size:14px;color:var(--t);margin-bottom:6px">${f.q}</div>
+          <div class="m" style="font-size:13px;line-height:1.6">${f.a}</div>
+        </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+
+  /* TAB 6: PRIVACY POLICY */
+  else if(clientTab === 'privacy'){
+    clientBody = `
+    <div class="card" style="line-height:1.7;font-size:13px">
+      <h2 style="margin:0 0 10px">${tr('Privacy Policy & Data Security','గోప్యతా విధానం & డేటా భద్రత')}</h2>
+      <p class="m" style="margin:0 0 14px">${tr('Last Updated: November 2026 • Gangaya Finance','చివరిగా అప్‌డేట్ చేసిన తేదీ: నవంబర్ 2026 • గంగయ్య ఫైనాన్స్')}</p>
+
+      <h3 style="font-size:14px;margin:14px 0 4px;color:var(--p)">1. ${tr('Customer Financial Data Protection','ఖాతాదారుల ఆర్థిక డేటా భద్రత')}</h3>
+      <p>Gangaya Finance employs bank-grade Transport Layer Security (TLS 1.3) and strict Row-Level Security (RLS) on our cloud database. Customer ledgers, instalment balances, and payment records are accessible solely to the verified borrower and authorized finance administrators.</p>
+
+      <h3 style="font-size:14px;margin:14px 0 4px;color:var(--p)">2. ${tr('Zero Data Commercialization','డేటా విక్రయం ఉండదు')}</h3>
+      <p>We do not sell, rent, monetize, or transmit borrower telephone numbers or financial records to third-party marketing companies, advertisers, or automated credit bureaus without explicit written consent.</p>
+
+      <h3 style="font-size:14px;margin:14px 0 4px;color:var(--p)">3. ${tr('Cryptographic Receipt Verification','డిజిటల్ రసీదుల ధృవీకరణ')}</h3>
+      <p>Official receipts contain cryptographic validation hashes. Public QR verification confirms the legitimacy of the transaction while protecting private personal identifiers.</p>
+
+      <h3 style="font-size:14px;margin:14px 0 4px;color:var(--p)">4. ${tr('Grievance & Data Inquiries','సమస్యల పరిష్కారం')}</h3>
+      <p>For inquiries regarding data records or privacy questions, contact Durga Sravan (System Administrator), Guntur, Andhra Pradesh.</p>
+    </div>`;
+  }
+
+  return topNav + clientTabButtons + clientBody;
+}
+
+/* -------------------------------------------------------------
+   ADMIN DASHBOARD CUSTOMER SUPPORT & LOCKOUT MANAGEMENT PANELS
+   ------------------------------------------------------------- */
+function adminSupportTab(){
+  const openCount = CS.filter(c => c.status === 'open').length;
+  return `
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <h2 style="margin:0">${tr('Customer Inquiries & Messages','ఖాతాదారుల సందేశాలు & విచారణలు')}</h2>
+      <span class="chip" style="background:${openCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${openCount > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+        ${openCount} ${tr('Open Inquiry','పరిష్కరించాల్సినవి')}
+      </span>
+    </div>
+    <p class="m" style="margin:0 0 16px;font-size:13px">
+      ${tr('Direct messages sent by borrowers through the Client Dashboard. Reply here to deliver real-time answers to the customer.', 'క్లయింట్ డాష్‌బోర్డ్ ద్వారా ఖాతాదారులు పంపిన సందేశాలు. సమాధానం ఇక్కడ టైప్ చేయండి.')}
+    </p>
+
+    ${CS.length > 0 ? `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${CS.map(item => `
+      <div style="background:var(--s);padding:14px;border-radius:12px;border:1.5px solid ${item.status === 'open' ? 'var(--r)' : 'var(--b)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <div>
+            <b>${esc(item.borrower)}</b> ${item.village ? '<span class="m">(' + esc(vl(item.village)) + ')</span>' : ''}
+            ${item.phone ? '<span class="m" style="font-size:12px"> · ' + esc(item.phone) + '</span>' : ''}
+          </div>
+          <span class="chip" style="font-size:11px">${esc(item.topic || 'Inquiry')}</span>
+        </div>
+        <div style="font-size:13.5px;color:var(--t);margin-bottom:10px;line-height:1.5">${esc(item.msg)}</div>
+        
+        ${item.reply ? `
+        <div style="background:rgba(16,185,129,0.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12.5px;margin-bottom:6px">
+          <b>${tr('Your Sent Reply: ','మీ సమాధానం: ')}</b>${esc(item.reply)}
+        </div>` : ''}
+
+        <form onsubmit="event.preventDefault();const rep=this.rep.value.trim();if(!rep)return;item=CS.find(x=>x.id==='${item.id}');if(item){item.reply=rep;item.status='replied';item.reply_ts=Date.now();if(db&&db.collection){db.collection('client_support').doc(item.id).set(item).catch(()=>{});}toast(tr('Reply sent to customer ✓','ఖాతాదారునికి సమాధానం పంపబడింది ✓'));draw();}" style="display:flex;gap:8px;margin-top:8px">
+          <input name="rep" type="text" placeholder="${tr('Type reply to borrower...','సమాధానం టైప్ చేయండి...')}" required style="flex:1;padding:8px 12px;font-size:13px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t)">
+          <button type="submit" class="p sm" style="border-radius:8px;padding:8px 14px;font-weight:700">${tr('Send Reply ✓','సమాధానం పంపు ✓')}</button>
+        </form>
+      </div>
+      `).join('')}
+    </div>` : `<p class="m">${tr('No customer inquiries at this time. All caught up!','ప్రస్తుతం ఎలాంటి సందేశాలు లేవు.')}</p>`}
+  </div>`;
+}
+
+function adminLockoutsTab(){
+  const activeLockouts = LK.filter(x => x.status === 'locked');
+  return `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <h2 style="margin:0">${tr('Security Lockouts & Banned IP Management','సెక్యూరిటీ లాక్‌అవుట్ & పరికరాల నిర్వహణ')}</h2>
+      <span class="chip" style="background:${activeLockouts.length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${activeLockouts.length > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+        ${activeLockouts.length} ${tr('Active Lockout(s)','లాక్ చేయబడినవి')}
+      </span>
+    </div>
+    <p class="m" style="margin:0 0 16px;font-size:13px">
+      ${tr('Devices and sessions locked out due to exceeding 3 failed passkey attempts. Administrators can review and 1-click Unlock / Unban them below.', '3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేసి లాక్ అయిన పరికరాల జాబితా. అడ్మిన్ ఇక్కడి నుండి అన్‌లాక్ చేయవచ్చు.')}
+    </p>
+
+    ${LK.length > 0 ? `
+    <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:10px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--b);text-align:left">
+          <th style="padding:8px">${tr('Lockout ID / CID','ఐడి')}</th>
+          <th style="padding:8px">${tr('Reason','కారణం')}</th>
+          <th style="padding:8px">${tr('Attempts','ప్రయత్నాలు')}</th>
+          <th style="padding:8px">${tr('Status','స్థితి')}</th>
+          <th style="padding:8px">${tr('Action','చర్య')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${LK.map(lk => `
+        <tr style="border-bottom:1px solid var(--b)">
+          <td style="padding:8px;font-family:monospace;font-size:12px">${esc(lk.id)}</td>
+          <td style="padding:8px">${esc(lk.reason || 'Failed passkey')}</td>
+          <td style="padding:8px;font-weight:700">${lk.attempts || 3} / 3</td>
+          <td style="padding:8px">
+            <span class="chip" style="background:${lk.status === 'locked' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)'};color:${lk.status === 'locked' ? 'var(--r)' : 'var(--ok)'};font-weight:800;font-size:11px">
+              ${lk.status === 'locked' ? tr('BANNED / LOCKED','లాక్ అయింది') : tr('UNLOCKED ✓','అన్‌లాక్ అయింది ✓')}
+            </span>
+          </td>
+          <td style="padding:8px">
+            ${lk.status === 'locked' ? `
+            <button class="p sm" onclick="unlockDevice('${lk.id}')" style="border-radius:8px;font-weight:700;font-size:12px">
+              ${tr('Unlock / Unban ✓','అన్‌లాక్ చేయి ✓')}
+            </button>` : `<span class="m" style="font-size:12px">${tr('Restored ✓','పునరుద్ధరించబడింది ✓')}</span>`}
+          </td>
+        </tr>
+        `).join('')}
+      </tbody>
+    </table>` : `<p class="m">${tr('No security lockouts recorded. All connections healthy.','ఎలాంటి సెక్యూరిటీ లాక్‌అవుట్లు లేవు. సిస్టమ్ సురక్షితంగా ఉంది.')}</p>`}
+  </div>`;
+}
+
+
 function _drawInner(){
   _drawPending = false;
   const app=$('#app');
@@ -6068,6 +7033,21 @@ function _drawInner(){
     return app.innerHTML = renderLoadingScreen();
   }
   syncRoleFromUser();
+
+  // 1. Check Brute-Force Device Lockout
+  if (isDeviceLockedOut()) {
+    return app.innerHTML = renderLockoutScreen();
+  }
+
+  // 2. Client / Customer Dashboard Route
+  if (role === 'c') {
+    return app.innerHTML = renderClientDashboard() + recView() + upiPayModalHtml();
+  }
+
+  // 3. 2-Level Security Passkey Check for Admin and Collector
+  if ((role === 'a' || role === 'f') && !passkeyUnlocked) {
+    return app.innerHTML = renderPasskeyModal();
+  }
   const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
   const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
@@ -6076,6 +7056,7 @@ const tabs=adm?[
   ['nl',tr('New Loan','కొత్త అప్పు'),LR.filter(x=>x.status==='pending').length,tr('Loans','అప్పులు')],
   ['rm',tr('Reminders','రిమైండర్లు'),remCount,tr('Remind','రిమైండర్')],
   ['ac',tr('Activity & Reports','లావాదేవీలు & నివేదికలు'),null,tr('Activity','లావాదేవీలు')],
+  ['su',tr('Customer Support','ఖాతాదారుల సహాయం'),CS.filter(x=>x.status==='open').length,tr('Support','సహాయం')],
   ['mb',tr('Members & Villages','సభ్యులు & ఊర్లు'),null,tr('Members','సభ్యులు')]
 ]:[
   ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
@@ -6099,6 +7080,8 @@ if (tab === 'mb' && !adm) {
     rm: remindersTab,
     ac: activityReportsTab,
     mb: membersMasterTab,
+    su: () => adminSupportTab() + '<div style="margin-top:16px">' + adminLockoutsTab() + '</div>',
+    lk: adminLockoutsTab,
     vl: () => { mbSub = 'villages'; return membersMasterTab(); },
     ar: () => { mbSub = 'archived'; return membersMasterTab(); },
     rp: () => { acSub = 'stats'; return activityReportsTab(); },
@@ -6130,7 +7113,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v76</span>
+          <span class="v18-pill">v77</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -6139,7 +7122,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       </div>
     </div>
     <div class="acts">
-      ${adm ? '<span class="chip" style="font-weight:700;color:var(--p);font-size:11.5px">Admin · Durga Sravan</span>' : (owner ? '<span class="chip warn" style="font-weight:700;font-size:11.5px">Collector View</span>' : '<span class="chip" style="font-weight:700;font-size:11.5px">Collector · Gangaya (Father)</span>')}
+      ${adm ? '<span class="chip" style="font-weight:700;color:var(--p);font-size:11.5px">Admin · Durga Sravan</span><button class="sm" onclick="setRole(\'c\')" style="border-radius:10px;font-size:11px;font-weight:700;padding:3px 8px;background:rgba(5,150,105,0.12);color:#059669;border-color:rgba(5,150,105,0.3)">Client Portal ›</button>' : (owner ? '<span class="chip warn" style="font-weight:700;font-size:11.5px">Collector View</span>' : '<span class="chip" style="font-weight:700;font-size:11.5px">Collector · Gangaya (Father)</span>')}
       ${owner ? `<button class="sm" onclick="setRole('${adm ? 'f' : 'a'}')" style="border-radius:10px;font-size:11px;font-weight:700;padding:3px 8px">${adm ? 'Preview Collector' : 'Back to Admin'}</button>` : ''}
 
       ${notifBellBtn()}
@@ -6211,6 +7194,10 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);
       sub('loan_requests',a=>{LR=mergeLoanRequests(a,NT);draw()},cLR);
       sub('upi_credits',a=>{UC=a;draw()},cUC);
+      sub('client_receipts',a=>{CR=a||[];draw();},a=>a);
+      sub('client_support',a=>{CS=a||[];draw();},a=>a);
+      sub('client_agreements',a=>{CA=a||[];draw();},a=>a);
+      sub('lockouts',a=>{LK=a||[];draw();},a=>a);
 
       if(db.loadAll){
         db.loadAll().then(()=>{bootComplete=true;draw();}).catch(()=>{bootComplete=true;});
@@ -6240,5 +7227,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=76').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=77').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

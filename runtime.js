@@ -27,7 +27,7 @@
         const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? 'Light' : 'Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
-          '<p style="text-align:center;margin:12px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
+          '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p></form>');
         o.querySelector('#rt-th').onclick = () => {
           const next = isDark ? 'light' : 'dark';
           document.documentElement.setAttribute('data-theme', next);
@@ -141,7 +141,7 @@
   }
 
   async function loadAllStores(cols, force) {
-    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits'];
+    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits', 'client_receipts', 'client_support', 'client_agreements', 'lockouts'];
     initSharedRealtime();
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -478,11 +478,13 @@
       get role() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
         if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'admin';
+        if ((prof && prof.role === 'client') || (prof && prof.role === 'borrower')) return 'client';
         return (prof && prof.role) || 'collector';
       },
       get name() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
         if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'Durga Sravan';
+        if (prof && prof.role === 'client') return prof.name || 'Customer';
         return (prof && prof.name) || 'Gangaya (Father)';
       },
       async canEdit() {
@@ -498,11 +500,13 @@
       async me() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
         const isAdmin = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || (prof && prof.role === 'admin'));
+        const isClient = (prof && (prof.role === 'client' || prof.role === 'borrower'));
         return {
           id: uid,
-          name: isAdmin ? 'Durga Sravan' : ((prof && prof.name) || 'Gangaya (Father)'),
+          name: isAdmin ? 'Durga Sravan' : (isClient ? (prof.name || 'Customer') : ((prof && prof.name) || 'Gangaya (Father)')),
           email: em,
-          role: isAdmin ? 'admin' : 'collector'
+          role: isAdmin ? 'admin' : (isClient ? 'client' : 'collector'),
+          mid: (prof && prof.mid) || ''
         };
       }
     },
@@ -555,7 +559,9 @@
 
     function sanitizeProfile(uObj, rProf) {
       const uEmail = String((uObj && uObj.email) || (rProf && rProf.email) || email || '').toLowerCase().trim();
-      const isAdmin = (uEmail === 'durgasravan21@gmail.com' || uEmail.includes('durgasravan') || uEmail.includes('sravan') || (rProf && rProf.role === 'admin'));
+      const rRole = String((rProf && rProf.role) || '').toLowerCase().trim();
+      const isAdmin = (uEmail === 'durgasravan21@gmail.com' || uEmail.includes('durgasravan') || uEmail.includes('sravan') || rRole === 'admin');
+      const isClient = (rRole === 'client' || rRole === 'borrower' || uEmail.includes('client') || uEmail.includes('borrower'));
       const id = (uObj && uObj.id) || (rProf && (rProf.id || rProf.userId)) || uid || '';
       if (isAdmin) {
         return {
@@ -564,6 +570,16 @@
           email: uEmail || 'durgasravan21@gmail.com',
           role: 'admin',
           name: 'Durga Sravan'
+        };
+      }
+      if (isClient) {
+        return {
+          id,
+          userId: id,
+          email: uEmail,
+          role: 'client',
+          name: (rProf && rProf.name) || 'Customer',
+          mid: (rProf && rProf.mid) || ''
         };
       }
       return {
