@@ -251,14 +251,81 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     background: var(--r);
     box-shadow: 0 0 0 2px var(--dock-bg);
   }
-  .tabs { display: none !important; }
+  .tabs:not(.client-tabs) { display: none !important; }
+  .client-tabs {
+    display: flex !important;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px 2px 10px;
+    margin-bottom: 14px;
+  }
+  .client-tabs::-webkit-scrollbar { display: none; }
+  .client-tabs button {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .client-mobile-dock {
+    display: flex !important;
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 16px);
+    max-width: 520px;
+    height: 60px;
+    border-radius: 20px;
+    background: var(--dock-bg, rgba(15,23,42,0.92));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    z-index: 9999;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 6px;
+    box-sizing: border-box;
+  }
+  .client-dock-btn {
+    flex: 1;
+    height: 50px;
+    border-radius: 12px;
+    border: none;
+    background: transparent;
+    color: var(--dock-btn, #94a3b8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 4px 2px;
+  }
+  .client-dock-btn.active {
+    background: var(--dock-active, #ffffff);
+    color: #0f172a !important;
+    box-shadow: 0 4px 12px rgba(255,255,255,0.25);
+  }
+  .client-dock-lbl {
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1;
+  }
   main { padding: 12px 14px calc(115px + env(safe-area-inset-bottom, 0px)); }
 }
+
+.client-mobile-dock { display: none; }
 
 @media (min-width: 960px) {
   main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 60px; }
   .v18-dock { display: none !important; }
+  .client-mobile-dock { display: none !important; }
   .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0; }
+  .client-tabs { display: flex !important; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 16px; }
 }
 
 /* Clean Header: Desktop 2-tier layout (Row 1: Brand & Actions full-width; Row 2: Tabs) */
@@ -1357,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=85"></script>
+<script src="/runtime.js?v=87"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1847,7 +1914,7 @@ function go(t, sub){
   }catch(_){}
   sel=null; rv=''; draw();
 }
-function setRole(r){role=r;tab='';sel=null;rv='';draw()}
+function setRole(r){role=r;tab='';sel=null;rv='';if(r==='a'||r==='all'){try{syncServerSubmissions();}catch(_){}}draw()}
 let cloudStatusText = '';
 async function readCloudStatus(){
   try{
@@ -1993,7 +2060,7 @@ window.__onProfileUpdate = function(newProf){
 
 function getLoggedInUser(){
   syncRoleFromUser();
-  const isAdm = (owner && role === 'a');
+  const isAdm = (owner && role === 'a') || (role === 'a' && passkeyUnlocked);
   if(isAdm){
     return {
       id: 'sravan',
@@ -7341,7 +7408,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v86</span>
+            <span class="v18-pill">v87</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7430,8 +7497,65 @@ function renderClientDashboard(){
     ['privacy', tr('Privacy Policy', 'గోప్యతా విధానం')]
   ];
 
+  const clientMobileSelector = `
+  <div style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:11.5px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:0.04em">
+        ${tr('Jump to Section:','విభాగాన్ని ఎంచుకోండి:')}
+      </span>
+      <span class="chip" style="font-size:11px;font-weight:700;color:var(--p)">9 ${tr('Options Available','ఆప్షన్లు అందుబాటులో ఉన్నాయి')}</span>
+    </div>
+    <select onchange="setClientTab(this.value)" style="width:100%;padding:11px 14px;font-size:14px;font-weight:700;border-radius:10px;background:var(--s);border:1.5px solid var(--p);color:var(--t)">
+      ${clientTabs.map(([k, label]) => `<option value="${k}" ${clientTab === k ? 'selected' : ''}>${label}</option>`).join('')}
+    </select>
+  </div>`;
+
+  const clientQuickHub = `
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+    <button type="button" class="card" onclick="setClientTab('my_pay')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_pay'?'var(--p)':'var(--b)'};background:${clientTab==='my_pay'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:20px;font-weight:900;color:var(--p);margin-bottom:2px">₹</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Pay UPI','UPI చెల్లింపు')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Instant UTR','తక్షణ రసీదు')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('my_loans')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_loans'?'var(--p)':'var(--b)'};background:${clientTab==='my_loans'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:18px;font-weight:900;color:var(--p);margin-bottom:2px">#</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Schedule','వాయిదాల షెడ్యూల్')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Calendar','క్యాలెండర్')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('apply_loan')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='apply_loan'?'var(--p)':'var(--b)'};background:${clientTab==='apply_loan'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:20px;font-weight:900;color:var(--ok);margin-bottom:2px">+</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Apply Loan','కొత్త అప్పు')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Sanction','దరఖాస్తు')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('my_profile')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_profile'?'var(--p)':'var(--b)'};background:${clientTab==='my_profile'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:16px;font-weight:900;color:var(--p);margin-bottom:2px">ID</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Profile & KYC','వ్యక్తిగత వివరాలు')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Photo & Phone','ఫోటో')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('my_agreement')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_agreement'?'var(--p)':'var(--b)'};background:${clientTab==='my_agreement'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:16px;font-weight:900;color:var(--p);margin-bottom:2px">GF</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Agreement','అప్పు ఒప్పందం')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Digital Sign','సంతకం')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('my_support')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_support'?'var(--p)':'var(--b)'};background:${clientTab==='my_support'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:18px;font-weight:900;color:var(--p);margin-bottom:2px">?</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Support','సహాయం')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Message Admin','సందేశం')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('report_bug')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='report_bug'?'var(--p)':'var(--b)'};background:${clientTab==='report_bug'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:18px;font-weight:900;color:var(--r);margin-bottom:2px">!</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('Report Bug','సమస్య')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Tech Desk','సాంకేతిక')}</span>
+    </button>
+    <button type="button" class="card" onclick="setClientTab('faqs')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='faqs'?'var(--p)':'var(--b)'};background:${clientTab==='faqs'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
+      <div style="font-size:16px;font-weight:900;color:var(--m);margin-bottom:2px">i</div>
+      <b style="font-size:12px;display:block;color:var(--t)">${tr('FAQs','ప్రశ్నలు')}</b>
+      <span class="m" style="font-size:10.5px">${tr('Help Center','సహాయం')}</span>
+    </button>
+  </div>`;
+
   const clientTabButtons = `
-  <div class="tabs" role="tablist" style="margin-bottom:16px;overflow-x:auto;flex-wrap:nowrap">
+  <div class="tabs client-tabs" role="tablist">
     ${clientTabs.map(([k, label]) => `
       <button role="tab" aria-selected="${clientTab === k}" class="${clientTab === k ? 'on' : ''}" onclick="setClientTab('${k}')" style="white-space:nowrap">
         <span>${label}</span>
@@ -7512,6 +7636,82 @@ function renderClientDashboard(){
         <button class="sm" onclick="setClientTab('my_agreement')" style="border-radius:10px;padding:8px 16px">${tr('View Loan Agreement','అప్పు ఒప్పందం చూడండి')}</button>
       </div>
     </div>
+
+    <!-- Repayment Schedule Breakdown / Calendar -->
+    ${(() => {
+      const targetInstalment = m.inst || 1000;
+      const totalInstalments = Math.max(1, Math.ceil((totalBorrowed || 12000) / targetInstalment));
+      const startDate = myNewLoans.length > 0 ? new Date(myNewLoans[myNewLoans.length - 1].d) : new Date();
+      const paidInstalmentsCount = Math.min(totalInstalments, Math.floor(totalRepaid / targetInstalment));
+
+      const scheduleRows = Array.from({length: totalInstalments}, (_, i) => {
+        const num = i + 1;
+        const cumulativeNeeded = num * targetInstalment;
+        const isPaid = totalRepaid >= cumulativeNeeded;
+        const isCurrentDue = !isPaid && (totalRepaid >= ((num - 1) * targetInstalment));
+        const dueDays = (num - 1) * (m.freq === 1 ? 1 : 7);
+        const dueDate = new Date(startDate.getTime() + (dueDays * 86400000));
+        const dueDateStr = fd(dueDate.toISOString().slice(0, 10));
+        const matchedPay = myPayments.slice().reverse()[i];
+
+        return `
+        <tr style="border-bottom:1px solid var(--b);background:${isCurrentDue ? 'rgba(99,102,241,0.06)' : 'transparent'}">
+          <td style="padding:10px 8px;font-weight:700">#${num}</td>
+          <td style="padding:10px 8px">${dueDateStr}</td>
+          <td style="padding:10px 8px;font-weight:700">${inr(targetInstalment)}</td>
+          <td style="padding:10px 8px;color:var(--m)">${inr(cumulativeNeeded)}</td>
+          <td style="padding:10px 8px">
+            ${isPaid ? `
+              <span class="chip" style="background:rgba(16,185,129,0.15);color:var(--ok);font-size:11px;font-weight:800">PAID ✓</span>
+            ` : isCurrentDue ? `
+              <span class="chip" style="background:rgba(99,102,241,0.18);color:var(--p);font-size:11px;font-weight:800">DUE TODAY</span>
+            ` : `
+              <span class="chip" style="background:var(--s);color:var(--m);font-size:11px">UPCOMING</span>
+            `}
+          </td>
+          <td style="padding:10px 8px;text-align:right">
+            ${isPaid && matchedPay ? `
+              <button type="button" class="sm" onclick="openReceipt('${matchedPay.id}')" style="border-radius:6px;font-size:11px;padding:3px 8px">${tr('Receipt','రసీదు')}</button>
+            ` : isCurrentDue ? `
+              <button type="button" class="sm p" onclick="setClientTab('my_pay')" style="border-radius:6px;font-size:11px;padding:4px 10px;font-weight:700">${tr('Pay Now →','చెల్లించు →')}</button>
+            ` : `
+              <span class="m" style="font-size:11px">-</span>
+            `}
+          </td>
+        </tr>`;
+      }).join('');
+
+      return `
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <div>
+            <h2 style="margin:0">${tr('Repayment Schedule & Instalment Tracker','వాయిదాల షెడ్యూల్ & చెల్లింపు క్యాలెండర్')}</h2>
+            <div class="m" style="font-size:12px">${tr('Track every scheduled instalment from day 1 to loan completion.','ప్రతి వాయిదా స్థితిని ఇక్కడ సులభంగా ట్రాక్ చేయండి.')}</div>
+          </div>
+          <span class="chip" style="font-weight:700;font-size:11px;background:rgba(99,102,241,0.12);color:var(--p)">
+            ${paidInstalmentsCount} / ${totalInstalments} ${tr('Paid','చెల్లించినవి')}
+          </span>
+        </div>
+
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+          <table style="width:100%;font-size:12.5px;border-collapse:collapse;min-width:480px">
+            <thead>
+              <tr style="border-bottom:1.5px solid var(--b);text-align:left;background:var(--s)">
+                <th style="padding:10px 8px">#</th>
+                <th style="padding:10px 8px">${tr('Due Date','గడువు తేదీ')}</th>
+                <th style="padding:10px 8px">${tr('Instalment','వాయిదా మొత్తం')}</th>
+                <th style="padding:10px 8px">${tr('Cumulative','మొత్తం')}</th>
+                <th style="padding:10px 8px">${tr('Status','చెల్లింపు స్థితి')}</th>
+                <th style="padding:10px 8px;text-align:right">${tr('Action','చర్య')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${scheduleRows}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    })()}
 
     <!-- Past / Historical Loans -->
     <div class="card">
@@ -7911,6 +8111,15 @@ function renderClientDashboard(){
         ${tr('Send a direct message or grievance to Durga Sravan (Admin). Inquiries reach the Admin Dashboard immediately.', 'మీ సందేశం లేదా సమస్యను నేరుగా దుర్గా శ్రావణ్ గారికి పంపండి. అడ్మిన్ డాష్‌బోర్డ్‌లో వెంటనే చూడబడుతుంది.')}
       </p>
 
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, I am ' + (m.name||'') + ' (Phone: ' + (m.phone||'') + '), requesting assistance.')}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(16,185,129,0.15);color:var(--ok);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+          <span>WhatsApp Durga Sravan →</span>
+        </a>
+        <a href="tel:9494201305" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--p);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+          <span>Call: 9494201305</span>
+        </a>
+      </div>
+
       <form onsubmit="submitClientSupportMsg(event)">
         <div style="margin-bottom:12px">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Inquiry Category*','సమస్య విభాగం*')}</label>
@@ -8303,7 +8512,31 @@ function renderClientDashboard(){
     </div>
   </div>` : '';
 
-  return topNav + clientTabButtons + clientBody + agreementPopupModal;
+    const clientMobileDock = `
+  <aside class="client-mobile-dock" aria-label="Client Navigation Dock">
+    <button type="button" class="client-dock-btn ${clientTab === 'my_loans' ? 'active' : ''}" onclick="setClientTab('my_loans')" title="${tr('Loans & Schedule','అప్పులు & షెడ్యూల్')}">
+      <span style="font-size:16px;font-weight:900;line-height:1">#</span>
+      <span class="client-dock-lbl">${tr('Loans','అప్పులు')}</span>
+    </button>
+    <button type="button" class="client-dock-btn ${clientTab === 'my_pay' ? 'active' : ''}" onclick="setClientTab('my_pay')" title="${tr('UPI Pay & Receipts','చెల్లింపులు & రసీదులు')}">
+      <span style="font-size:16px;font-weight:900;line-height:1">₹</span>
+      <span class="client-dock-lbl">${tr('Pay UPI','చెల్లించు')}</span>
+    </button>
+    <button type="button" class="client-dock-btn ${clientTab === 'apply_loan' ? 'active' : ''}" onclick="setClientTab('apply_loan')" title="${tr('Apply for Loan','కొత్త అప్పు దరఖాస్తు')}">
+      <span style="font-size:16px;font-weight:900;line-height:1">+</span>
+      <span class="client-dock-lbl">${tr('Apply','దరఖాస్తు')}</span>
+    </button>
+    <button type="button" class="client-dock-btn ${clientTab === 'my_profile' ? 'active' : ''}" onclick="setClientTab('my_profile')" title="${tr('Personal Profile & KYC','వ్యక్తిగత వివరాలు')}">
+      <span style="font-size:15px;font-weight:900;line-height:1">ID</span>
+      <span class="client-dock-lbl">${tr('Profile','ప్రొఫైల్')}</span>
+    </button>
+    <button type="button" class="client-dock-btn ${clientTab === 'my_support' ? 'active' : ''}" onclick="setClientTab('my_support')" title="${tr('Customer Support','సహాయం & మెసేజ్‌లు')}">
+      <span style="font-size:16px;font-weight:900;line-height:1">?</span>
+      <span class="client-dock-lbl">${tr('Support','సహాయం')}</span>
+    </button>
+  </aside>`;
+
+  return topNav + clientQuickHub + clientMobileSelector + clientTabButtons + clientBody + agreementPopupModal + clientMobileDock;
 }
 
 /* -------------------------------------------------------------
@@ -8793,7 +9026,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v86</span>
+          <span class="v18-pill">v87</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8890,7 +9123,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
 
     async function syncServerSubmissions(){
       try {
-        const isAdm = (owner && role === 'a');
+        const isAdm = (owner && role === 'a') || (role === 'a' && passkeyUnlocked);
         const mid = isAdm ? '' : (clientMid || 'm_mohanadeep');
         const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid));
         const res = await fetch(url);
@@ -9007,5 +9240,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=86').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=87').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
