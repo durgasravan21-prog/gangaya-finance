@@ -149,7 +149,7 @@
   --dock-active: #ffffff;
 }
 
-html { scroll-padding-top: calc(env(safe-area-inset-top,0px) + 120px); -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(env(safe-area-inset-top,0px) + 120px); -webkit-text-size-adjust: 100%; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); background-image: var(--bg-gradient); color: var(--t); font: 14.5px/1.55 system-ui, -apple-system, "Segoe UI", "Noto Sans Telugu", "Nirmala UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; transition: background-color .2s, color .2s; -webkit-font-smoothing: antialiased; min-height: 100vh; }
 main { max-width: 1200px; margin: 0 auto; padding: 18px 20px 48px; width: 100%; }
@@ -385,7 +385,8 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
 /* Common UI Elements */
 input, select, textarea { width: 100%; border: 1px solid var(--b); background: var(--c); color: var(--t); border-radius: var(--radius-sm); padding: 10px 14px; font: inherit; font-size: 14.5px; transition: border-color .15s, box-shadow .15s; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a); box-shadow: 0 0 0 3px var(--a-subtle); }
-button { font: inherit; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid var(--b); background: var(--c); color: var(--t); padding: 9px 15px; font-weight: 600; transition: all .15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+button { font: inherit; cursor: pointer; border-radius: var(--radius-sm); border: 1px solid var(--b); background: var(--c); color: var(--t); padding: 9px 15px; font-weight: 600; transition: transform .12s cubic-bezier(0.2,0.8,0.4,1), background-color .15s ease, border-color .15s ease, box-shadow .15s ease; display: inline-flex; align-items: center; justify-content: center; gap: 6px; -webkit-tap-highlight-color: transparent; }
+button:active, a.btn:active, .gf-btn-action:active, .gf-btn-utility:active, .quick-btn:active, .opt:active { transform: scale(0.965); }
 button:hover { background: var(--c2); border-color: var(--a); }
 button.p { background: var(--a); color: var(--ai); border-color: var(--a); }
 button.p:hover { background: var(--a-hover); }
@@ -403,13 +404,14 @@ th { font-size: 11.5px; color: var(--m); font-weight: 700; text-transform: upper
 a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366; color: #fff; text-decoration: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 13px; }
 .sc { overflow-x: auto; }
 .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.opt { display: flex; align-items: center; gap: 6px; border: 1px solid var(--b); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.opt { display: flex; align-items: center; gap: 6px; border: 1px solid var(--b); border-radius: 10px; padding: 8px 12px; cursor: pointer; transition: transform .12s cubic-bezier(0.2,0.8,0.4,1), background-color .15s ease; }
 .rec { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--b); }
 .rec:last-child { border: 0; }
 .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--c2); color: var(--m); border: 1px solid var(--b); }
 .bar { height: 6px; border-radius: 999px; background: var(--c2); margin-top: 8px; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--a); border-radius: inherit; transition: width .3s; }
-.toast { position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top, 0px)); max-width: 520px; margin: 0 auto; background: #111827; color: #ffffff; border-radius: 14px; padding: 12px 18px; z-index: 100; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+.toast { position: fixed; left: 14px; right: 14px; top: calc(14px + env(safe-area-inset-top, 0px)); max-width: 520px; margin: 0 auto; background: #111827; color: #ffffff; border-radius: 14px; padding: 12px 18px; z-index: 100; font-size: 13.5px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.35); animation: toastSlideDown 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes toastSlideDown { 0% { opacity: 0; transform: translate3d(0, -12px, 0) scale(0.97); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--c2); color: var(--t); font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--b); flex-shrink: 0; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .chips button { border-radius: 999px; padding: 6px 12px; font-size: 13px; }
@@ -1355,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=75"></script>
+<script src="/runtime.js?v=76"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1379,6 +1381,15 @@ function timeoutSignal(ms){
   const ctrl=new AbortController();
   setTimeout(()=>{try{ctrl.abort()}catch(_){}},ms);
   return ctrl.signal;
+}
+if(typeof window !== 'undefined' && !window.__signout){
+  window.__signout = async () => {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      location.reload();
+    } catch (_) {}
+  };
 }
 const DEFAULT_UPI_ID = 'challagolla.sravan@superyes';
 const DEFAULT_UPI_NAME = 'CHALLAGOLLA DURGA SRAVAN';
@@ -2690,10 +2701,10 @@ function recView(){
       </div>
     </div>`;
   }
-  const m=M.find(x=>x.id==t.mid);
-  if(!m)return '';
-const L=ledger(m),on=t.type=='pay'?L.filter(l=>l.pays.some(x=>x.t.id==t.id)).map(l=>tr('Loan','అప్పు')+' '+l.n+' ('+inr(l.pays.filter(x=>x.t.id==t.id).reduce((a,x)=>a+x.a,0))+')').join(', '):tr('Loan','అప్పు')+' '+((L.find(l=>l.t.id==t.id)||{}).n||''),
-b=st(m,t.ts,t.d),isPay=t.type=='pay';
+  const m = M.find(x => x.id == t.mid) || (publicReceiptData && publicReceiptData.m ? publicReceiptData.m : { id: t.mid, name: t.borrower || 'Borrower', village: t.village || '', phone: '' });
+  const L = (typeof ledger === 'function' && m && m.id) ? ledger(m) : [];
+  const on = t.type == 'pay' ? L.filter(l => l.pays && l.pays.some(x => x.t.id == t.id)).map(l => tr('Loan', 'అప్పు') + ' ' + l.n + ' (' + inr(l.pays.filter(x => x.t.id == t.id).reduce((a, x) => a + x.a, 0)) + ')').join(', ') : tr('Loan', 'అప్పు') + ' ' + ((L.find(l => l.t && l.t.id == t.id) || {}).n || ''),
+  b = (m && m.id && typeof st === 'function') ? st(m, t.ts, t.d) : { due: (typeof t.bal !== 'undefined' ? t.bal : 0) }, isPay = t.type == 'pay';
 const recNo='GF-'+t.id.slice(0,8).toUpperCase();
 const payAmt = (b && b.due > 0) ? b.due : ((m && m.inst > 0) ? m.inst : t.amt);
 const isAdm = (owner && role === 'a');
@@ -3422,6 +3433,29 @@ function downloadScannerImg(){
   document.body.appendChild(a);a.click();a.remove();
   toast(tr('Scanner downloading…','స్కానర్ డౌన్‌లోడ్ అవుతోంది…'));
 }
+function downloadScanner(){
+  downloadScannerImg();
+}
+async function shareScannerPhoto(){
+  try{
+    const src = getScannerSrc();
+    const resp = await fetch(src);
+    const blob = await resp.blob();
+    const file = new File([blob], 'gangaya-qr-scanner.png', { type: 'image/png' });
+    if(navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({
+        files: [file],
+        title: 'Gangaya Finance QR Scanner',
+        text: 'Gangaya Finance Official UPI QR Scanner'
+      });
+      toast(tr('QR Scanner shared ✓', 'QR స్కానర్ షేర్ చేయబడింది ✓'));
+      return;
+    }
+  }catch(_){}
+  downloadScanner();
+}
+window.downloadScanner = downloadScanner;
+window.shareScannerPhoto = shareScannerPhoto;
 let _cameraStream = null;
 let _cameraScannerActive = false;
 let _cameraRaf = null;
@@ -4294,20 +4328,32 @@ addEventListener('keydown',e=>{
     openScannerDlg('verify');
     return;
   }
-  if(e.key=='Escape'){
+  if(e.key==='/' && (!e.target || (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA'))){
+    const searchInput = document.getElementById('lq') || document.getElementById('arq') || document.querySelector('input[type="text"], input[type="search"]');
+    if(searchInput){
+      e.preventDefault();
+      searchInput.focus();
+      try{ searchInput.select(); }catch(_){}
+      return;
+    }
+  }
+  if(e.key==='Escape'){
     if(scannerDlg){closeScannerDlg()}
     else if(upiScannedDlg){closeUpiScannedModal()}
+    else if(upiModalData){closeUpiPayDialog()}
     else if(notifOpen){closeNotifs();draw()}
     else if(fnDlg){closeFatherNoteDlg()}
+    else if(fnlDlg){fnlDlg=false;draw()}
+    else if(mremDlg){closeManualRem()}
     else if(dlg){dlg=null;draw()}
     else if(vr){vr='';draw()}
     else if(sel){sel=null;draw()}
-  } else if(e.key=='Enter'&&e.target&&e.target.tagName=='INPUT'&&e.target.type!='radio'){
+  } else if(e.key==='Enter'&&e.target&&e.target.tagName==='INPUT'&&e.target.type!=='radio'){
     const id=e.target.id;
-    if(id=='amt')save();
-    else if(id=='pa')savePast();
+    if(id==='amt')save();
+    else if(id==='pa')savePast();
     else if(/^x[gri]$/.test(id))saveLoan();
-    else if(id=='nv')addV();
+    else if(id==='nv')addV();
   }
 });
 function sendNext(){if(!owner||pnd)return;const i=Q[qi]||Q[0];if(!i)return;const a=document.createElement('a');a.href=wa(i);a.target='_blank';a.rel='noopener noreferrer';document.body.appendChild(a);track(i.k);a.click();a.remove()}
@@ -6084,7 +6130,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v75</span>
+          <span class="v18-pill">v76</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -6194,5 +6240,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=75').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=76').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
