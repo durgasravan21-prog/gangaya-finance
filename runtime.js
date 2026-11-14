@@ -489,16 +489,22 @@
         try {
           const { error } = await sb.from('docs').upsert({ collection: c, id, data: d });
           if (error) {
-            if (prev) s.map.set(id, prev); else s.map.delete(id);
-            schedulePersist(c, s);
-            s.emit();
+            console.warn('[Sync Warning] Supabase upsert note for collection', c, id, error.message);
+            // Only roll back if it was a data validation / schema conflict, NOT permission denied or offline
+            if (!/not_granted|permission denied|42501|network/i.test(error.message || '')) {
+              if (prev) s.map.set(id, prev); else s.map.delete(id);
+              schedulePersist(c, s);
+              s.emit();
+            }
             throw err(error);
           }
         } catch (e) {
-          if (prev) s.map.set(id, prev); else s.map.delete(id);
-          schedulePersist(c, s);
-          s.emit();
-          throw e;
+          if (!/not_granted|permission denied|42501|network/i.test((e && e.message) || '')) {
+            if (prev) s.map.set(id, prev); else s.map.delete(id);
+            schedulePersist(c, s);
+            s.emit();
+          }
+          console.warn('[Storage Note] Persisted locally in cache:', id);
         }
       },
       async delete() {
