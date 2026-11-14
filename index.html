@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=83"></script>
+<script src="/runtime.js?v=84"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1409,6 +1409,31 @@ const clientRateLimiter = {
     return { allowed: true, remaining: maxReq - timestamps.length };
   }
 };
+
+function compressProofImage(file, callback){
+  if (!file) return callback('');
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 800;
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; }
+        else { w = Math.round((w * maxDim) / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.65));
+    };
+    img.onerror = () => callback(e.target.result || '');
+    img.src = e.target.result;
+  };
+  reader.onerror = () => callback('');
+  reader.readAsDataURL(file);
+}
 
 function getClientId(){
   let id=localStorage.getItem('gf_cid');
@@ -6384,13 +6409,14 @@ function submitClientReceiptProof(ev){
     toast(tr('Please enter valid amount paid', 'సరైన మొత్తం నమోదు చేయండి'), 'warn');
     return;
   }
-  const m = M.find(x => x.id === clientMid) || {};
+  const activeMid = (m && m.id) || clientMid || 'm_mohanadeep';
+  const member = M.find(x => x.id === activeMid) || m || {};
   const newReceipt = {
     id: 'cr_' + Date.now(),
-    mid: clientMid,
-    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
-    village: m.village || '',
-    phone: m.phone || '',
+    mid: activeMid,
+    borrower: member.name || tr('Customer','ఖాతాదారుడు'),
+    village: member.village || '',
+    phone: member.phone || '',
     amt: amt,
     d: d,
     mode: mode,
@@ -6400,18 +6426,33 @@ function submitClientReceiptProof(ev){
     ts: Date.now()
   };
 
-  if(db && db.collection){
-    db.collection('client_receipts').doc(newReceipt.id).set(newReceipt).then(()=>{
-      toast(tr('Payment receipt submitted! Pending admin verification ✓', 'చెల్లింపు రసీదు సమర్పించబడింది! అడ్మిన్ పరిశీలనలో ఉంది ✓'));
-    }).catch(e=>{
-      toast('Error: ' + (e&&e.message||e));
-    });
-  } else {
-    toast(tr('Payment receipt submitted! ✓', 'రసీదు సమర్పించబడింది ✓'));
-  }
   CR.unshift(newReceipt);
+  try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
+
+  const payNotif = {
+    id: 'n_cr_' + Date.now(),
+    type: 'client_pay',
+    mid: activeMid,
+    mname: member.name || 'Customer',
+    amt: amt,
+    utr: utr,
+    by: member.name || 'Customer',
+    to: 'admin',
+    text: tr(`Payment proof of ₹${amt} lodged by ${member.name || 'Customer'} (UTR: ${utr}). Pending Admin verification.`, `${member.name || 'ఖాతాదారుడు'} నుండి ₹${amt} చెల్లింపు నమోదైంది (UTR: ${utr}). అడ్మిన్ పరిశీలన అవసరం.`),
+    ts: Date.now(),
+    read: false
+  };
+  NT.unshift(payNotif);
+  try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
+
+  toast(tr('Payment proof submitted! Pending Admin verification ✓', 'చెల్లింపు రుజువు సమర్పించబడింది! అడ్మిన్ పరిశీలనలో ఉంది ✓'));
   f.reset();
   draw();
+
+  if(db && db.collection){
+    db.collection('client_receipts').doc(newReceipt.id).set(newReceipt).catch(e => console.warn('Sync note:', e));
+    db.collection('notifs').doc(payNotif.id).set(payNotif).catch(e => console.warn('Sync note:', e));
+  }
 }
 
 function submitClientSupportMsg(ev){
@@ -6785,18 +6826,19 @@ function resolveBugReport(bugId, status, notes){
    Payments lodged by client are marked 'pending'. Receipts are
    strictly generated ONLY AFTER Durga Sravan (Admin) verifies!
    ------------------------------------------------------------- */
-async function lodgeClientPayment(mid, amt, utrVal, photoVal){
-  const numAmt = Math.max(1, Math.round(Number(amt) || 0));
-  const m = M.find(x => x.id === mid) || {};
-  const utr = str(utrVal, 30) || ('UPI' + Date.now().toString().slice(-8));
+function lodgeClientPayment(midVal, amtVal, utrVal, photoVal){
+  const activeMid = midVal || clientMid || 'm_mohanadeep';
+  const numAmt = Math.max(1, Math.round(Number(amtVal) || 0));
+  const member = M.find(x => x.id === activeMid) || {};
+  const utr = str(utrVal, 30).trim() || ('UPI' + Date.now().toString().slice(-8));
   const receiptProofId = 'cr_' + Date.now();
 
   const newReceiptProof = {
     id: receiptProofId,
-    mid: mid,
-    borrower: m.name || tr('Customer','ఖాతాదారుడు'),
-    village: m.village || '',
-    phone: m.phone || '',
+    mid: activeMid,
+    borrower: member.name || tr('Customer','ఖాతాదారుడు'),
+    village: member.village || '',
+    phone: member.phone || '',
     amt: numAmt,
     d: today(),
     mode: 'upi',
@@ -6807,51 +6849,42 @@ async function lodgeClientPayment(mid, amt, utrVal, photoVal){
     ts: Date.now()
   };
 
-  if(db && db.collection){
-    try {
-      await db.collection('client_receipts').doc(newReceiptProof.id).set(newReceiptProof);
-      // Notify Admin
-      await db.collection('notifs').add({
-        id: 'n_cr_' + Date.now(),
-        type: 'client_pay',
-        mid: mid,
-        mname: m.name || 'Customer',
-        amt: numAmt,
-        utr: utr,
-        by: m.name || 'Customer',
-        to: 'admin',
-        text: tr(`Payment of ${inr(numAmt)} lodged by ${m.name} (UTR: ${utr}). Pending Admin verification.`, `${m.name} నుండి ${inr(numAmt)} చెల్లింపు నమోదైంది (UTR: ${utr}). అడ్మిన్ ధృవీకరణ అవసరం.`),
-        created_at: Date.now(),
-        read: false
-      });
-    } catch(e) {
-      console.warn('Sync warning:', e);
-    }
-  }
+  // 1. Instant optimistic state update (0ms UI freeze!)
   CR.unshift(newReceiptProof);
-  try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR)); } catch(_) {}
+  try {
+    localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50)));
+  } catch(_) {}
   clientPayStep = 'lodged';
   clientPayLastUtr = utr;
 
-  // Add notification to NT so Admin dashboard gets live ping
+  // 2. High-priority notification in NT for Durga Sravan (Admin)
   const payNotif = {
     id: 'n_cr_' + Date.now(),
     type: 'client_pay',
-    mid: mid,
-    mname: m.name || 'Customer',
+    mid: activeMid,
+    mname: member.name || 'Customer',
     amt: numAmt,
     utr: utr,
-    by: m.name || 'Customer',
+    by: member.name || 'Customer',
     to: 'admin',
-    text: tr(`Payment proof of ${inr(numAmt)} lodged by ${m.name} (UTR: ${utr}). Pending Admin verification.`, `${m.name} నుండి ${inr(numAmt)} చెల్లింపు నమోదైంది (UTR: ${utr}). అడ్మిన్ పరిశీలన అవసరం.`),
+    text: tr(`Payment proof of ₹${numAmt} lodged by ${member.name || 'Customer'} (UTR: ${utr}). Pending Admin verification.`, `${member.name || 'ఖాతాదారుడు'} నుండి ₹${numAmt} చెల్లింపు నమోదైంది (UTR: ${utr}). అడ్మిన్ పరిశీలన అవసరం.`),
     ts: Date.now(),
     read: false
   };
   NT.unshift(payNotif);
-  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+  try {
+    localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50)));
+  } catch(_) {}
 
+  // 3. Immediately render confirmation screen
   toast(tr(`Payment of ₹${numAmt} lodged! Under safety verification by Admin ✓`, `₹${numAmt} చెల్లింపు నమోదైంది! అడ్మిన్ పరిశీలనలో ఉంది ✓`));
   draw();
+
+  // 4. Background cloud sync without blocking user interface
+  if(db && db.collection){
+    db.collection('client_receipts').doc(newReceiptProof.id).set(newReceiptProof).catch(e => console.warn('Payment sync note:', e));
+    db.collection('notifs').doc(payNotif.id).set(payNotif).catch(e => console.warn('Notif sync note:', e));
+  }
 }
 
 async function adminVerifyClientPayment(proofId){
@@ -7124,7 +7157,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v83</span>
+            <span class="v18-pill">v84</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7464,13 +7497,13 @@ function renderClientDashboard(){
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">
             ${tr('Upload Payment Screenshot / Proof:*', 'చెల్లింపు స్క్రీన్‌షాట్ / రుజువు చిత్రం:*')}
           </label>
-          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('client-wait-photo');if(hid)hid.value=e.target.result;const prev=document.getElementById('client-wait-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){compressProofImage(f, dataUri=>{const hid=document.getElementById('client-wait-photo');if(hid)hid.value=dataUri;const prev=document.getElementById('client-wait-photo-prev');if(prev){prev.src=dataUri;prev.style.display='block';}})}" style="font-size:12.5px">
           <input id="client-wait-photo" type="hidden">
           <img id="client-wait-photo-prev" style="display:none;max-height:120px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
         </div>
 
         <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;max-width:440px;margin:0 auto">
-          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.trim().length<4){toast(tr('Please enter 12-digit UTR number','సరైన UTR నంబర్ నమోదు చేయండి'),'warn');return;}lodgeClientPayment('${m.id}', ${payAmt}, utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
+          <button type="button" class="p" onclick="const utr=(document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'').trim();const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.length<4){toast(tr('Please enter valid 12-digit UTR reference number','సరైన 12 అంకెల UTR నంబర్ నమోదు చేయండి'),'warn');return;}lodgeClientPayment('${(m&&m.id)||clientMid}', ${payAmt}, utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
             <span>${tr('Submit for Admin Verification →', 'అడ్మిన్ ధృవీకరణకు పంపు →')}</span>
           </button>
           <button type="button" class="sm" onclick="cancelClientPayment()" style="border-radius:12px;padding:13px 16px;font-weight:700">
@@ -7549,7 +7582,7 @@ function renderClientDashboard(){
 
         <div style="margin-bottom:16px">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Optional: Upload Screenshot or Photo Proof','స్క్రీన్‌షాట్ లేదా ఫోటో రుజువును జతచేయండి')}</label>
-          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('cr-photo-data');if(hid)hid.value=e.target.result;const prev=document.getElementById('cr-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){compressProofImage(f, dataUri=>{const hid=document.getElementById('cr-photo-data');if(hid)hid.value=dataUri;const prev=document.getElementById('cr-photo-prev');if(prev){prev.src=dataUri;prev.style.display='block';}})}" style="font-size:12.5px">
           <input id="cr-photo-data" type="hidden">
           <img id="cr-photo-prev" style="display:none;max-height:140px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
         </div>
@@ -8507,7 +8540,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v83</span>
+          <span class="v18-pill">v84</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8623,5 +8656,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=83').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=84').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
