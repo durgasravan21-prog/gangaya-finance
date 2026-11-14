@@ -208,7 +208,7 @@
   }
 
   async function loadAllStores(cols, force) {
-    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits', 'client_receipts', 'client_support', 'client_agreements', 'lockouts', 'client_bugs'];
+    const targetCols = cols || ['members', 'villages', 'txns', 'rem', 'notifs', 'settings', 'loan_requests', 'upi_credits', 'client_receipts', 'client_support', 'client_agreements', 'lockouts', 'client_bugs', 'client_profiles'];
     initSharedRealtime();
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
