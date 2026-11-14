@@ -288,7 +288,13 @@
         }
         for (const c of targetCols) {
           const s = getStore(c);
-          s.map = new Map(grouped[c] || []);
+          const serverMap = new Map(grouped[c] || []);
+          if (c.startsWith('client_') || c === 'notifs' || c === 'loan_requests') {
+            for (const [k, v] of s.map.entries()) {
+              if (!serverMap.has(k)) serverMap.set(k, v);
+            }
+          }
+          s.map = serverMap;
           s.loaded = true;
           schedulePersist(c, s);
           s.emit();

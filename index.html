@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=87"></script>
+<script src="/runtime.js?v=88"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1983,70 +1983,36 @@ function syncRoleFromUser(){
     // STRICT RBAC FOR CLIENTS: ANY OTHER USER (e.g. mohanadeep64@gmail.com)
     owner = false;
     role = 'c';
+    let found = null;
     if (em.includes('mohanadeep') || em.includes('suda')) {
-      let found = M.find(x => x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305')));
-      if (!found) {
-        found = {
-          id: 'm_mohanadeep',
-          name: 'Suda Mohanadeep',
-          te: 'సూడా మోహనదీప్',
-          phone: '9494201305',
-          village: 'Guntur',
-          inst: 1000,
-          freq: 1,
-          created: '2026-10-26',
-          archived: false
-        };
-        M.push(found);
-      }
+      found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+    }
+    if (!found && em) {
+      found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
+    }
+    if (!found) {
+      const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
+      if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
+    }
+    if (found) {
       clientMid = found.id;
-      if (!T.some(t => t.mid === found.id)) {
-        T.push({
-          id: 't_mohana_loan1',
-          mid: found.id,
-          amt: 12000,
-          repay: 12000,
-          inst: 1000,
-          type: 'loan',
-          d: '2026-10-26',
-          ts: 1793040840000,
-          by: 'Durga Sravan'
-        });
-      }
       try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-    } else {
-      // Automatic Member Matching & Data Consistency for ANY client
-      let found = null;
-      if (em) {
-        found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
-      }
-      if (!found) {
-        const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
-        if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
-      }
-      if (!found && em) {
-        const uname = em.split('@')[0];
-        const newMid = 'm_' + uname.replace(/[^a-z0-9]/gi, '_');
-        found = {
-          id: newMid,
-          name: uname.charAt(0).toUpperCase() + uname.slice(1),
-          email: em,
-          phone: '',
-          village: 'Guntur',
-          inst: 500,
-          freq: 1,
-          created: today(),
-          archived: false
-        };
-        M.push(found);
-      }
-      if (found) {
-        clientMid = found.id;
-        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-      } else if (me && me.mid) {
-        clientMid = me.mid;
+    } else if (clientMid) {
+      const realM = M.find(x => x.id === clientMid || x.phone === clientMid || (clientMid === 'm_mohanadeep' && (x.name.toLowerCase().includes('mohanadeep') || x.phone.includes('9494201305'))));
+      if (realM) {
+        clientMid = realM.id;
         try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
       }
+    } else if (me && me.mid) {
+      clientMid = me.mid;
+      try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+    }
+    // Clean up any stray fake loan or fake member from local memory
+    if (T.some(t => t.id === 't_mohana_loan1')) {
+      T = T.filter(t => t.id !== 't_mohana_loan1');
+    }
+    if (M.some(x => x.id === 'm_mohanadeep')) {
+      M = M.filter(x => x.id !== 'm_mohanadeep');
     }
   }
 }
@@ -6503,8 +6469,13 @@ function submitClientReceiptProof(ev){
     toast(tr('Please enter valid amount paid', 'సరైన మొత్తం నమోదు చేయండి'), 'warn');
     return;
   }
-  const activeMid = (m && m.id) || clientMid || 'm_mohanadeep';
-  const member = M.find(x => x.id === activeMid) || m || {};
+  let activeMid = clientMid;
+  if (!activeMid || activeMid === 'm_mohanadeep') {
+    const realM = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+    if (realM) activeMid = realM.id;
+  }
+  const member = M.find(x => x.id === activeMid || x.phone === activeMid) || {};
+  if (!activeMid && member.id) activeMid = member.id;
   const newReceipt = {
     id: 'cr_' + Date.now(),
     mid: activeMid,
@@ -6547,6 +6518,24 @@ function submitClientReceiptProof(ev){
     db.collection('client_receipts').doc(newReceipt.id).set(newReceipt).catch(e => console.warn('Sync note:', e));
     db.collection('notifs').doc(payNotif.id).set(payNotif).catch(e => console.warn('Sync note:', e));
   }
+
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'lodge_payment',
+      id: newReceipt.id,
+      mid: activeMid,
+      borrower: member.name || 'Customer',
+      village: member.village || '',
+      phone: member.phone || '',
+      amt: amt,
+      d: d,
+      mode: mode,
+      utr: utr,
+      photo: photo
+    })
+  }).catch(e => console.warn('Payment server sync note:', e));
 }
 
 function submitClientSupportMsg(ev){
@@ -7398,6 +7387,16 @@ function renderClientDashboard(){
     // If not found by ID, try finding by phone or name
     m = M.find(x => x.phone === clientMid || x.name === clientMid);
   }
+  if(!m && typeof me !== 'undefined' && me && me.email){
+    const em = (me.email || '').toLowerCase();
+    if(em.includes('mohanadeep') || em.includes('suda')){
+      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+      if(m) {
+        clientMid = m.id;
+        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+      }
+    }
+  }
 
   // Top header for client portal
   const topNav = `
@@ -7408,7 +7407,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v87</span>
+            <span class="v18-pill">v88</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7640,7 +7639,7 @@ function renderClientDashboard(){
     <!-- Repayment Schedule Breakdown / Calendar -->
     ${(() => {
       const targetInstalment = m.inst || 1000;
-      const totalInstalments = Math.max(1, Math.ceil((totalBorrowed || 12000) / targetInstalment));
+      const totalInstalments = Math.max(1, Math.ceil((totalBorrowed || (m.inst ? m.inst * 10 : 10000)) / targetInstalment));
       const startDate = myNewLoans.length > 0 ? new Date(myNewLoans[myNewLoans.length - 1].d) : new Date();
       const paidInstalmentsCount = Math.min(totalInstalments, Math.floor(totalRepaid / targetInstalment));
 
@@ -8055,7 +8054,7 @@ function renderClientDashboard(){
         </div>
 
         <p><b>1. Parties:</b> This Agreement is executed between <b>Gangaya Finance</b> (Financier) and <b>${esc(m.name)}</b> (Borrower), resident of <b>${esc(vl(m.village))}</b>, Phone: <b>${esc(m.phone || 'N/A')}</b>.</p>
-        <p><b>2. Sanctioned Facility:</b> Total Sanctioned Facility of <b>${inr(totalBorrowed || s.due || 12000)}</b>, repayable in agreed instalments of <b>${inr(m.inst)}</b> on a <b>${m.freq === 1 ? 'Daily' : 'Weekly'}</b> basis.</p>
+        <p><b>2. Sanctioned Facility:</b> Total Sanctioned Facility of <b>${inr(totalBorrowed || s.due || 10000)}</b>, repayable in agreed instalments of <b>${inr(m.inst)}</b> on a <b>${m.freq === 1 ? 'Daily' : 'Weekly'}</b> basis.</p>
         <p><b>3. Mode of Repayment:</b> Repayments shall be remitted via authorized UPI to <code>challagolla.sravan@superyes</code> or tendered in cash to designated Collector Gangaya against instant digital receipts.</p>
         <p><b>4. Digital Verification:</b> Every payment recorded generates a cryptographic receipt verifiable via QR code on Google or phone cameras.</p>
         <p><b>5. Default & Grievance:</b> In case of hardship or missed instalments, the Borrower shall promptly notify Durga Sravan via the Customer Support portal.</p>
@@ -8473,8 +8472,8 @@ function renderClientDashboard(){
   }
 
 
-  // Mandatory Agreement Modal Check: Immediately pops up after signup/login if not signed or if admin requested re-signature
-  const needsAgreementSign = !isSessionSigned && (!myAgreement || !myAgreement.signed || myAgreement.needs_resignature === true);
+  // Mandatory Agreement Modal Check: Pops up if borrower has an active loan due OR if Durga Sravan requested re-signature
+  const needsAgreementSign = (curBalDue > 0 || (myAgreement && myAgreement.needs_resignature === true)) && !isSessionSigned && (!myAgreement || !myAgreement.signed || myAgreement.needs_resignature === true);
   const agreementPopupModal = needsAgreementSign ? `
   <div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box">
     <div class="card" role="dialog" aria-modal="true" style="position:relative;max-width:540px;width:100%;max-height:90vh;overflow-y:auto;padding:26px 20px;border:2px solid var(--p);box-shadow:0 20px 50px rgba(0,0,0,0.35);margin:auto">
@@ -8489,7 +8488,7 @@ function renderClientDashboard(){
 
       <div style="background:var(--s);padding:16px;border-radius:10px;border:1px solid var(--b);font-size:12.5px;line-height:1.6;margin-bottom:16px;max-height:220px;overflow-y:auto">
         <p style="margin:0 0 8px"><b>1. Parties:</b> Gangaya Finance (Financier) &amp; <b>${esc(m.name)}</b> (Borrower), Resident of <b>${esc(vl(m.village))}</b>, Phone: <b>${esc(m.phone || 'N/A')}</b>.</p>
-        <p style="margin:0 0 8px"><b>2. Facility:</b> Sanctioned facility of <b>${inr(totalBorrowed || 12000)}</b>, repayable in agreed instalments of <b>${inr(m.inst || 1000)}</b> on a <b>${m.freq === 1 ? 'Daily' : 'Weekly'}</b> basis.</p>
+        <p style="margin:0 0 8px"><b>2. Facility:</b> Sanctioned facility of <b>${inr(totalBorrowed || curBalDue || 10000)}</b>, repayable in agreed instalments of <b>${inr(m.inst || 1000)}</b> on a <b>${m.freq === 1 ? 'Daily' : 'Weekly'}</b> basis.</p>
         <p style="margin:0 0 8px"><b>3. Repayments:</b> Payable via official UPI to <code>challagolla.sravan@superyes</code> or cash to designated Collector Gangaya against instant digital receipts.</p>
         <p style="margin:0">తెలుగు: ఈ ఒప్పందం ద్వారా రుణగ్రహీత మంజూరైన మొత్తాన్ని మరియు నిర్ణీత వాయిదాలను క్రమం తప్పకుండా చెల్లించడానికి చట్టబద్ధంగా అంగీకరిస్తున్నారు.</p>
       </div>
@@ -9026,7 +9025,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v87</span>
+          <span class="v18-pill">v88</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9099,7 +9098,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},
         e=>{console.warn('Subscription warning for '+c,e);if(M.length===0){dbErr=(e&&(e.message||e.code))||'Cannot read data';draw()}}
       );
-      sub('members',a=>M=a,cM);
+      sub('members',a=>{M=a;syncRoleFromUser();draw();},cM);
       sub('villages',a=>V=a,cV);
       sub('txns',a=>onTxnsUpdate(a),cT);
       sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
@@ -9240,5 +9239,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=87').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=88').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

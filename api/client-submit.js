@@ -12,8 +12,11 @@ function checkRate(ip, maxReq = 60) {
   return rec.count <= maxReq;
 }
 
-// In-Memory Edge Store for Zero-RLS Server Sync
-// Persists across invocations within the edge container instance
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://digmxlceoejepixflqnh.supabase.co';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
+const authKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || ANON_KEY;
+
+// In-Memory Edge Store for Zero-RLS Server Sync fallback
 let serverStore = {
   support: [],
   bugs: [],
@@ -24,18 +27,14 @@ let serverStore = {
   notifs: []
 };
 
-// Helper to write to Supabase if Service Role key is configured
+// Helper to write directly to Supabase docs table
 async function trySupabaseWrite(collection, id, data) {
-  const url = process.env.SUPABASE_URL || 'https://digmxlceoejepixflqnh.supabase.co';
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-  if (!serviceKey) return false;
-
   try {
-    const res = await fetch(`${url}/rest/v1/docs`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/docs`, {
       method: 'POST',
       headers: {
-        'apikey': serviceKey,
-        'Authorization': `Bearer ${serviceKey}`,
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`,
         'Content-Type': 'application/json',
         'Prefer': 'resolution=merge-duplicates'
       },
@@ -45,6 +44,45 @@ async function trySupabaseWrite(collection, id, data) {
     return res.ok;
   } catch (_) {
     return false;
+  }
+}
+
+// Helper to fetch live from Supabase docs table
+async function fetchSupabaseCollections() {
+  try {
+    const cols = 'client_support,client_bugs,client_profiles,client_agreements,client_receipts,loan_requests,notifs';
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/docs?select=collection,id,data&collection=in.(${cols})&order=created_at.desc&limit=1000`, {
+      headers: {
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const result = {
+      support: [],
+      bugs: [],
+      profiles: [],
+      receipts: [],
+      agreements: [],
+      loan_requests: [],
+      notifs: []
+    };
+    for (const r of rows) {
+      const d = r.data || {};
+      d.id = r.id || d.id;
+      if (r.collection === 'client_support') result.support.push(d);
+      else if (r.collection === 'client_bugs') result.bugs.push(d);
+      else if (r.collection === 'client_profiles') result.profiles.push(d);
+      else if (r.collection === 'client_receipts') result.receipts.push(d);
+      else if (r.collection === 'client_agreements') result.agreements.push(d);
+      else if (r.collection === 'loan_requests') result.loan_requests.push(d);
+      else if (r.collection === 'notifs') result.notifs.push(d);
+    }
+    return result;
+  } catch (_) {
+    return null;
   }
 }
 
@@ -69,17 +107,31 @@ module.exports = async (req, res) => {
     const role = (req.query.role || '').trim();
     const mid = (req.query.mid || '').trim();
 
+    // Query live from Supabase docs table
+    const remote = await fetchSupabaseCollections();
+
+    function mergeLists(remoteList, localList) {
+      const map = new Map();
+      (remoteList || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
+      (localList || []).forEach(x => { if (x && x.id && !map.has(x.id)) map.set(x.id, x); });
+      return Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
+    }
+
+    const merged = {
+      support: mergeLists(remote?.support, serverStore.support),
+      bugs: mergeLists(remote?.bugs, serverStore.bugs),
+      profiles: mergeLists(remote?.profiles, serverStore.profiles),
+      receipts: mergeLists(remote?.receipts, serverStore.receipts),
+      agreements: mergeLists(remote?.agreements, serverStore.agreements),
+      loan_requests: mergeLists(remote?.loan_requests, serverStore.loan_requests),
+      notifs: mergeLists(remote?.notifs, serverStore.notifs)
+    };
+
     // If Admin: return full sets across all collections
     if (role === 'admin' || role === 'a') {
       return res.status(200).json({
         ok: true,
-        support: serverStore.support,
-        bugs: serverStore.bugs,
-        profiles: serverStore.profiles,
-        receipts: serverStore.receipts,
-        agreements: serverStore.agreements,
-        loan_requests: serverStore.loan_requests,
-        notifs: serverStore.notifs,
+        ...merged,
         timestamp: Date.now()
       });
     }
@@ -87,12 +139,12 @@ module.exports = async (req, res) => {
     // If Client: return items matching borrower's mid or phone
     return res.status(200).json({
       ok: true,
-      support: mid ? serverStore.support.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
-      bugs: mid ? serverStore.bugs.filter(x => x.mid === mid) : [],
-      profiles: mid ? serverStore.profiles.filter(x => x.mid === mid || (x.phone1 && x.phone1.includes(mid))) : [],
-      receipts: mid ? serverStore.receipts.filter(x => x.mid === mid) : [],
-      agreements: mid ? serverStore.agreements.filter(x => x.mid === mid) : [],
-      loan_requests: mid ? serverStore.loan_requests.filter(x => x.mid === mid) : [],
+      support: mid ? merged.support.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
+      bugs: mid ? merged.bugs.filter(x => x.mid === mid) : [],
+      profiles: mid ? merged.profiles.filter(x => x.mid === mid || (x.phone1 && x.phone1.includes(mid))) : [],
+      receipts: mid ? merged.receipts.filter(x => x.mid === mid) : [],
+      agreements: mid ? merged.agreements.filter(x => x.mid === mid) : [],
+      loan_requests: mid ? merged.loan_requests.filter(x => x.mid === mid) : [],
       timestamp: Date.now()
     });
   }
@@ -209,7 +261,8 @@ module.exports = async (req, res) => {
         phone1: phone1,
         phone2: String(body.phone2 || '').slice(0, 15).trim(),
         photo: String(body.photo || '').slice(0, 200000),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        ts: Date.now()
       };
       const idx = serverStore.profiles.findIndex(x => x.id === item.id || x.mid === item.mid);
       if (idx >= 0) serverStore.profiles[idx] = item; else serverStore.profiles.unshift(item);
@@ -290,14 +343,20 @@ module.exports = async (req, res) => {
     if (action === 'request_resignature') {
       const mid = String(body.mid || '').trim();
       const reason = String(body.reason || 'Terms updated by Durga Sravan').slice(0, 200);
-      const agr = serverStore.agreements.find(x => x.mid === mid || x.id === ('agr_' + mid));
-      if (agr) {
-        agr.signed = false;
-        agr.needs_resignature = true;
-        agr.resignature_reason = reason;
-        agr.requested_at = new Date().toISOString();
-        trySupabaseWrite('client_agreements', agr.id, agr);
-      }
+      const agr = serverStore.agreements.find(x => x.mid === mid || x.id === ('agr_' + mid)) || {
+        id: 'agr_' + mid,
+        mid: mid,
+        signed: false,
+        needs_resignature: true,
+        resignature_reason: reason,
+        requested_at: new Date().toISOString(),
+        ts: Date.now()
+      };
+      agr.signed = false;
+      agr.needs_resignature = true;
+      agr.resignature_reason = reason;
+      agr.requested_at = new Date().toISOString();
+      trySupabaseWrite('client_agreements', agr.id, agr);
       return res.status(200).json({ ok: true, message: 'Re-signature requested' });
     }
 
@@ -358,26 +417,22 @@ module.exports = async (req, res) => {
     // 8. Admin Approving Loan Application
     if (action === 'approve_loan') {
       const id = String(body.id || '').trim();
-      const lr = serverStore.loan_requests.find(x => x.id === id);
-      if (lr) {
-        lr.status = 'approved';
-        lr.approved_at = Date.now();
-        lr.approved_by = 'Durga Sravan';
-        trySupabaseWrite('loan_requests', lr.id, lr);
-      }
+      const lr = serverStore.loan_requests.find(x => x.id === id) || { id, status: 'approved' };
+      lr.status = 'approved';
+      lr.approved_at = Date.now();
+      lr.approved_by = 'Durga Sravan';
+      trySupabaseWrite('loan_requests', lr.id, lr);
       return res.status(200).json({ ok: true, message: 'Loan application approved' });
     }
 
     // 9. Admin Rejecting Loan Application
     if (action === 'reject_loan') {
       const id = String(body.id || '').trim();
-      const lr = serverStore.loan_requests.find(x => x.id === id);
-      if (lr) {
-        lr.status = 'rejected';
-        lr.rejected_at = Date.now();
-        lr.rejected_by = 'Durga Sravan';
-        trySupabaseWrite('loan_requests', lr.id, lr);
-      }
+      const lr = serverStore.loan_requests.find(x => x.id === id) || { id, status: 'rejected' };
+      lr.status = 'rejected';
+      lr.rejected_at = Date.now();
+      lr.rejected_by = 'Durga Sravan';
+      trySupabaseWrite('loan_requests', lr.id, lr);
       return res.status(200).json({ ok: true, message: 'Loan application rejected' });
     }
 
@@ -385,27 +440,23 @@ module.exports = async (req, res) => {
     if (action === 'resolve_support') {
       const itemId = String(body.id || '').trim();
       const replyText = String(body.reply || '').slice(0, 500).trim();
-      const item = serverStore.support.find(x => x.id === itemId);
-      if (item) {
-        item.reply = replyText;
-        item.status = 'resolved';
-        item.resolved_at = new Date().toISOString();
-        trySupabaseWrite('client_support', item.id, item);
-      }
+      const item = serverStore.support.find(x => x.id === itemId) || { id: itemId };
+      item.reply = replyText;
+      item.status = 'resolved';
+      item.resolved_at = new Date().toISOString();
+      trySupabaseWrite('client_support', item.id, item);
       return res.status(200).json({ ok: true, message: 'Inquiry resolved successfully' });
     }
 
     // 11. Admin Verifying Client Payment Proof
     if (action === 'verify_payment') {
       const proofId = String(body.id || '').trim();
-      const item = serverStore.receipts.find(x => x.id === proofId);
-      if (item) {
-        item.status = 'verified';
-        item.verified_by = 'Durga Sravan';
-        item.verified_at = new Date().toISOString();
-        item.txn_id = body.txn_id || ('gf-' + Math.random().toString(36).slice(2, 10));
-        trySupabaseWrite('client_receipts', item.id, item);
-      }
+      const item = serverStore.receipts.find(x => x.id === proofId) || { id: proofId };
+      item.status = 'verified';
+      item.verified_by = 'Durga Sravan';
+      item.verified_at = new Date().toISOString();
+      item.txn_id = body.txn_id || ('gf-' + Math.random().toString(36).slice(2, 10));
+      trySupabaseWrite('client_receipts', item.id, item);
       return res.status(200).json({ ok: true, message: 'Payment verified successfully' });
     }
 
@@ -413,13 +464,11 @@ module.exports = async (req, res) => {
     if (action === 'reject_payment') {
       const proofId = String(body.id || '').trim();
       const reason = String(body.reason || 'Payment could not be verified').slice(0, 200);
-      const item = serverStore.receipts.find(x => x.id === proofId);
-      if (item) {
-        item.status = 'rejected';
-        item.rejection_reason = reason;
-        item.rejected_at = new Date().toISOString();
-        trySupabaseWrite('client_receipts', item.id, item);
-      }
+      const item = serverStore.receipts.find(x => x.id === proofId) || { id: proofId };
+      item.status = 'rejected';
+      item.rejection_reason = reason;
+      item.rejected_at = new Date().toISOString();
+      trySupabaseWrite('client_receipts', item.id, item);
       return res.status(200).json({ ok: true, message: 'Payment rejected' });
     }
 
