@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=82"></script>
+<script src="/runtime.js?v=83"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1387,6 +1387,8 @@ let clientPayCustomAmt=0;
 let clientPayLastUtr='';
 let clientLastReceiptId='';
 let clientPayWaitTimer=null;
+let clientSupportSentBanner=null;
+let clientBugSentBanner=null;
 
 
 /* -------------------------------------------------------------
@@ -2017,6 +2019,9 @@ function seedFromCache(){
       T=cT(_pl('txns'));
       NT=cNT(_pl('notifs'));
       LR=cLR(_pl('loan_requests'));
+      try{const _cs=localStorage.getItem('gf_client_support');if(_cs)CS=JSON.parse(_cs);}catch(_){}
+      try{const _cb=localStorage.getItem('gf_client_bugs');if(_cb)CB=JSON.parse(_cb);}catch(_){}
+      try{const _cr=localStorage.getItem('gf_client_receipts');if(_cr)CR=JSON.parse(_cr);}catch(_){}
       UC=cUC(_pl('upi_credits'));
       RM=new Set(_pl('rem').map(x=>x.id));
     }
@@ -6433,16 +6438,38 @@ function submitClientSupportMsg(ev){
     ts: Date.now()
   };
 
-  if(db && db.collection){
-    db.collection('client_support').doc(newMsg.id).set(newMsg).then(()=>{
-      toast(tr('Message sent to Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ కి మెసేజ్ పంపబడింది ✓'));
-    }).catch(e=>{
-      toast('Error: ' + (e&&e.message||e));
-    });
-  } else {
-    toast(tr('Message sent to Admin ✓', 'మెసేజ్ పంపబడింది ✓'));
-  }
   CS.unshift(newMsg);
+  try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+
+  // Create High-Priority Admin Notification so Durga Sravan gets alert immediately
+  const adminNotif = {
+    id: 'n_cs_' + Date.now(),
+    type: 'client_support',
+    mid: clientMid,
+    mname: m.name || 'Customer',
+    village: m.village || '',
+    phone: m.phone || '',
+    text: tr('Customer Support Message from ' + (m.name || 'Borrower') + ' [' + topic + ']: ' + msgText, (m.name || 'ఖాతాదారుడు') + ' నుండి సందేశం [' + topic + ']: ' + msgText),
+    topic: topic,
+    ts: Date.now(),
+    read: false
+  };
+  NT.unshift(adminNotif);
+  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+
+  if(db && db.collection){
+    db.collection('client_support').doc(newMsg.id).set(newMsg).catch(e => console.warn('Support sync note:', e));
+    db.collection('notifs').doc(adminNotif.id).set(adminNotif).catch(e => console.warn('Notif sync note:', e));
+  }
+
+  // Set visible in-page display banner
+  clientSupportSentBanner = {
+    topic: topic,
+    msg: msgText,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  };
+
+  toast(tr('Message sent to Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ కి మెసేజ్ పంపబడింది ✓'));
   f.reset();
   draw();
 }
@@ -6701,16 +6728,39 @@ function submitClientBugReport(ev){
     d: today()
   };
 
-  if (db && db.collection) {
-    db.collection('client_bugs').doc(bugId).set(bugObj).then(() => {
-      toast(tr('Bug report submitted to technical team ✓ We are resolving it!', 'సమస్య నివేదించబడింది ✓ సాంకేతిక బృందం పరిశీలిస్తోంది!'));
-    }).catch(e => {
-      toast('Error: ' + (e && e.message || e));
-    });
-  } else {
-    toast(tr('Bug report logged ✓', 'సమస్య నమోదు చేయబడింది ✓'));
-  }
   CB.unshift(bugObj);
+  try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
+
+  // Create High-Priority Admin Notification for technical bug report
+  const adminBugNotif = {
+    id: 'n_cb_' + Date.now(),
+    type: 'client_bug',
+    mid: bugObj.mid,
+    mname: bugObj.borrower,
+    village: bugObj.village,
+    phone: bugObj.phone,
+    text: tr('Bug Reported by ' + bugObj.borrower + ' [' + cat + ']: ' + desc, bugObj.borrower + ' నుండి సాంకేతిక సమస్య [' + cat + ']: ' + desc),
+    category: cat,
+    ts: Date.now(),
+    read: false
+  };
+  NT.unshift(adminBugNotif);
+  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+
+  if (db && db.collection) {
+    db.collection('client_bugs').doc(bugId).set(bugObj).catch(e => console.warn('Bug sync note:', e));
+    db.collection('notifs').doc(adminBugNotif.id).set(adminBugNotif).catch(e => console.warn('Notif sync note:', e));
+  }
+
+  // Set visible in-page confirmation banner
+  clientBugSentBanner = {
+    id: bugId,
+    category: cat,
+    desc: desc,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  };
+
+  toast(tr('Bug report submitted to Durga Sravan (Admin) ✓', 'సమస్య నివేదించబడింది ✓'));
   f.reset();
   draw();
 }
@@ -6779,10 +6829,28 @@ async function lodgeClientPayment(mid, amt, utrVal, photoVal){
     }
   }
   CR.unshift(newReceiptProof);
+  try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR)); } catch(_) {}
   clientPayStep = 'lodged';
   clientPayLastUtr = utr;
 
-  toast(tr(`Payment of ₹${numAmt} lodged! Under verification by Admin ✓`, `₹${numAmt} చెల్లింపు నమోదైంది! అడ్మిన్ పరిశీలనలో ఉంది ✓`));
+  // Add notification to NT so Admin dashboard gets live ping
+  const payNotif = {
+    id: 'n_cr_' + Date.now(),
+    type: 'client_pay',
+    mid: mid,
+    mname: m.name || 'Customer',
+    amt: numAmt,
+    utr: utr,
+    by: m.name || 'Customer',
+    to: 'admin',
+    text: tr(`Payment proof of ${inr(numAmt)} lodged by ${m.name} (UTR: ${utr}). Pending Admin verification.`, `${m.name} నుండి ${inr(numAmt)} చెల్లింపు నమోదైంది (UTR: ${utr}). అడ్మిన్ పరిశీలన అవసరం.`),
+    ts: Date.now(),
+    read: false
+  };
+  NT.unshift(payNotif);
+  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+
+  toast(tr(`Payment of ₹${numAmt} lodged! Under safety verification by Admin ✓`, `₹${numAmt} చెల్లింపు నమోదైంది! అడ్మిన్ పరిశీలనలో ఉంది ✓`));
   draw();
 }
 
@@ -7056,7 +7124,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v82</span>
+            <span class="v18-pill">v83</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7369,40 +7437,41 @@ function renderClientDashboard(){
       </div>`;
     }
 
-    /* SUB-STEP 3: AUTO-VERIFY PAYMENT FROM UPI APP & INSTANT RECEIPT */
+    /* SUB-STEP 3: LODGE UTR & PAYMENT PROOF FOR ADMIN VERIFICATION */
     else if(clientPayStep === 'waiting'){
       const payAmt = clientPayCustomAmt || defaultAmt;
       dynamicPayCard = `
-      <div class="card" style="border:2px solid var(--ok);background:linear-gradient(180deg,rgba(16,185,129,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(16,185,129,0.18)">
-        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,0.15);padding:4px 14px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--ok);margin-bottom:14px">
-          <span class="pulse-dot" style="background:var(--ok)"></span>
-          <span>STEP 3 · AUTO-VERIFICATION &amp; DIGITAL RECEIPT</span>
+      <div class="card" style="border:2px solid var(--p);background:linear-gradient(180deg,rgba(99,102,241,0.06) 0%,rgba(255,255,255,0) 100%);margin-bottom:16px;text-align:center;box-shadow:0 12px 32px rgba(99,102,241,0.18)">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.15);padding:4px 14px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p);margin-bottom:14px">
+          <span class="pulse-dot" style="background:var(--p)"></span>
+          <span>STEP 3 · SUBMIT UTR &amp; PAYMENT PROOF</span>
         </div>
 
-        <h2 style="font-size:22px;margin:0 0 6px">${tr('Auto-Verify UPI Payment & Generate Receipt', 'UPI చెల్లింపు ధృవీకరణ & రసీదు జారీ')}</h2>
+        <h2 style="font-size:22px;margin:0 0 6px">${tr('Submit UTR & Payment Proof for Admin Verification', 'UTR & చెల్లింపు రుజువు సమర్పించండి')}</h2>
         <p class="m" style="margin:0 0 16px;font-size:13.5px">
-          ${tr('Amount Paid: ', 'చెల్లించిన మొత్తం: ')}<b style="color:var(--ok);font-size:20px">${inr(payAmt)}</b>
+          ${tr('Amount Paid: ', 'చెల్లించిన మొత్తం: ')}<b style="color:var(--p);font-size:20px">${inr(payAmt)}</b>
         </p>
         <p class="m" style="margin:0 auto 16px;max-width:440px;font-size:12.5px;line-height:1.5">
-          ${tr('Enter the 12-digit UTR from your UPI app (Google Pay / PhonePe / Paytm / BHIM) to instantly auto-verify, deduct balance, and generate your official receipt.', 'మీ UPI యాప్‌లోని 12 అంకెల UTR నంబర్ నమోదు చేసి వెంటనే చెల్లింపును ధృవీకరించి రసీదు పొందండి.')}
+          ${tr('For safety and anti-fraud verification, official digital receipt will be generated automatically once Durga Sravan (Admin) verifies the credit against bank statements.', 'ఆర్థిక భద్రత కోసం, దుర్గా శ్రావణ్ గారు బ్యాంక్ రికార్డులతో సరిచూసి ఆమోదించిన వెంటనే రసీదు సిద్ధమవుతుంది మరియు బాకీ తగ్గుతుంది.')}
         </p>
 
-        <div style="background:var(--s);border:1.5px solid var(--ok);border-radius:12px;padding:16px;max-width:440px;margin:0 auto 18px;text-align:left">
+        <div style="background:var(--s);border:1.5px solid var(--p);border-radius:12px;padding:16px;max-width:440px;margin:0 auto 18px;text-align:left">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">
             ${tr('12-Digit UPI UTR / Transaction Reference Number:*', '12 అంకెల UPI UTR / రిఫరెన్స్ నంబర్:*')}
           </label>
-          <input id="client-wait-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:15px;font-weight:700;margin-bottom:10px">
+          <input id="client-wait-utr" type="text" placeholder="e.g. 429812948192" maxlength="30" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:15px;font-weight:700;margin-bottom:12px">
 
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">
-            ${tr('Optional: Payment Screenshot / Photo', 'చెల్లింపు స్క్రీన్‌షాట్ (ఐచ్ఛికం)')}
+            ${tr('Upload Payment Screenshot / Proof:*', 'చెల్లింపు స్క్రీన్‌షాట్ / రుజువు చిత్రం:*')}
           </label>
-          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('client-wait-photo');if(hid)hid.value=e.target.result;};r.readAsDataURL(f);}" style="font-size:12px">
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('client-wait-photo');if(hid)hid.value=e.target.result;const prev=document.getElementById('client-wait-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
           <input id="client-wait-photo" type="hidden">
+          <img id="client-wait-photo-prev" style="display:none;max-height:120px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
         </div>
 
         <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;max-width:440px;margin:0 auto">
-          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.trim().length<4){toast(tr('Please enter valid UTR number','సరైన UTR నంబర్ నమోదు చేయండి'),'warn');return;}confirmClientPayment(utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--ok);border-color:var(--ok)">
-            <span>${tr('Auto-Verify & Generate Receipt ✓', 'ధృవీకరించి రసీదు జారీ చేయి ✓')}</span>
+          <button type="button" class="p" onclick="const utr=document.getElementById('client-wait-utr')?document.getElementById('client-wait-utr').value:'';const photo=document.getElementById('client-wait-photo')?document.getElementById('client-wait-photo').value:'';if(!utr||utr.trim().length<4){toast(tr('Please enter 12-digit UTR number','సరైన UTR నంబర్ నమోదు చేయండి'),'warn');return;}lodgeClientPayment('${m.id}', ${payAmt}, utr, photo);" style="flex:1;min-width:200px;padding:13px;border-radius:12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">
+            <span>${tr('Submit for Admin Verification →', 'అడ్మిన్ ధృవీకరణకు పంపు →')}</span>
           </button>
           <button type="button" class="sm" onclick="cancelClientPayment()" style="border-radius:12px;padding:13px 16px;font-weight:700">
             ${tr('Cancel','రద్దు')}
@@ -8438,7 +8507,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v82</span>
+          <span class="v18-pill">v83</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8554,5 +8623,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=82').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=83').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
