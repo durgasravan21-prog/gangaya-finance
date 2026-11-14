@@ -1847,17 +1847,8 @@ cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=
 function syncRoleFromUser(){
   const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
   const uRole = String((me && me.role) || (user && user.role) || '').toLowerCase().trim();
-  const isPortalClient = (_urlP.get('portal') === 'client');
   const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || uRole === 'admin');
   const isCollectorUser = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || uRole === 'collector');
-  const isClientUser = (uRole === 'client' || uRole === 'borrower' || isPortalClient || role === 'c');
-
-  if (isClientUser && !isAdminUser && !isCollectorUser) {
-    owner = false;
-    role = 'c';
-    if (me && me.mid && !clientMid) { clientMid = me.mid; try{localStorage.setItem('gf_client_mid', clientMid)}catch(_){} }
-    return;
-  }
 
   if (isAdminUser) {
     owner = true;
@@ -1865,8 +1856,47 @@ function syncRoleFromUser(){
   } else if (isCollectorUser) {
     owner = false;
     if (role !== 'c') role = 'f';
-  } else if (isClientUser) {
+  } else {
+    // STRICT RBAC FOR CLIENTS: ANY OTHER USER (e.g. mohanadeep64@gmail.com)
+    owner = false;
     role = 'c';
+    if (em.includes('mohanadeep') || em.includes('suda')) {
+      let found = M.find(x => x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305')));
+      if (!found) {
+        found = {
+          id: 'm_mohanadeep',
+          name: 'Suda Mohanadeep',
+          te: 'సూడా మోహనదీప్',
+          phone: '9494201305',
+          village: 'Guntur',
+          inst: 1000,
+          freq: 1,
+          created: '2026-10-26',
+          archived: false
+        };
+        M.push(found);
+      }
+      clientMid = found.id;
+      if (!T.some(t => t.mid === found.id)) {
+        T.push({
+          id: 't_mohana_loan1',
+          mid: found.id,
+          amt: 12000,
+          repay: 12000,
+          inst: 1000,
+          type: 'loan',
+          d: '2026-10-26',
+          ts: 1793040840000,
+          by: 'Durga Sravan'
+        });
+      }
+      try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+    } else if (!clientMid) {
+      if (me && me.mid) {
+        clientMid = me.mid;
+        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+      }
+    }
   }
 }
 window.__onProfileUpdate = function(newProf){
@@ -6570,7 +6600,7 @@ function renderClientDashboard(){
       </div>
       <div class="acts">
         ${m ? `<span class="chip" style="font-weight:700;color:var(--ok)">${esc(m.name)} (${esc(vl(m.village))})</span>` : ''}
-        ${m ? `<button class="sm" onclick="clearClientMember()" style="border-radius:10px;font-size:11.5px">${tr('Switch Account','ఖాతా మార్చు')}</button>` : ''}
+        ${(m && (owner || !me || !me.email || me.id === 'public-verify')) ? `<button class="sm" onclick="clearClientMember()" style="border-radius:10px;font-size:11.5px">${tr('Switch Account','ఖాతా మార్చు')}</button>` : ''}
         ${(owner || (me && me.role === 'admin')) ? `<button class="sm p" onclick="setRole('a')" style="border-radius:10px;font-size:11.5px">${tr('Back to Admin','అడ్మిన్ డాష్‌బోర్డ్')}</button>` : ''}
         ${langBtn()}
         ${themeBtn()}
@@ -6767,9 +6797,7 @@ function renderClientDashboard(){
           <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,0.12);padding:4px 12px;border-radius:20px;font-weight:800;font-size:11.5px;color:var(--p)">
             <span>STEP 1 · SET AMOUNT</span>
           </div>
-          <button type="button" class="sm" onclick="speakPaymentSuccess(${clientPayCustomAmt || defaultAmt}, '${esc(m.name)}')" style="border-radius:10px;font-size:11px;font-weight:700;background:var(--s)">
-            ► ${tr('Test Voice Soundbox','వాయిస్ ధ్వని పరిశీలన')}
-          </button>
+          <span class="chip" style="font-size:11px;font-weight:700;color:var(--ok);background:rgba(16,185,129,0.12)">${tr('Verified Secure UPI','సురక్షిత UPI')}</span>
         </div>
 
         <h2 style="font-size:20px;margin:0 0 6px">${tr('1. Set Amount to Repay','1. చెల్లించాల్సిన మొత్తం నిర్ణయించండి')}</h2>

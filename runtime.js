@@ -49,7 +49,12 @@
           const emailVal = o.querySelector('#rt-e').value.trim();
           const pwVal = o.querySelector('#rt-p').value.trim();
           if (isSignUp) {
-            const { data, error } = await sb.auth.signUp({ email: emailVal, password: pwVal });
+            const redirectTarget = (typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost')) ? window.location.origin : 'https://gangaya-finance.vercel.app';
+            const { data, error } = await sb.auth.signUp({
+              email: emailVal,
+              password: pwVal,
+              options: { emailRedirectTo: redirectTarget }
+            });
             b.disabled = false;
             if (error) { o.querySelector('#rt-m').textContent = error.message; return; }
             if (data && data.session) { res(); }
@@ -477,15 +482,18 @@
       get email() { return email; },
       get role() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
-        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'admin';
-        if ((prof && prof.role === 'client') || (prof && prof.role === 'borrower')) return 'client';
-        return (prof && prof.role) || 'collector';
+        const rRole = String((prof && prof.role) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || rRole === 'admin') return 'admin';
+        if (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || rRole === 'collector') return 'collector';
+        return 'client';
       },
       get name() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
-        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan')) return 'Durga Sravan';
-        if (prof && prof.role === 'client') return prof.name || 'Customer';
-        return (prof && prof.name) || 'Gangaya (Father)';
+        const rRole = String((prof && prof.role) || '').toLowerCase().trim();
+        if (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || rRole === 'admin') return 'Durga Sravan';
+        if (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || rRole === 'collector') return 'Gangaya (Father)';
+        if (em.includes('mohanadeep') || em.includes('suda')) return 'Suda Mohanadeep';
+        return (prof && prof.name) || 'Customer';
       },
       async canEdit() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
@@ -499,13 +507,22 @@
       },
       async me() {
         const em = String(email || (prof && prof.email) || '').toLowerCase().trim();
-        const isAdmin = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || (prof && prof.role === 'admin'));
-        const isClient = (prof && (prof.role === 'client' || prof.role === 'borrower'));
+        const rRole = String((prof && prof.role) || '').toLowerCase().trim();
+        const isAdmin = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || rRole === 'admin');
+        const isCollector = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || rRole === 'collector');
+        if (isAdmin) {
+          return { id: uid, name: 'Durga Sravan', email: em, role: 'admin', mid: '' };
+        }
+        if (isCollector) {
+          return { id: uid, name: 'Gangaya (Father)', email: em, role: 'collector', mid: '' };
+        }
+        let cName = (prof && prof.name) || '';
+        if (!cName && (em.includes('mohanadeep') || em.includes('suda'))) cName = 'Suda Mohanadeep';
         return {
           id: uid,
-          name: isAdmin ? 'Durga Sravan' : (isClient ? (prof.name || 'Customer') : ((prof && prof.name) || 'Gangaya (Father)')),
+          name: cName || 'Customer',
           email: em,
-          role: isAdmin ? 'admin' : (isClient ? 'client' : 'collector'),
+          role: 'client',
           mid: (prof && prof.mid) || ''
         };
       }
@@ -549,7 +566,7 @@
 
     try {
       sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
         global: { fetch: fetchWithTimeout }
       });
     } catch (e) {
@@ -561,8 +578,9 @@
       const uEmail = String((uObj && uObj.email) || (rProf && rProf.email) || email || '').toLowerCase().trim();
       const rRole = String((rProf && rProf.role) || '').toLowerCase().trim();
       const isAdmin = (uEmail === 'durgasravan21@gmail.com' || uEmail.includes('durgasravan') || uEmail.includes('sravan') || rRole === 'admin');
-      const isClient = (rRole === 'client' || rRole === 'borrower' || uEmail.includes('client') || uEmail.includes('borrower'));
+      const isCollector = (uEmail === 'challagollasridevi@gmail.com' || uEmail.includes('sridevi') || uEmail.includes('gangaya') || rRole === 'collector');
       const id = (uObj && uObj.id) || (rProf && (rProf.id || rProf.userId)) || uid || '';
+      
       if (isAdmin) {
         return {
           id,
@@ -572,23 +590,49 @@
           name: 'Durga Sravan'
         };
       }
-      if (isClient) {
+      if (isCollector) {
         return {
           id,
           userId: id,
-          email: uEmail,
-          role: 'client',
-          name: (rProf && rProf.name) || 'Customer',
-          mid: (rProf && rProf.mid) || ''
+          email: uEmail || 'challagollasridevi@gmail.com',
+          role: 'collector',
+          name: 'Gangaya (Father)'
         };
+      }
+      
+      // STRICT RBAC: ALL other users are CLIENTS / BORROWERS (role = 'client')
+      let clientName = (rProf && rProf.name) || (uObj && uObj.user_metadata && uObj.user_metadata.name) || '';
+      if (!clientName && (uEmail.includes('mohanadeep') || uEmail.includes('suda'))) {
+        clientName = 'Suda Mohanadeep';
       }
       return {
         id,
         userId: id,
-        email: uEmail || 'challagollasridevi@gmail.com',
-        role: 'collector',
-        name: 'Gangaya (Father)'
+        email: uEmail,
+        role: 'client',
+        name: clientName || 'Customer',
+        mid: (rProf && rProf.mid) || ''
       };
+    }
+
+    
+    // Auto-detect and handle email confirmation hash tokens (e.g. #access_token=...&refresh_token=...)
+    if (typeof window !== 'undefined' && window.location.hash && window.location.hash.includes('access_token=')) {
+      try {
+        const hashStr = window.location.hash.replace(/^[#?]/, '');
+        const hp = new URLSearchParams(hashStr);
+        const at = hp.get('access_token');
+        const rtToken = hp.get('refresh_token');
+        if (at && rtToken) {
+          const { data: sessData } = await sb.auth.setSession({ access_token: at, refresh_token: rtToken });
+          if (sessData && sessData.session) s = sessData.session;
+          try {
+            window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn('URL hash auth token handler warning:', err);
+      }
     }
 
     s = null;
