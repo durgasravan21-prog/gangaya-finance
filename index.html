@@ -1357,7 +1357,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=84"></script>
+<script src="/runtime.js?v=85"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1368,7 +1368,7 @@ let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],t
 let CR=[],CS=[],CA=[],LK=[],CB=[],CP=[];
 let clientMid=localStorage.getItem('gf_client_mid')||'';
 let clientTab=(_urlP.get('ctab')||'my_loans');
-// Secure cryptographic SHA-256 hash of authorized passkey (no plain-text key in client code)
+const MASTER_PASSKEY='12101992';
 const MASTER_PASSKEY_HASH='4f676a608e33b1c4a3a5fc86a7287c689672bcfce82a9cba319cf11122687673';
 async function hashPasskeyInput(str){
   try {
@@ -6275,19 +6275,26 @@ function renderStandaloneReceiptPage(receiptId){
    Passkey: 12101992 (Required for Admin and Collector)
    Lockout: Banned if > 3 failed attempts; Unlock via Admin
    ------------------------------------------------------------- */
-function verifyPasskeySubmit(ev){
+async function verifyPasskeySubmit(ev){
   if(ev) ev.preventDefault();
   const inp = document.getElementById('gf-passkey-input');
   if(!inp) return;
   const val = inp.value.trim();
-  if(val === MASTER_PASSKEY){
+  let hashed = '';
+  try {
+    hashed = await hashPasskeyInput(val);
+  } catch(_) {}
+
+  // Check against both plain passkey and SHA-256 hash
+  if(val === '12101992' || val === MASTER_PASSKEY || hashed === MASTER_PASSKEY_HASH){
     passkeyUnlocked = true;
     try{
       sessionStorage.setItem('gf_passkey_verified', '1');
       sessionStorage.removeItem('gf_passkey_attempts');
+      localStorage.removeItem('gf_locked_status');
     }catch(_){}
     passkeyAttempts = 0;
-    toast(tr('2-Factor Passkey Verified ✓', '2-లెవెల్ సెక్యూరిటీ పాస్‌కీ ధృవీకరించబడింది ✓'));
+    toast(tr('2-Factor Passkey Verified ✓ Welcome Durga Sravan', '2-లెవెల్ సెక్యూరిటీ పాస్‌కీ ధృవీకరించబడింది ✓'));
     draw();
   } else {
     passkeyAttempts++;
@@ -6297,7 +6304,8 @@ function verifyPasskeySubmit(ev){
     if(passkeyAttempts >= 3){
       triggerDeviceLockout('Exceeded 3 failed security passkey attempts');
     } else {
-      toast(tr('Invalid passkey! Attempt ' + passkeyAttempts + ' of 3', 'తప్పుడు పాస్‌కీ! ప్రయత్నం ' + passkeyAttempts + ' / 3'), 'warn');
+      const remaining = 3 - passkeyAttempts;
+      toast(tr('Invalid passkey! ' + remaining + ' attempt(s) remaining', 'తప్పుడు పాస్‌కీ! మరో ' + remaining + ' అవకాశాలు మాత్రమే ఉన్నాయి'), 'warn');
       draw();
     }
   }
@@ -6326,7 +6334,10 @@ function renderLockoutScreen(){
       </div>
     </div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="p" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+      <button class="p sm" onclick="const p=prompt('${tr('Enter Admin Master Passkey (12101992) to unlock:','అడ్మిన్ పాస్‌కీ (12101992) నమోదు చేయండి:')}');if(p==='12101992'){unlockDevice('${lockId}');}" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:800;background:var(--ok);border-color:var(--ok)">
+        ${tr('Admin Unlock (12101992) ✓', 'అడ్మిన్ అన్‌లాక్ (12101992) ✓')}
+      </button>
+      <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="sm" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
         <span>${tr('Contact Admin via WhatsApp →', 'వాట్సాప్‌లో అడ్మిన్‌ని సంప్రదించు →')}</span>
       </a>
       <button class="sm" onclick="location.reload()" style="padding:10px 18px;border-radius:10px;font-size:13px">${tr('Check Status / Refresh ⟳', 'స్థితిని తనిఖీ చేయి ⟳')}</button>
@@ -7157,7 +7168,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v84</span>
+            <span class="v18-pill">v85</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -8540,7 +8551,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v84</span>
+          <span class="v18-pill">v85</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -8656,5 +8667,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=84').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=85').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
