@@ -209,14 +209,20 @@ module.exports = async (req, res) => {
       if (!msgText || msgText.length < 3) {
         return res.status(400).json({ ok: false, error: 'Valid message text required' });
       }
+      const ticketId = String(body.ticket_id || ('TKT-' + Math.floor(10000 + Math.random() * 90000))).toUpperCase();
+      const initialThread = Array.isArray(body.thread) && body.thread.length > 0 ? body.thread : [
+        { sender: 'client', text: msgText, ts: Date.now(), by: String(body.borrower || 'Customer').slice(0, 60) }
+      ];
       const item = {
         id: body.id || ('cs_' + Date.now()),
+        ticket_id: ticketId,
         mid: String(body.mid || 'guest').trim(),
         borrower: String(body.borrower || 'Customer').slice(0, 60),
         village: String(body.village || '').slice(0, 60),
         phone: String(body.phone || '').slice(0, 20),
         topic: String(body.topic || 'General').slice(0, 40),
         msg: msgText,
+        thread: initialThread,
         reply: '',
         status: 'open',
         ts: Date.now()
@@ -230,7 +236,7 @@ module.exports = async (req, res) => {
         type: 'client_support',
         mid: item.mid,
         mname: item.borrower,
-        text: `Customer Support [${item.topic}] from ${item.borrower}: ${item.msg}`,
+        text: `Customer Support [${ticketId} · ${item.topic}] from ${item.borrower}: ${item.msg}`,
         ts: Date.now(),
         read: false
       };
@@ -241,7 +247,7 @@ module.exports = async (req, res) => {
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
 
-      return res.status(200).json({ ok: true, message: 'Support message delivered to Admin successfully', item });
+      return res.status(200).json({ ok: true, message: 'Support ticket ' + ticketId + ' delivered to Admin successfully', item });
     }
 
     // 2. Technical Bug Report Submission
@@ -250,8 +256,13 @@ module.exports = async (req, res) => {
       if (!desc || desc.length < 5) {
         return res.status(400).json({ ok: false, error: 'Detailed bug description required' });
       }
+      const bugId = String(body.bug_id || ('BUG-' + Math.floor(10000 + Math.random() * 90000))).toUpperCase();
+      const initialThread = Array.isArray(body.thread) && body.thread.length > 0 ? body.thread : [
+        { sender: 'client', text: desc, ts: Date.now(), by: String(body.borrower || 'Customer').slice(0, 60) }
+      ];
       const item = {
         id: body.id || ('bug_' + Date.now()),
+        bug_id: bugId,
         mid: String(body.mid || 'guest').trim(),
         borrower: String(body.borrower || 'Customer').slice(0, 60),
         village: String(body.village || '').slice(0, 60),
@@ -260,6 +271,7 @@ module.exports = async (req, res) => {
         description: desc,
         diagnostics: body.diagnostics || {},
         photo: String(body.photo || '').slice(0, 500000), // bounded photo size
+        thread: initialThread,
         status: 'investigating',
         resolution_notes: '',
         ts: Date.now()
@@ -272,7 +284,7 @@ module.exports = async (req, res) => {
         type: 'client_bug',
         mid: item.mid,
         mname: item.borrower,
-        text: `Bug Report [${item.category}] from ${item.borrower}: ${item.description}`,
+        text: `Bug Report [${bugId} · ${item.category}] from ${item.borrower}: ${item.description}`,
         ts: Date.now(),
         read: false
       };
@@ -283,7 +295,7 @@ module.exports = async (req, res) => {
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
 
-      return res.status(200).json({ ok: true, message: 'Bug report delivered to technical team successfully', item });
+      return res.status(200).json({ ok: true, message: 'Bug report ' + bugId + ' delivered to technical team successfully', item });
     }
 
     // 3. Personal Details & KYC Profile Submission
@@ -520,27 +532,41 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Loan application rejected' });
     }
 
-    // 10. Admin Resolving Support Inquiry
-    if (action === 'resolve_support') {
+    // 10. Admin Resolving or Replying to Support Inquiry
+    if (action === 'resolve_support' || action === 'reply_support') {
       const itemId = String(body.id || '').trim();
-      const replyText = String(body.reply || '').slice(0, 500).trim();
+      const replyText = String(body.reply || body.msg || '').slice(0, 500).trim();
       let item = serverStore.support.find(x => x.id === itemId);
       if (!item) {
         const existing = await getExistingDoc('client_support', itemId);
         item = existing || { id: itemId };
         serverStore.support.unshift(item);
       }
-      item.reply = replyText;
-      item.status = 'resolved';
-      item.resolved_at = new Date().toISOString();
+      if (replyText) item.reply = replyText;
+      item.status = body.status || 'resolved';
+      if (item.status === 'resolved') item.resolved_at = new Date().toISOString();
+      if (!Array.isArray(item.thread)) {
+        item.thread = [];
+        if (item.msg) item.thread.push({ sender: 'client', text: item.msg, ts: item.ts || Date.now(), by: item.borrower || 'Customer' });
+      }
+      if (replyText) {
+        item.thread.push({
+          sender: body.sender || 'admin',
+          text: replyText,
+          ts: Date.now(),
+          by: body.by || (body.sender === 'client' ? (item.borrower || 'Customer') : 'Durga Sravan (Admin)')
+        });
+      }
+      if (Array.isArray(body.thread)) item.thread = body.thread;
       if (body.borrower && !item.borrower) item.borrower = body.borrower;
       if (body.msg && !item.msg) item.msg = body.msg;
       if (body.topic && !item.topic) item.topic = body.topic;
       if (body.village && !item.village) item.village = body.village;
       if (body.phone && !item.phone) item.phone = body.phone;
       if (body.mid && !item.mid) item.mid = body.mid;
+      if (!item.ticket_id) item.ticket_id = body.ticket_id || ('TKT-' + Math.floor(10000 + Math.random() * 90000));
       await trySupabaseWrite('client_support', item.id, item);
-      return res.status(200).json({ ok: true, message: 'Inquiry resolved successfully', item });
+      return res.status(200).json({ ok: true, message: 'Support ticket updated successfully', item });
     }
 
     // 11. Admin Verifying Client Payment Proof
@@ -595,11 +621,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 14. Admin Resolving Bug Report
-    if (action === 'resolve_bug') {
+    // 14. Admin Resolving or Replying to Bug Report
+    if (action === 'resolve_bug' || action === 'reply_bug') {
       const bugId = String(body.id || '').trim();
       const status = String(body.status || 'resolved').slice(0, 30);
-      const notes = String(body.notes || 'Resolved by Durga Sravan').slice(0, 500);
+      const notes = String(body.notes || body.msg || 'Resolved by Durga Sravan').slice(0, 500);
       let bug = serverStore.bugs.find(x => x.id === bugId);
       if (!bug) {
         const existing = await getExistingDoc('client_bugs', bugId);
@@ -608,7 +634,20 @@ module.exports = async (req, res) => {
       }
       bug.status = status;
       bug.resolution_notes = notes;
-      bug.resolved_at = new Date().toISOString();
+      if (status === 'resolved') bug.resolved_at = new Date().toISOString();
+      if (!Array.isArray(bug.thread)) {
+        bug.thread = [];
+        if (bug.description) bug.thread.push({ sender: 'client', text: bug.description, ts: bug.ts || Date.now(), by: bug.borrower || 'Customer' });
+      }
+      if (notes) {
+        bug.thread.push({
+          sender: body.sender || 'admin',
+          text: notes,
+          ts: Date.now(),
+          by: body.by || (body.sender === 'client' ? (bug.borrower || 'Customer') : 'Durga Sravan (Engineering)')
+        });
+      }
+      if (Array.isArray(body.thread)) bug.thread = body.thread;
       if (body.description && !bug.description) bug.description = body.description;
       if (body.borrower && !bug.borrower) bug.borrower = body.borrower;
       if (body.category && !bug.category) bug.category = body.category;
@@ -616,6 +655,7 @@ module.exports = async (req, res) => {
       if (body.phone && !bug.phone) bug.phone = body.phone;
       if (body.diagnostics && !bug.diagnostics) bug.diagnostics = body.diagnostics;
       if (body.photo && !bug.photo) bug.photo = body.photo;
+      if (!bug.bug_id) bug.bug_id = body.bug_id || ('BUG-' + Math.floor(10000 + Math.random() * 90000));
       await trySupabaseWrite('client_bugs', bug.id, bug);
       return res.status(200).json({ ok: true, message: 'Bug report status updated successfully', item: bug });
     }
