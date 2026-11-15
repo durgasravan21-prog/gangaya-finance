@@ -100,6 +100,12 @@ module.exports = async (req, res) => {
     return res.status(429).json({ ok: false, error: 'Rate limit exceeded. Please wait 1 minute.' });
   }
 
+  function isTestRecord(x) {
+    if (!x) return true;
+    const s = ((x.id || '') + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '')).toLowerCase();
+    return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
+  }
+
   // -------------------------------------------------------------
   // GET: Fetch Submissions (for Admin and Client synchronization)
   // -------------------------------------------------------------
@@ -112,8 +118,8 @@ module.exports = async (req, res) => {
 
     function mergeLists(remoteList, localList) {
       const map = new Map();
-      (remoteList || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
-      (localList || []).forEach(x => { if (x && x.id && !map.has(x.id)) map.set(x.id, x); });
+      (remoteList || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, x); });
+      (localList || []).forEach(x => { if (x && x.id && !map.has(x.id) && !isTestRecord(x)) map.set(x.id, x); });
       return Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
     }
 
@@ -164,6 +170,10 @@ module.exports = async (req, res) => {
     body = body || {};
 
     const action = body.action || '';
+
+    if (isTestRecord(body) && action !== 'verify_email') {
+      return res.status(200).json({ ok: true, message: 'Test submission ignored' });
+    }
 
     // 1. Customer Support Message Submission
     if (action === 'submit_support') {
@@ -331,6 +341,7 @@ module.exports = async (req, res) => {
         id: body.id || ('agr_' + mid),
         mid: mid,
         borrower: String(body.borrower || signedName).slice(0, 60),
+        phone: String(body.phone || '').slice(0, 20),
         signed_name: signedName,
         signed: true,
         needs_resignature: false,
@@ -507,6 +518,19 @@ module.exports = async (req, res) => {
       } catch (e) {
         return res.status(500).json({ ok: false, error: e.message || 'Could not verify email' });
       }
+    }
+
+    // 14. Admin Resolving Bug Report
+    if (action === 'resolve_bug') {
+      const bugId = String(body.id || '').trim();
+      const status = String(body.status || 'resolved').slice(0, 30);
+      const notes = String(body.notes || 'Resolved by Durga Sravan').slice(0, 500);
+      const bug = serverStore.bugs.find(x => x.id === bugId) || { id: bugId };
+      bug.status = status;
+      bug.resolution_notes = notes;
+      bug.resolved_at = new Date().toISOString();
+      await trySupabaseWrite('client_bugs', bug.id, bug);
+      return res.status(200).json({ ok: true, message: 'Bug report status updated successfully', item: bug });
     }
 
     return res.status(400).json({ ok: false, error: 'Unknown submission action' });

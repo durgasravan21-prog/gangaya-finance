@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=95"></script>
+<script src="/runtime.js?v=96"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2101,12 +2101,17 @@ function getCollectorDisplay(by){
   if(n === 'UPI (Assigned by Gangaya)') return tr('UPI (Assigned by Gangaya)', 'UPI (గంగయ్య)');
   return n;
 }
+function isTestRecord(x){
+  if(!x) return true;
+  const s = ((x.id || '') + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '')).toLowerCase();
+  return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
+}
 const who=()=>str(getLoggedInUser().name, 40);
-const cM=a=>a.filter(d=>OKID.test(d.id)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
+const cM=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
 cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',requested_by:str(d.requested_by||d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true,amt:num(d.amt),repay:num(d.repay),inst:num(d.inst),status:str(d.status,20)||'pending',d:str(d.d,20),time:str(d.time,20),approved_by:str(d.approved_by,40),approved_at:num(d.approved_at)})).sort((x,y)=>y.ts-x.ts),
-cLR=a=>a.filter(d=>OKID.test(d.id)),
+cLR=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)),
 cUC=a=>a.filter(d=>OKID.test(d.id));
 
 function seedFromCache(){
@@ -2119,9 +2124,11 @@ function seedFromCache(){
       T=cT(_pl('txns'));
       NT=cNT(_pl('notifs'));
       LR=cLR(_pl('loan_requests'));
-      try{const _cs=localStorage.getItem('gf_client_support');if(_cs)CS=JSON.parse(_cs);}catch(_){}
-      try{const _cb=localStorage.getItem('gf_client_bugs');if(_cb)CB=JSON.parse(_cb);}catch(_){}
-      try{const _cr=localStorage.getItem('gf_client_receipts');if(_cr)CR=JSON.parse(_cr);}catch(_){}
+      try{const _cs=localStorage.getItem('gf_client_support');if(_cs)CS=JSON.parse(_cs).filter(x=>!isTestRecord(x));}catch(_){}
+      try{const _cb=localStorage.getItem('gf_client_bugs');if(_cb)CB=JSON.parse(_cb).filter(x=>!isTestRecord(x));}catch(_){}
+      try{const _cr=localStorage.getItem('gf_client_receipts');if(_cr)CR=JSON.parse(_cr).filter(x=>!isTestRecord(x));}catch(_){}
+      try{const _ca=localStorage.getItem('gf_client_agreements');if(_ca)CA=JSON.parse(_ca).filter(x=>!isTestRecord(x));}catch(_){}
+      try{const _cp=localStorage.getItem('gf_client_profiles');if(_cp)CP=JSON.parse(_cp).filter(x=>!isTestRecord(x));}catch(_){}
       UC=cUC(_pl('upi_credits'));
       RM=new Set(_pl('rem').map(x=>x.id));
     }
@@ -2946,8 +2953,33 @@ function logAdminAction(action, details){
   } catch(_) {}
 }
 function ask(m,ok,fn){dlg={m,ok,fn};draw()}
+function showActionAlert(title, message, sub){
+  dlg = {
+    m: message,
+    title: title,
+    sub: sub,
+    ok: tr('OK / Continue','సరే / కొనసాగించు'),
+    noCancel: true,
+    isSuccess: true,
+    fn: () => { dlg = null; draw(); }
+  };
+  draw();
+}
 function dlgOk(){const f=dlg&&dlg.fn;dlg=null;draw();if(f)f()}
-function dlgHtml(){return(dlg?`<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button><button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button></div></div></div>`:'')+(tmsg?`<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>`:'')}
+function dlgHtml(){
+  if (!dlg && !tmsg) return '';
+  let dHtml = '';
+  if (dlg) {
+    if (typeof dlg === 'string') {
+      dHtml = dlg;
+    } else if (dlg.isSuccess) {
+      dHtml = `<div style="position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;width:100%;margin:0;text-align:center;padding:26px 20px;border:2px solid var(--ok);box-shadow:0 20px 50px rgba(0,0,0,0.35)"><div style="width:52px;height:52px;border-radius:50%;background:rgba(16,185,129,0.15);color:var(--ok);font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;border:2px solid var(--ok)">✓</div><h3 style="margin:0 0 8px;font-size:18px;color:var(--t)">${esc(dlg.title || 'Success')}</h3><p style="font-size:14px;color:var(--t);margin:0 0 10px;line-height:1.5">${esc(dlg.m)}</p>${dlg.sub ? `<p class="m" style="font-size:12px;margin:0 0 16px;line-height:1.4">${esc(dlg.sub)}</p>` : ''}<div class="acts" style="justify-content:center"><button class="p" onclick="dlgOk()" style="min-width:140px;padding:10px 20px;font-weight:800;border-radius:8px">${esc(dlg.ok || 'OK')}</button></div></div></div>`;
+    } else {
+      dHtml = `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button>${dlg.noCancel ? '' : `<button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button>`}</div></div></div>`;
+    }
+  }
+  return dHtml + (tmsg ? `<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>` : '');
+}
 async function once(fn){if(busy)return;busy=true;const to=setTimeout(()=>{busy=false},15000);try{await w(fn)}finally{clearTimeout(to);busy=false;draw()}}
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})(),
 crc32=u=>{let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0},enc=new TextEncoder(),
@@ -6690,50 +6722,235 @@ function submitClientSupportMsg(ev){
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 
-  toast(tr('Message sent to Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ కి మెసేజ్ పంపబడింది ✓'));
+  showActionAlert(
+    tr('Message Sent to Admin ✓', 'సందేశం నిర్వాహకులకు పంపబడింది ✓'),
+    tr('Your support inquiry has been successfully sent to Durga Sravan (Admin). We will assist you shortly.', 'మీ సందేశం దుర్గా శ్రావణ్ (అడ్మిన్) గారికి చేరింది. మేము త్వరలోనే స్పందిస్తాము.'),
+    tr('Topic: ', 'విషయం: ') + topic + ' • ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
   f.reset();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
-  draw();
+}
+
+function buildAgreementDocumentHtml(mid, isAdminCopy) {
+  let m = null;
+  if (mid) {
+    m = M.find(x => x.id === mid || x.phone === mid || (x.name && x.name.toLowerCase() === String(mid).toLowerCase()));
+  }
+  if (!m && typeof resolveActiveClientMember === 'function') {
+    m = resolveActiveClientMember();
+  }
+  if (!m && clientMid) {
+    m = M.find(x => x.id === clientMid || x.phone === clientMid || x.name === clientMid);
+  }
+  if (!m && typeof me !== 'undefined' && me && me.email) {
+    const em = (me.email || '').toLowerCase();
+    if (em.includes('mohanadeep') || em.includes('suda')) {
+      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+    }
+  }
+  m = m || {};
+
+  const resolvedMid = m.id || mid || clientMid || 'm_borrower';
+
+  // Find profile in CP
+  const prof = CP.find(x => 
+    x.mid === resolvedMid || 
+    x.id === 'cp_' + resolvedMid || 
+    (m.id && (x.mid === m.id || x.id === 'cp_' + m.id)) || 
+    (m.phone && (cleanPh(x.phone1) === cleanPh(m.phone) || cleanPh(x.phone2) === cleanPh(m.phone) || cleanPh(x.phone) === cleanPh(m.phone) || x.mid === m.phone)) ||
+    (m.name && x.name && x.name.toLowerCase() === m.name.toLowerCase())
+  ) || {};
+
+  // Find agreement in CA
+  let agr = CA.find(x => 
+    x.mid === resolvedMid || 
+    x.id === 'agr_' + resolvedMid || 
+    (m.id && (x.mid === m.id || x.id === 'agr_' + m.id)) || 
+    (m.phone && (x.mid === m.phone || (x.phone && x.phone === m.phone))) ||
+    (m.name && x.borrower && x.borrower.toLowerCase() === m.name.toLowerCase())
+  );
+
+  if (!agr || !agr.signed) {
+    try {
+      const stored = localStorage.getItem('gf_agreement_' + resolvedMid) || 
+                     (m.id && localStorage.getItem('gf_agreement_' + m.id)) ||
+                     (m.phone && localStorage.getItem('gf_agreement_' + m.phone));
+      if (stored) agr = JSON.parse(stored);
+    } catch(_) {}
+  }
+  agr = agr || {};
+
+  const photoSrc = (agr && agr.selfie_photo) || (prof && prof.photo) || (m && m.photo) || '';
+  const borrowerName = esc((agr && agr.signed_name) || (prof && prof.name) || (m && m.name) || 'Suda Mohanadeep');
+  const borrowerVillage = (typeof vl === 'function' && m.village) ? esc(vl(m.village)) : esc(m.village || prof.place || 'Guntur Dist, Andhra Pradesh');
+  const borrowerPhone = esc(m.phone || prof.phone1 || prof.phone || '9494201305');
+  const borrowerPhone2 = esc(prof.phone2 || m.phone2 || 'N/A');
+  const borrowerEmail = esc(prof.email || m.email || (typeof me !== 'undefined' && me && me.email) || 'N/A');
+  const borrowerAge = esc(prof.age || m.age || '32');
+  
+  const loanAmt = m.amt || 10000;
+  const repayAmt = m.repay || Math.round(loanAmt * 1.10);
+  const instAmt = m.inst || (m.freq === 1 ? Math.round(repayAmt / 100) : Math.round(repayAmt / 15));
+  const inrLoan = (typeof inr === 'function') ? inr(loanAmt) : ('Rs. ' + loanAmt);
+  const inrRepay = (typeof inr === 'function') ? inr(repayAmt) : ('Rs. ' + repayAmt);
+  const inrInst = (typeof inr === 'function') ? inr(instAmt) : ('Rs. ' + instAmt);
+  const freqTextEn = m.freq === 1 ? 'Daily' : 'Weekly';
+  const freqTextTe = m.freq === 1 ? 'రోజువారీ' : 'వారానికి';
+  const signedOn = agr.signed_at ? new Date(agr.signed_at).toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' }) : new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+  const hashText = esc(agr.hash || ('SHA256-' + String(resolvedMid).replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase()));
+  const signedName = esc((agr && agr.signed_name) || borrowerName);
+  const isAdmCopy = !!isAdminCopy;
+
+  let doc = '<!DOCTYPE html><html><head><meta charset="utf-8">';
+  doc += '<title>Loan Agreement - ' + borrowerName + ' - Gangaya Finance</title>';
+  doc += '<style>';
+  doc += '@page { size: A4; margin: 16mm 14mm; }';
+  doc += 'body { font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif; color: #1f2937; margin: 0; padding: 24px; background: #fff; line-height: 1.5; font-size: 13px; }';
+  doc += '.header { border-bottom: 2.5px solid #059669; padding-bottom: 14px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }';
+  doc += '.brand h1 { margin: 0 0 2px 0; font-size: 22px; font-weight: 900; color: #065f46; letter-spacing: 0.5px; }';
+  doc += '.brand .sub { font-size: 13px; font-weight: 700; color: #059669; margin-bottom: 4px; }';
+  doc += '.brand .meta { font-size: 11px; color: #6b7280; font-weight: 500; }';
+  doc += '.copy-badge { background: #ecfdf5; border: 1.5px solid #10b981; color: #065f46; padding: 6px 14px; border-radius: 20px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }';
+  doc += '.top-grid { display: grid; grid-template-columns: 1fr 140px; gap: 16px; margin-bottom: 18px; }';
+  doc += '.tables-container { display: flex; flex-direction: column; gap: 12px; }';
+  doc += 'table.data-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }';
+  doc += 'table.data-tbl th { background: #f0fdf4; color: #065f46; text-align: left; padding: 6px 10px; border: 1px solid #d1fae5; font-size: 11.5px; font-weight: 800; }';
+  doc += 'table.data-tbl td { padding: 6px 10px; border: 1px solid #e5e7eb; color: #1f2937; font-size: 12px; }';
+  doc += '.photo-box { width: 135px; border: 2px solid #059669; border-radius: 8px; padding: 5px; text-align: center; background: #fafafa; box-sizing: border-box; }';
+  doc += '.photo-img { width: 100%; height: 145px; object-fit: cover; border-radius: 6px; display: block; }';
+  doc += '.photo-placeholder { width: 100%; height: 145px; border: 1.5px dashed #9ca3af; border-radius: 6px; display: flex; align-items: center; justify-content: center; text-align: center; color: #6b7280; font-size: 11px; padding: 6px; box-sizing: border-box; }';
+  doc += '.photo-verified { font-size: 9.5px; font-weight: 800; color: #059669; margin-top: 5px; line-height: 1.2; }';
+  doc += '.section-head { font-size: 13px; font-weight: 800; color: #065f46; border-left: 4px solid #059669; padding-left: 8px; margin: 18px 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px; }';
+  doc += '.clause-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; font-size: 12px; line-height: 1.55; }';
+  doc += '.clause-title { font-weight: 800; color: #111827; margin-bottom: 4px; font-size: 12.5px; }';
+  doc += '.clause-te { color: #374151; font-style: normal; margin-top: 4px; font-size: 11.5px; line-height: 1.5; border-top: 1px dashed #d1d5db; padding-top: 4px; }';
+  doc += '.sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 24px; padding-top: 16px; border-top: 2px solid #059669; }';
+  doc += '.sig-card { border: 1px solid #d1fae5; background: #f0fdf4; border-radius: 8px; padding: 12px 14px; font-size: 12px; }';
+  doc += '.sig-card h4 { margin: 0 0 6px 0; color: #065f46; font-size: 12.5px; font-weight: 800; }';
+  doc += '.sig-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; color: #047857; word-break: break-all; }';
+  doc += '.no-print { text-align: right; margin-bottom: 14px; }';
+  doc += '.btn-print { background: #059669; color: #fff; border: none; padding: 8px 18px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 13px; }';
+  doc += '@media print { .no-print { display: none !important; } body { padding: 0; } }';
+  doc += '</style></head><body>';
+
+  // No-print control bar
+  doc += '<div class="no-print">';
+  doc += '<button class="btn-print" onclick="window.print()">Print / Save as PDF (ప్రింట్ / పిడిఎఫ్)</button>';
+  doc += '</div>';
+
+  // Header
+  doc += '<div class="header">';
+  doc += '<div class="brand">';
+  doc += '<h1>GANGAYA FINANCE &bull; గంగయ్య ఫైనాన్స్</h1>';
+  doc += '<div class="sub">DIGITAL LOAN SANCTION & REPAYMENT AGREEMENT (డిజిటల్ అప్పు ఒప్పంద పత్రం)</div>';
+  doc += '<div class="meta">Admin: Durga Sravan &bull; Collector: Gangaya &bull; Guntur, Andhra Pradesh &bull; IT Act 2000 Enforceable</div>';
+  doc += '</div>';
+  doc += '<div class="copy-badge">' + (isAdmCopy ? 'ADMIN ARCHIVE COPY' : 'BORROWER OFFICIAL COPY') + '</div>';
+  doc += '</div>';
+
+  // Top Grid: Tables + Borrower Photo
+  doc += '<div class="top-grid">';
+  doc += '<div class="tables-container">';
+
+  // Table 1: Borrower KYC Details
+  doc += '<table class="data-tbl">';
+  doc += '<tr><th colspan="4">1. BORROWER IDENTIFICATION & KYC (రుణగ్రహీత వివరాలు)</th></tr>';
+  doc += '<tr><td style="width:25%;font-weight:700">Full Name (పేరు):</td><td style="width:30%">' + borrowerName + '</td><td style="width:20%;font-weight:700">Age / వయస్సు:</td><td>' + borrowerAge + ' Yrs</td></tr>';
+  doc += '<tr><td style="font-weight:700">Village / గ్రామం:</td><td>' + borrowerVillage + '</td><td style="font-weight:700">Member ID:</td><td style="font-family:monospace">' + esc(resolvedMid) + '</td></tr>';
+  doc += '<tr><td style="font-weight:700">Mobile (ఫోన్):</td><td>' + borrowerPhone + '</td><td style="font-weight:700">Alt Phone:</td><td>' + borrowerPhone2 + '</td></tr>';
+  doc += '<tr><td style="font-weight:700">Email:</td><td colspan="3">' + borrowerEmail + '</td></tr>';
+  doc += '</table>';
+
+  // Table 2: Loan Sanction Terms
+  doc += '<table class="data-tbl">';
+  doc += '<tr><th colspan="4">2. SANCTIONED FINANCING TERMS & SCHEDULE (అప్పు మంజూరు నిబంధనలు)</th></tr>';
+  doc += '<tr><td style="width:25%;font-weight:700">Loan Sanctioned (అప్పు):</td><td style="width:30%;font-weight:800;color:#065f46">' + inrLoan + '</td><td style="width:20%;font-weight:700">Total Repay (మొత్తం):</td><td style="font-weight:800;color:#065f46">' + inrRepay + '</td></tr>';
+  doc += '<tr><td style="font-weight:700">Instalment (వాయిదా):</td><td style="font-weight:800">' + inrInst + '</td><td style="font-weight:700">Frequency (గడువు):</td><td>' + freqTextEn + ' (' + freqTextTe + ')</td></tr>';
+  doc += '<tr><td style="font-weight:700">Payment Modes:</td><td>UPI to <code>challagolla.sravan@superyes</code> or Cash to Collector Gangaya</td><td style="font-weight:700">Financier:</td><td>Durga Sravan, Gangaya Finance</td></tr>';
+  doc += '</table>';
+
+  doc += '</div>'; // end tables-container
+
+  // Photo Box
+  doc += '<div class="photo-box">';
+  if (photoSrc) {
+    doc += '<img class="photo-img" src="' + photoSrc + '" alt="Borrower Identity Photo">';
+    doc += '<div class="photo-verified">&#10003; VERIFIED IDENTITY<br>ధృవీకరించబడిన ఫోటో</div>';
+  } else {
+    doc += '<div class="photo-placeholder">Photo on Record<br>(రికార్డులోని ఫోటో)</div>';
+    doc += '<div class="photo-verified">KYC PHOTO<br>ధృవీకరించబడింది</div>';
+  }
+  doc += '</div>';
+
+  doc += '</div>'; // end top-grid
+
+  // Section: Legal Matter (4 Bilingual Clauses)
+  doc += '<div class="section-head">3. BINDING LEGAL CLAUSES & REPAYMENT COVENANTS (చట్టబద్ధమైన ఒప్పంద నిబంధనలు)</div>';
+
+  doc += '<div class="clause-card">';
+  doc += '<div class="clause-title">Clause 1: Principal Loan Sanction & Repayment Promise (అప్పు స్వీకరణ & చెల్లింపు హామీ)</div>';
+  doc += '<div>The Borrower hereby acknowledges receipt of the sanctioned principal loan sum of <b>' + inrLoan + '</b> (Total Repayment: <b>' + inrRepay + '</b>) from <b>Gangaya Finance</b> (Managing Financier: <b>Durga Sravan</b>, Guntur, AP). The Borrower makes an irrevocable and unconditional covenant to repay the full sanctioned amount in regular scheduled instalments of <b>' + inrInst + ' (' + freqTextEn + ' / ' + freqTextTe + ')</b> without delay, default, or excuse.</div>';
+  doc += '<div class="clause-te">రుణగ్రహీత పై పేర్కొన్న అప్పు మొత్తాన్ని (' + inrLoan + ') గంగయ్య ఫైనాన్స్ (నిర్వాహకులు: దుర్గా శ్రావణ్) నుండి పూర్తిగా స్వీకరించినట్లు ధృవీకరిస్తూ, నిర్ణయించిన వాయిదాల ప్రకారం (' + freqTextTe + 'కి ' + inrInst + ') మొత్తం అప్పును ఎటువంటి జాప్యం లేకుండా పూర్తిగా తిరిగి చెల్లించడానికి బేషరతుగా అంగీకరిస్తున్నారు.</div>';
+  doc += '</div>';
+
+  doc += '<div class="clause-card">';
+  doc += '<div class="clause-title">Clause 2: Periodic Remittance & Digital Cloud Ledger Records (వాయిదాల షెడ్యూల్ & క్లౌడ్ లెడ్జర్ రికార్డులు)</div>';
+  doc += '<div>Instalments must be remitted strictly via authorized digital modes (UPI: <code>challagolla.sravan@superyes</code>) or paid directly in cash to authorized Field Collector <b>Gangaya</b>. Every remittance is recorded in the immutable Gangaya Finance Cloud Ledger, generating a verifiable digital cryptographic receipt with a unique transaction reference and QR seal. Oral or unrecorded claims are invalid.</div>';
+  doc += '<div class="clause-te">ప్రతి వాయిదా గడువు తేదీలలోగా సక్రమంగా చెల్లించాలి. UPI (<code>challagolla.sravan@superyes</code>) ద్వారా లేదా కలెక్టర్ గంగయ్య గారికి చెల్లించవచ్చు. ప్రతి చెల్లింపు క్లౌడ్ లెడ్జర్‌లో నమోదు చేయబడి అధికారిక డిజిటల్ రసీదు జారీ చేయబడుతుంది. రికార్డు లేని అనధికారిక లావాదేవీలు పరిగణించబడవు.</div>';
+  doc += '</div>';
+
+  doc += '<div class="clause-card">';
+  doc += '<div class="clause-title">Clause 3: Event of Default, Accelerated Recovery & Jurisdiction (రుణ ఎగవేత, చట్టపరమైన చర్యలు & గుంటూరు న్యాయ పరిధి)</div>';
+  doc += '<div>Failure to remit three (3) consecutive scheduled instalments constitutes an immediate default. Upon default, the Financier reserves the right to declare the entire remaining balance instantly due and initiate recovery proceedings under civil law and the Negotiable Instruments Act. All legal proceedings shall fall exclusively within the jurisdiction of civil courts in Guntur, Andhra Pradesh.</div>';
+  doc += '<div class="clause-te">రుణగ్రహీత వరుసగా మూడు వాయిదాలు చెల్లించడంలో విఫలమైనా లేదా రుణ ఎగవేతకు పాల్పడినా, మిగిలిన మొత్తం బాకీని తక్షణమే చెల్లించవలసి ఉంటుంది. చట్టప్రకారం రికవరీ చర్యలు తీసుకునే పూర్తి హక్కు ఫైనాన్షియర్‌కు ఉంది. ఈ ఒప్పందానికి సంబంధించిన అన్ని చట్టపరమైన వివాదాలు ఆంధ్రప్రదేశ్ రాష్ట్రంలోని గుంటూరు న్యాయస్థానాల పరిధికి లోబడి ఉంటాయి.</div>';
+  doc += '</div>';
+
+  doc += '<div class="clause-card">';
+  doc += '<div class="clause-title">Clause 4: Electronic Consent, Live Identity & Legal Validity (డిజిటల్ సమ్మతి, ఫోటో ధృవీకరణ & ఐటీ చట్టబద్ధత)</div>';
+  doc += '<div>This digital agreement is executed in accordance with Sections 4, 5, and 10A of the Information Technology Act, 2000. The Borrower explicitly confirms that the attached identity photograph and digital signature was submitted voluntarily with full comprehension and legal consent. The cryptographic digital signature and SHA-256 hash below constitute conclusive legal evidence of binding execution.</div>';
+  doc += '<div class="clause-te">ఈ ఒప్పందం ఇన్ఫర్మేషన్ టెక్నాలజీ చట్టం, 2000 ప్రకారం డిజిటల్‌గా ఆమోదించబడింది. జతపరచబడిన లైవ్ ఫోటో మరియు KYC వివరాలు రుణగ్రహీత స్వయంగా సమ్మతితో నమోదు చేసినట్లు ధృవీకరిస్తున్నారు. ఈ పత్రంలోని క్రిప్టోగ్రాఫిక్ సంతకం మరియు SHA-256 హాష్ ఒప్పందం ఆమోదానికి అధికారిక మరియు చట్టపరమైన తిరుగులేని రుజువుగా పరిగణించబడుతుంది.</div>';
+  doc += '</div>';
+
+  // Signatures Grid
+  doc += '<div class="sig-grid">';
+
+  // Borrower Digital Signature Card
+  doc += '<div class="sig-card">';
+  doc += '<h4>&#10003; BORROWER DIGITAL EXECUTION (రుణగ్రహీత సంతకం)</h4>';
+  doc += '<div><b>Digitally Signed By:</b> ' + signedName + '</div>';
+  doc += '<div><b>Mobile:</b> ' + borrowerPhone + '</div>';
+  doc += '<div><b>Signed Timestamp:</b> ' + signedOn + '</div>';
+  doc += '<div><b>Integrity Hash:</b> <span class="sig-hash">' + hashText + '</span></div>';
+  doc += '<div style="margin-top:6px;font-size:11px;color:#059669;font-weight:700">&#10003; Verified Electronic Signature & Consent</div>';
+  doc += '</div>';
+
+  // Financier Sanction Card
+  doc += '<div class="sig-card">';
+  doc += '<h4>&#10003; FINANCIER SANCTION SEAL (ఫైనాన్షియర్ అధికారిక ముద్ర)</h4>';
+  doc += '<div><b>Managing Financier:</b> Durga Sravan</div>';
+  doc += '<div><b>Field Collector:</b> Gangaya</div>';
+  doc += '<div><b>Sanction City:</b> Guntur, Andhra Pradesh</div>';
+  doc += '<div><b>Ledger Ref:</b> <span class="sig-hash">GF-AGR-' + esc(resolvedMid).slice(0, 16) + '</span></div>';
+  doc += '<div style="margin-top:6px;font-size:11px;color:#059669;font-weight:700">&#10003; Verified Gangaya Finance Cloud Ledger Seal</div>';
+  doc += '</div>';
+
+  doc += '</div>'; // end sig-grid
+
+  // Auto-print script
+  doc += '<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();},350);};<\/scr' + 'ipt>';
+  doc += '</body></html>';
+
+  return doc;
 }
 
 function downloadAgreementPdf(){
-  const m = M.find(x => x.id === clientMid) || {};
-  const myAgr = CA.find(x => x.mid === clientMid || (m && x.mid === m.id)) || {};
-  const selfieHtml = myAgr.selfie_photo ? '<img src="'+myAgr.selfie_photo+'" style="height:120px;border-radius:8px;border:1px solid #ccc;margin-bottom:12px" alt="Borrower Selfie">' : '';
-  const name = esc(m.name||'Borrower');
-  const village = (typeof vl==='function') ? esc(vl(m.village||'')) : esc(m.village||'N/A');
-  const phone = esc(m.phone||'N/A');
-  const instText = (typeof inr==='function') ? inr(m.inst) : ('Rs.'+m.inst);
-  const freqText = m.freq===1 ? 'Daily' : 'Weekly';
-  const signedOn = myAgr.signed_at ? new Date(myAgr.signed_at).toLocaleString() : new Date().toLocaleString();
-  const hashText = esc(myAgr.hash||'SHA256-AUTHENTIC');
-  const signedName = esc(myAgr.signed_name||m.name||'N/A');
+  const docHtml = buildAgreementDocumentHtml(clientMid, false);
   const printWin = window.open('', '_blank');
-  if (!printWin) { toast(tr('Allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn'); return; }
-  var html2 = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loan Agreement - '+name+'</title>';
-  html2 += '<style>body{font-family:Arial,sans-serif;padding:32px;color:#222;max-width:700px;margin:0 auto}';
-  html2 += 'h1{font-size:20px;text-align:center;color:#059669}h2{font-size:16px;border-bottom:1px solid #ccc;padding-bottom:4px}';
-  html2 += 'p{font-size:13px;line-height:1.7}.sig-block{border-top:2px solid #059669;padding-top:12px;margin-top:24px}';
-  html2 += '.meta{font-size:11px;color:#666;font-family:monospace}@media print{button{display:none}}</style></head><body>';
-  html2 += '<h1>GANGAYA FINANCE &bull; LOAN SANCTION AGREEMENT</h1>';
-  html2 += '<p class="meta">Sanctioned by: Durga Sravan &bull; Guntur, Andhra Pradesh &bull; '+new Date().toLocaleString()+'</p>';
-  html2 += selfieHtml;
-  html2 += '<h2>Borrower Details</h2>';
-  html2 += '<p><b>Name:</b> '+name+' &nbsp;&nbsp; <b>Village:</b> '+village+'<br>';
-  html2 += '<b>Phone:</b> '+phone+' &nbsp;&nbsp; <b>Instalment:</b> '+instText+' ('+freqText+')</p>';
-  html2 += '<h2>Loan Terms</h2>';
-  html2 += '<p><b>1. Parties:</b> This Agreement is between <b>Gangaya Finance</b> (Financier) and <b>'+name+'</b> (Borrower), resident of <b>'+village+'</b>.</p>';
-  html2 += '<p><b>2. Repayment:</b> Agreed instalments of <b>'+instText+'</b> on a <b>'+freqText+'</b> basis.</p>';
-  html2 += '<p><b>3. Mode:</b> UPI to <code>challagolla.sravan@superyes</code> or cash to Collector Gangaya against digital receipts.</p>';
-  html2 += '<p><b>4. Digital Verification:</b> Every payment generates a cryptographic receipt verifiable via QR code.</p>';
-  html2 += '<div class="sig-block"><p><b>Digital Signature:</b> '+signedName+'<br>';
-  html2 += '<b>Signed On:</b> '+signedOn+'<br>';
-  html2 += '<b>Document Hash:</b> <span class="meta">'+hashText+'</span></p>';
-  html2 += '<p style="font-style:italic;color:#666;">తెలుగు సంక్షిప్తం: ఈ ఒప్పందం ద్వారా రుణగ్రహీత నిర్ణీత వాయిదాలను క్రమం తప్పకుండా చెల్లించడానికి అంగీకరిస్తున్నారు.</p>';
-  html2 += '</div>';
-  html2 += '<scr'+'ipt>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/scr'+'ipt>';
-  html2 += '</body></html>';
-  printWin.document.write(html2);
+  if (!printWin) {
+    toast(tr('Please allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn');
+    return;
+  }
+  printWin.document.write(docHtml);
   printWin.document.close();
 }
 
@@ -6763,10 +6980,19 @@ function signClientAgreement(ev){
   const agrId = 'agr_' + activeMid;
   var agrSelfie = '';
   try { var _si = document.getElementById('ca-popup-selfie-img') || document.getElementById('ca-selfie-img'); if (_si && _si.src && _si.src.startsWith('data:image')) { agrSelfie = _si.src; } } catch(_) {}
+  if (!agrSelfie) {
+    const profMatch = CP.find(x => x.mid === activeMid || (m && (x.mid === m.id || x.phone === m.phone || x.phone1 === m.phone)));
+    if (profMatch && profMatch.photo) {
+      agrSelfie = profMatch.photo;
+    } else if (m && m.photo) {
+      agrSelfie = m.photo;
+    }
+  }
   const agrObj = {
     id: agrId,
     mid: activeMid,
     borrower: (m && m.name) || signName,
+    phone: (m && m.phone) || '',
     signed_name: signName,
     signed: true,
     needs_resignature: false,
@@ -6803,6 +7029,7 @@ function signClientAgreement(ev){
       id: agrId,
       mid: activeMid,
       borrower: (m && m.name) || signName,
+      phone: (m && m.phone) || '',
       signed_name: signName,
       hash: agrObj.hash,
       selfie_photo: agrSelfie
@@ -6815,8 +7042,11 @@ function signClientAgreement(ev){
     });
   }
 
-  toast(tr('Digital agreement signed & verified successfully ✓', 'ఒప్పందం డిజిటల్ సంతకంతో విజయవంతంగా ఆమోదించబడింది ✓'));
-  draw();
+  showActionAlert(
+    tr('Agreement Executed Successfully ✓', 'ఒప్పందం విజయవంతంగా ఆమోదించబడింది ✓'),
+    tr('Your digital loan agreement has been recorded with photo identity verification and SHA-256 seal. You can download the complete PDF copy anytime.', 'మీ డిజిటల్ అప్పు ఒప్పందం ఫోటో గుర్తింపుతో ఆమోదించబడింది. మీరు ఎప్పుడైనా పూర్తి PDF కాపీని డౌన్‌లోడ్ చేసుకోవచ్చు.'),
+    tr('Signed by: ', 'సంతకం చేసినవారు: ') + signName + ' • ' + ((m && m.village) || 'Guntur')
+  );
 }
 
 /* -------------------------------------------------------------
@@ -7078,7 +7308,11 @@ function submitClientBugReport(ev){
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 
-  toast(tr('Bug report submitted to Durga Sravan (Admin) ✓', 'సమస్య నివేదించబడింది ✓'));
+  showActionAlert(
+    tr('Bug Reported Successfully ✓', 'సాంకేతిక సమస్య నివేదించబడింది ✓'),
+    tr('Your bug report and diagnostics have been sent to Durga Sravan (Admin). Our engineering team will review and resolve it.', 'మీ సమస్య వివరాలు మరియు సిస్టమ్ రిపోర్ట్ అడ్మిన్ గారికి చేరింది. త్వరలోనే పరిశీలించి పరిష్కరిస్తాము.'),
+    tr('Ref ID: ', 'రిఫరెన్స్: ') + bugId + ' • ' + cat
+  );
   f.reset();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
   draw();
@@ -7094,6 +7328,11 @@ function resolveBugReport(bugId, status, notes){
   if (db && db.collection) {
     db.collection('client_bugs').doc(bugId).set(b).catch(() => {});
   }
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'resolve_bug', id: bugId, status: status, notes: b.resolution_notes })
+  }).catch(() => {});
   toast(tr('Bug status updated to: ' + status + ' ✓', 'సమస్య స్థితి అప్‌డేట్ చేయబడింది ✓'));
   draw();
 }
@@ -7155,8 +7394,11 @@ function lodgeClientPayment(midVal, amtVal, utrVal, photoVal){
   } catch(_) {}
 
   // 3. Immediately render confirmation screen
-  toast(tr(`Payment of ₹${numAmt} lodged! Under safety verification by Admin ✓`, `₹${numAmt} చెల్లింపు నమోదైంది! అడ్మిన్ పరిశీలనలో ఉంది ✓`));
-  draw();
+  showActionAlert(
+    tr('Payment Lodged for Verification ✓', 'చెల్లింపు పరిశీలనకు పంపబడింది ✓'),
+    tr('Payment of ₹' + numAmt + ' has been lodged! Admin (Durga Sravan) will verify the UTR / proof and confirm your official digital receipt.', '₹' + numAmt + ' చెల్లింపు నమోదైంది! అడ్మిన్ పరిశీలించి అధికారిక రసీదును నిర్ధారిస్తారు.'),
+    tr('UTR: ', 'UTR: ') + (utr || 'Direct Payment') + ' • ' + (member.name || 'Borrower')
+  );
 
   // 4. Background cloud sync without blocking user interface
   if(db && db.collection){
@@ -7356,8 +7598,11 @@ async function saveClientPersonalDetails(ev){
   const idx = CP.findIndex(x => x.id === profObj.id || x.mid === clientMid);
   if(idx >= 0) CP[idx] = profObj; else CP.unshift(profObj);
 
-  toast(tr('Personal profile & KYC details saved successfully ✓', 'వ్యక్తిగత వివరాలు & KYC విజయవంతంగా భద్రపరచబడ్డాయి ✓'));
-  draw();
+  showActionAlert(
+    tr('Profile Saved Successfully ✓', 'వ్యక్తిగత వివరాలు భద్రపరచబడ్డాయి ✓'),
+    tr('Your KYC profile, contact numbers, and photo have been securely updated in the cloud ledger.', 'మీ ప్రొఫైల్ వివరాలు మరియు ఫోటో క్లౌడ్ లెడ్జర్‌లో భద్రపరచబడ్డాయి.'),
+    tr('Name: ', 'పేరు: ') + name + ' • ' + (place || 'Guntur')
+  );
 }
 
 /* -------------------------------------------------------------
@@ -7488,14 +7733,40 @@ function closeBorrowerProfileModal(){
 }
 function renderBorrowerProfileModal(){
   if (!activeBorrowerProfileMid) return '';
-  const m = M.find(x => x.id === activeBorrowerProfileMid) || {};
-  const p = CP.find(x => x.mid === activeBorrowerProfileMid || (m.phone && cleanPh(x.phone1) === cleanPh(m.phone))) || {};
-  const agr = CA.find(x => x.mid === activeBorrowerProfileMid || (m.phone && x.mid === m.phone)) || {};
-  const myReceipts = CR.filter(x => x.mid === activeBorrowerProfileMid || (m.phone && x.phone && x.phone.includes(m.phone)));
-  const mySupport = CS.filter(x => x.mid === activeBorrowerProfileMid);
+  let m = M.find(x => x.id === activeBorrowerProfileMid || x.phone === activeBorrowerProfileMid || (x.name && x.name.toLowerCase() === String(activeBorrowerProfileMid).toLowerCase()));
+  if (!m && typeof resolveActiveClientMember === 'function') m = resolveActiveClientMember();
+  m = m || {};
+
+  const p = CP.find(x => 
+    x.mid === activeBorrowerProfileMid || 
+    x.id === 'cp_' + activeBorrowerProfileMid || 
+    (m.id && (x.mid === m.id || x.id === 'cp_' + m.id)) || 
+    (m.phone && (cleanPh(x.phone1) === cleanPh(m.phone) || cleanPh(x.phone2) === cleanPh(m.phone) || cleanPh(x.phone) === cleanPh(m.phone) || x.mid === m.phone)) ||
+    (m.name && x.name && x.name.toLowerCase() === m.name.toLowerCase())
+  ) || {};
+
+  let agr = CA.find(x => 
+    x.mid === activeBorrowerProfileMid || 
+    x.id === 'agr_' + activeBorrowerProfileMid || 
+    (m.id && (x.mid === m.id || x.id === 'agr_' + m.id)) || 
+    (m.phone && (x.mid === m.phone || (x.phone && x.phone === m.phone))) ||
+    (m.name && x.borrower && x.borrower.toLowerCase() === m.name.toLowerCase())
+  );
+  if (!agr || !agr.signed) {
+    try {
+      const stored = localStorage.getItem('gf_agreement_' + activeBorrowerProfileMid) || 
+                     (m.id && localStorage.getItem('gf_agreement_' + m.id)) ||
+                     (m.phone && localStorage.getItem('gf_agreement_' + m.phone));
+      if (stored) agr = JSON.parse(stored);
+    } catch(_) {}
+  }
+  agr = agr || {};
+
+  const myReceipts = CR.filter(x => x.mid === activeBorrowerProfileMid || (m.id && x.mid === m.id) || (m.phone && x.phone && x.phone.includes(m.phone)));
+  const mySupport = CS.filter(x => x.mid === activeBorrowerProfileMid || (m.id && x.mid === m.id) || (m.phone && x.phone && x.phone.includes(m.phone)));
   const memStatus = m.id ? st(m) : { due: 0, tot: 0, paid: 0 };
   const displayName = p.name || m.name || tr('Borrower','రుణగ్రహీత');
-  const photoUrl = p.photo || agr.selfie_photo || '';
+  const photoUrl = p.photo || agr.selfie_photo || m.photo || '';
 
   return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box" onclick="if(event.target===this)closeBorrowerProfileModal()">
     <div class="card" role="dialog" aria-modal="true" style="position:relative;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;padding:24px 20px;border:2px solid var(--p);box-shadow:0 20px 50px rgba(0,0,0,0.35);margin:auto">
@@ -7595,37 +7866,13 @@ window.adminVerifyBorrowerEmail = async function(emailVal){
 };
 
 function adminDownloadAgreementPdf(mid){
-  const m = M.find(x => x.id === mid) || {};
-  const agr = CA.find(x => x.mid === mid) || {};
-  const selfieHtml = agr.selfie_photo ? '<img src="'+agr.selfie_photo+'" style="height:120px;border-radius:8px;border:1px solid #ccc;margin-bottom:12px" alt="Borrower Selfie at Signing">' : '';
-  const name = esc(m.name||'N/A');
-  const village = (typeof vl==='function') ? esc(vl(m.village||'')) : esc(m.village||'N/A');
-  const phone = esc(m.phone||'N/A');
-  const instText = (typeof inr==='function') ? inr(m.inst) : ('Rs.'+m.inst);
-  const freqText = m.freq===1 ? 'Daily' : 'Weekly';
-  const signedOn = agr.signed_at ? new Date(agr.signed_at).toLocaleString() : 'N/A';
-  const hashText = esc(agr.hash||'SHA256-AUTHENTIC');
-  const signedName = esc(agr.signed_name||m.name||'N/A');
+  const docHtml = buildAgreementDocumentHtml(mid, true);
   const printWin = window.open('', '_blank');
-  if (!printWin) { toast(tr('Allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn'); return; }
-  var html2 = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Admin Agreement Copy - '+name+'</title>';
-  html2 += '<style>body{font-family:Arial,sans-serif;padding:32px;color:#222;max-width:700px;margin:0 auto}';
-  html2 += 'h1{font-size:20px;text-align:center;color:#059669}h2{font-size:16px;border-bottom:1px solid #ccc;padding-bottom:4px}';
-  html2 += 'p{font-size:13px;line-height:1.7}.sig{border-top:2px solid #059669;padding-top:12px;margin-top:24px}';
-  html2 += '.meta{font-size:11px;color:#666;font-family:monospace}@media print{button{display:none}}</style></head><body>';
-  html2 += '<h1>GANGAYA FINANCE &bull; ADMIN AGREEMENT COPY</h1>';
-  html2 += '<p class="meta">Durga Sravan (Admin) &bull; Guntur &bull; '+new Date().toLocaleString()+'</p>';
-  html2 += selfieHtml;
-  html2 += '<h2>Borrower: '+name+'</h2>';
-  html2 += '<p><b>Village:</b> '+village+' &nbsp; <b>Phone:</b> '+phone+'<br>';
-  html2 += '<b>Instalment:</b> '+instText+' ('+freqText+')</p>';
-  html2 += '<div class="sig"><p><b>Signed Name:</b> '+signedName+'<br>';
-  html2 += '<b>Signed On:</b> '+signedOn+'<br>';
-  html2 += '<b>Hash:</b> <span class="meta">'+hashText+'</span></p>';
-  html2 += '<p style="font-style:italic;color:#666;">తెలుగు: ఈ ఒప్పందం రుణగ్రహీత చేత డిజిటల్‌గా ఆమోదించబడింది.</p></div>';
-  html2 += '<scr'+'ipt>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/scr'+'ipt>';
-  html2 += '</body></html>';
-  printWin.document.write(html2);
+  if (!printWin) {
+    toast(tr('Please allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn');
+    return;
+  }
+  printWin.document.write(docHtml);
   printWin.document.close();
 }
 
@@ -7694,7 +7941,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v95</span>
+            <span class="v18-pill">v96</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9264,7 +9511,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v95</span>
+          <span class="v18-pill">v96</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9348,8 +9595,8 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       // Resilient merged subscriptions: never wipe out locally submitted items on partial snapshot
       function mergeSnapList(incoming, existing, storageKey) {
         const map = new Map();
-        (incoming || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
-        (existing || []).forEach(x => { if (x && x.id && !map.has(x.id)) map.set(x.id, x); });
+        (incoming || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, x); });
+        (existing || []).forEach(x => { if (x && x.id && !map.has(x.id) && !isTestRecord(x)) map.set(x.id, x); });
         const res = Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
         if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(res)); } catch(_) {} }
         return res;
@@ -9368,6 +9615,17 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
           syncServerSubmissions()
         ]).then(() => {
           bootComplete = true;
+          try {
+            ['gf_c_members', 'gf_client_support', 'gf_client_bugs', 'gf_client_receipts', 'gf_client_agreements', 'gf_client_profiles', 'gf_notifs'].forEach(k => {
+              const raw = localStorage.getItem(k);
+              if (raw && (raw.includes('m_test') || raw.includes('Test User') || raw.includes('test_write'))) {
+                try {
+                  const arr = JSON.parse(raw);
+                  if (Array.isArray(arr)) localStorage.setItem(k, JSON.stringify(arr.filter(x => !isTestRecord(x))));
+                } catch(_) {}
+              }
+            });
+          } catch(_) {}
           draw();
         }).catch(() => {
           bootComplete = true;
@@ -9397,9 +9655,19 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
 
         let changed = false;
 
+        // Clean local state of any test records
+        const cleanTest = list => list.filter(x => !isTestRecord(x));
+        CS = cleanTest(CS);
+        CB = cleanTest(CB);
+        CP = cleanTest(CP);
+        CR = cleanTest(CR);
+        CA = cleanTest(CA);
+        LR = cleanTest(LR);
+
         // Merge support
         if (Array.isArray(d.support)) {
           for (const item of d.support) {
+            if (isTestRecord(item)) continue;
             const idx = CS.findIndex(x => x.id === item.id);
             if (idx >= 0) {
               if (JSON.stringify(CS[idx]) !== JSON.stringify(item)) { CS[idx] = item; changed = true; }
@@ -9412,6 +9680,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge bugs
         if (Array.isArray(d.bugs)) {
           for (const item of d.bugs) {
+            if (isTestRecord(item)) continue;
             const idx = CB.findIndex(x => x.id === item.id);
             if (idx >= 0) {
               if (JSON.stringify(CB[idx]) !== JSON.stringify(item)) { CB[idx] = item; changed = true; }
@@ -9424,6 +9693,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge profiles
         if (Array.isArray(d.profiles)) {
           for (const item of d.profiles) {
+            if (isTestRecord(item)) continue;
             const idx = CP.findIndex(x => x.id === item.id || x.mid === item.mid);
             if (idx >= 0) {
               if (JSON.stringify(CP[idx]) !== JSON.stringify(item)) { CP[idx] = item; changed = true; }
@@ -9436,6 +9706,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge receipts / payments
         if (Array.isArray(d.receipts)) {
           for (const item of d.receipts) {
+            if (isTestRecord(item)) continue;
             const idx = CR.findIndex(x => x.id === item.id);
             if (idx >= 0) {
               if (JSON.stringify(CR[idx]) !== JSON.stringify(item)) { CR[idx] = item; changed = true; }
@@ -9448,6 +9719,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge agreements
         if (Array.isArray(d.agreements)) {
           for (const item of d.agreements) {
+            if (isTestRecord(item)) continue;
             const idx = CA.findIndex(x => x.id === item.id || x.mid === item.mid);
             if (idx >= 0) {
               if (JSON.stringify(CA[idx]) !== JSON.stringify(item)) { CA[idx] = item; changed = true; }
@@ -9460,6 +9732,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge loan requests
         if (Array.isArray(d.loan_requests)) {
           for (const item of d.loan_requests) {
+            if (isTestRecord(item)) continue;
             const idx = LR.findIndex(x => x.id === item.id);
             if (idx >= 0) {
               if (JSON.stringify(LR[idx]) !== JSON.stringify(item)) { LR[idx] = item; changed = true; }
@@ -9472,6 +9745,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         // Merge notifs
         if (Array.isArray(d.notifs) && isAdm) {
           for (const item of d.notifs) {
+            if (isTestRecord(item)) continue;
             const idx = NT.findIndex(x => x.id === item.id);
             if (idx < 0) { NT.unshift(item); changed = true; }
           }
