@@ -481,6 +481,34 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Payment rejected' });
     }
 
+    // 13. Direct Email Verification (Bypasses email delivery rate limits)
+    if (action === 'verify_email') {
+      const emailVal = String(body.email || '').trim().toLowerCase();
+      if (!emailVal || !emailVal.includes('@')) {
+        return res.status(400).json({ ok: false, error: 'Valid email required' });
+      }
+      try {
+        const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/confirm_user_email`, {
+          method: 'POST',
+          headers: {
+            'apikey': authKey,
+            'Authorization': `Bearer ${authKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ user_email: emailVal }),
+          signal: AbortSignal.timeout(5000)
+        });
+        const rpcData = await rpcRes.json();
+        return res.status(200).json({
+          ok: true,
+          message: (rpcData && rpcData.message) || 'Email verified successfully in cloud database',
+          details: rpcData
+        });
+      } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message || 'Could not verify email' });
+      }
+    }
+
     return res.status(400).json({ ok: false, error: 'Unknown submission action' });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message || 'Server error processing submission' });

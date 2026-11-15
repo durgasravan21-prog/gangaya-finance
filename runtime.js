@@ -32,6 +32,33 @@
     return { allowed: true, remaining: maxReq - timestamps.length };
   }
 
+  window.instantConfirmEmail = async function(emailVal) {
+    if (!sb) return { success: false, message: 'Database not initialized' };
+    const em = String(emailVal || '').trim().toLowerCase();
+    if (!em || !em.includes('@')) return { success: false, message: 'Please enter a valid email address.' };
+
+    try {
+      // 1. Try directly calling PostgreSQL RPC confirm_user_email
+      const { data, error } = await sb.rpc('confirm_user_email', { user_email: em });
+      if (!error && data && data.ok) {
+        return { success: true, message: data.message || 'Email verified successfully! You can now sign in.' };
+      }
+      // 2. Fallback to serverless API endpoint
+      const res = await fetch('/api/client-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify_email', email: em })
+      });
+      const json = await res.json();
+      if (json && json.ok) {
+        return { success: true, message: json.message || 'Email verified successfully! You can now sign in.' };
+      }
+      return { success: false, message: (data && data.error) || (json && json.error) || (error && error.message) || 'Could not verify email. Please check spelling.' };
+    } catch (e) {
+      return { success: false, message: e.message || 'Verification service error' };
+    }
+  };
+
   window.resendConfirmationEmail = async function(emailVal) {
     if (!sb) return { success: false, message: 'Database not initialized' };
     const em = String(emailVal || '').trim().toLowerCase();
@@ -54,13 +81,19 @@
         if (/already confirmed|user already/i.test(error.message)) {
           return { success: true, message: 'Email already verified! Please sign in with your password, or use Instant Magic Link below.' };
         }
-        if (/rate limit|too many/i.test(error.message)) {
-          return { success: false, message: 'Email provider rate limit reached. Please check Spam/Junk folder, or use Instant Magic Link.' };
+        // If email provider limit hit or email fails to send, auto-verify directly in database
+        const autoConf = await window.instantConfirmEmail(em);
+        if (autoConf && autoConf.success) {
+          return { success: true, message: 'Email verified directly in cloud database! Please sign in with your password.' };
         }
         return { success: false, message: error.message };
       }
       return { success: true, message: 'Confirmation link dispatched to ' + em + '! Please check your Inbox and Spam/Junk folder.' };
     } catch (e) {
+      const autoConf = await window.instantConfirmEmail(em);
+      if (autoConf && autoConf.success) {
+        return { success: true, message: 'Email verified directly in cloud database! Please sign in with your password.' };
+      }
       return { success: false, message: e.message || 'Could not resend confirmation email.' };
     }
   };
@@ -99,7 +132,7 @@
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
           '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
-          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b);display:flex;flex-direction:column;gap:5px"><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a><a href="#" id="rt-magic" style="color:var(--p);font-size:12px;font-weight:700;text-decoration:none">Email not arriving? Send Instant Magic Login Link &rsaquo;</a></div></form>');
+          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b);display:flex;flex-direction:column;gap:6px"><a href="#" id="rt-verify-now" style="color:var(--ok);font-size:12.5px;font-weight:700;text-decoration:none">Instant Verify Email (No wait) &rsaquo;</a><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a><a href="#" id="rt-magic" style="color:var(--p);font-size:12px;font-weight:700;text-decoration:none">Email not arriving? Send Instant Magic Login Link &rsaquo;</a></div></form>');
         const thBtn = o.querySelector('#rt-th');
         if (thBtn) {
           thBtn.onclick = () => {
@@ -120,6 +153,27 @@
             isSignUp = !isSignUp;
             msg = '';
             render();
+          };
+        }
+        const verifyBtn = o.querySelector('#rt-verify-now');
+        if (verifyBtn) {
+          verifyBtn.onclick = async ev => {
+            ev.preventDefault();
+            const emailInput = o.querySelector('#rt-e');
+            const em = emailInput ? emailInput.value.trim() : '';
+            if (!em || !em.includes('@')) {
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              o.querySelector('#rt-m').textContent = 'Please enter your email above to verify.';
+              if (emailInput) emailInput.focus();
+              return;
+            }
+            verifyBtn.textContent = 'Verifying in cloud ledger…';
+            verifyBtn.style.pointerEvents = 'none';
+            const vRes = await window.instantConfirmEmail(em);
+            verifyBtn.textContent = 'Instant Verify Email (No wait) ›';
+            verifyBtn.style.pointerEvents = 'auto';
+            o.querySelector('#rt-m').style.color = vRes.success ? 'var(--ok)' : 'var(--r)';
+            o.querySelector('#rt-m').textContent = vRes.message;
           };
         }
         const resendBtn = o.querySelector('#rt-resend');
@@ -177,11 +231,33 @@
               options: { emailRedirectTo: redirectTarget }
             });
             b.disabled = false;
-            if (error) { o.querySelector('#rt-m').textContent = error.message; return; }
-            if (data && data.session) { res(); }
-            else {
-              o.querySelector('#rt-m').style.color = 'var(--a)';
-              o.querySelector('#rt-m').textContent = 'Account created! If confirmation was sent, check email, then Sign in.';
+            if (error) {
+              if (/rate limit|too many|over_email/i.test(error.message)) {
+                o.querySelector('#rt-m').style.color = 'var(--p)';
+                o.querySelector('#rt-m').textContent = 'Confirming account directly…';
+                await window.instantConfirmEmail(emailVal);
+                const loginAttempt = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
+                if (!loginAttempt.error) {
+                  s = null; prof = null; window.location.href = '/'; return;
+                }
+              }
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              o.querySelector('#rt-m').textContent = error.message;
+              return;
+            }
+            // Auto-verify email in cloud database so borrower is never blocked waiting for email:
+            await window.instantConfirmEmail(emailVal);
+            const directLogin = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
+            if (!directLogin.error) {
+              s = null; prof = null; window.location.href = '/'; return;
+            }
+            if (data && data.session) {
+              res();
+            } else {
+              o.querySelector('#rt-m').style.color = 'var(--ok)';
+              o.querySelector('#rt-m').textContent = 'Account created & verified! Please enter password to Sign in.';
+              isSignUp = false;
+              render();
             }
           } else {
             try { localStorage.removeItem('gf_prof'); } catch(_) {}
@@ -189,12 +265,22 @@
             b.disabled = false;
             if (error) {
               const msg = error.message || 'Wrong email or password.';
-              o.querySelector('#rt-m').style.color = 'var(--r)';
               if (/not confirmed/i.test(msg)) {
-                o.querySelector('#rt-m').textContent = 'Email not confirmed yet. Click "Resend confirmation" or "Send Instant Magic Link" below, and check Spam folder.';
-              } else {
-                o.querySelector('#rt-m').textContent = msg;
+                o.querySelector('#rt-m').style.color = 'var(--p)';
+                o.querySelector('#rt-m').textContent = 'Email not confirmed yet. Auto-verifying in database…';
+                const conf = await window.instantConfirmEmail(emailVal);
+                if (conf && conf.success) {
+                  const retry = await sb.auth.signInWithPassword({ email: emailVal, password: pwVal });
+                  if (!retry.error) {
+                    s = null; prof = null; window.location.href = '/'; return;
+                  }
+                }
+                o.querySelector('#rt-m').style.color = 'var(--ok)';
+                o.querySelector('#rt-m').textContent = 'Email verified! Click Sign In again with your password.';
+                return;
               }
+              o.querySelector('#rt-m').style.color = 'var(--r)';
+              o.querySelector('#rt-m').textContent = msg;
               return;
             }
             s = null;

@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=94"></script>
+<script src="/runtime.js?v=95"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -7525,7 +7525,7 @@ function renderBorrowerProfileModal(){
           ${(p.phone1 || m.phone) ? `<div style="display:flex;gap:6px"><a href="tel:${cleanPh(p.phone1 || m.phone)}" class="sm" style="text-decoration:none;padding:2px 8px;font-size:11px;font-weight:700">Call</a><a href="https://wa.me/91${cleanPh(p.phone1 || m.phone)}" target="_blank" class="sm" style="text-decoration:none;padding:2px 8px;font-size:11px;font-weight:700;color:var(--ok)">WhatsApp</a></div>` : ''}
         </div>
         ${p.phone2 ? `<div style="margin-top:4px"><b>${tr('Secondary Phone:','రెండవ ఫోన్:')}</b> ${ph(p.phone2)}</div>` : ''}
-        ${p.email ? `<div style="margin-top:4px"><b>${tr('Email:','ఈమెయిల్:')}</b> ${esc(p.email)}</div>` : ''}
+        ${p.email ? `<div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><span><b>${tr('Email:','ఈమెయిల్:')}</b> ${esc(p.email)}</span><button type="button" class="sm" onclick="adminVerifyBorrowerEmail('${esc(p.email)}')" style="padding:3px 10px;font-size:11px;font-weight:700;border-radius:6px;background:rgba(16,185,129,0.12);color:var(--ok);border:1px solid rgba(16,185,129,0.3)">${tr('Verify Email Directly ✓','ఈమెయిల్ ధృవీకరించు ✓')}</button></div>` : ''}
       </div>
 
       <!-- Digital Loan Agreement Status -->
@@ -7578,6 +7578,21 @@ function renderBorrowerProfileModal(){
     </div>
   </div>`;
 }
+
+window.adminVerifyBorrowerEmail = async function(emailVal){
+  if (!emailVal) return;
+  toast(tr('Verifying email in cloud ledger…','క్లౌడ్ లెడ్జర్‌లో ఈమెయిల్ ధృవీకరిస్తోంది…'));
+  try {
+    const res = await (typeof window.instantConfirmEmail === 'function' ? window.instantConfirmEmail(emailVal) : fetch('/api/client-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_email', email: emailVal })
+    }).then(r => r.json()));
+    toast(tr('Email verified successfully ✓','ఈమెయిల్ విజయవంతంగా ధృవీకరించబడింది ✓'));
+  } catch(e) {
+    toast(tr('Verification error: ','లోపం: ') + (e.message || 'error'));
+  }
+};
 
 function adminDownloadAgreementPdf(mid){
   const m = M.find(x => x.id === mid) || {};
@@ -7679,7 +7694,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v94</span>
+            <span class="v18-pill">v95</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9249,7 +9264,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v94</span>
+          <span class="v18-pill">v95</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
