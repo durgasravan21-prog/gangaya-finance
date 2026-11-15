@@ -2759,6 +2759,23 @@ function mergeLoanRequests(requests, notifsList){
   }
   return res;
 }
+function updateNotifBadgesDOM(){
+  try {
+    const c = (typeof unreadNotifCount === 'function') ? unreadNotifCount() : 0;
+    document.querySelectorAll('.notif-badge').forEach(el => {
+      el.textContent = c > 99 ? '99+' : c;
+      el.style.display = c > 0 ? '' : 'none';
+    });
+    document.querySelectorAll('.notif-btn').forEach(el => {
+      if (c > 0) el.classList.add('has-unread');
+      else el.classList.remove('has-unread');
+    });
+    document.querySelectorAll('.v18-dock-badge').forEach(el => {
+      el.style.display = c > 0 ? '' : 'none';
+    });
+  } catch(_) {}
+}
+
 function onNotifsUpdate(newNT){
   LR = mergeLoanRequests(LR, newNT);
   if(bootComplete){
@@ -2779,7 +2796,13 @@ function onNotifsUpdate(newNT){
       }
     }
   }
-  knownNotifIds=new Set(newNT.map(x=>x.id));NT=newNT;
+  knownNotifIds=new Set(newNT.map(x=>x.id));
+  NT=newNT;
+  updateNotifBadgesDOM();
+  if(notifOpen){
+    if(typeof safeDraw === 'function') safeDraw();
+    else draw();
+  }
 }
 function allNotifs(){
   const list=[];
@@ -3438,8 +3461,157 @@ function showActionAlert(title, message, sub){
   draw();
 }
 function dlgOk(){const f=dlg&&dlg.fn;dlg=null;draw();if(f)f()}
+
+let activePreviewImage = null;
+function viewImagePreview(src, title){
+  if(!src){
+    toast(tr('No image available to display', 'చూపించడానికి ఎలాంటి ఫోటో లేదు'), 'warn');
+    return;
+  }
+  activePreviewImage = { src, title: title || tr('Image Preview', 'ఫోటో వీక్షణ') };
+  draw();
+}
+function closeImagePreview(){
+  activePreviewImage = null;
+  draw();
+}
+function openImageInNewTab(src){
+  if(!src) return;
+  try {
+    if (src.startsWith('data:')) {
+      const parts = src.split(',');
+      const mime = (parts[0].match(/:(.*?);/) || ['', 'image/jpeg'])[1];
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], {type: mime});
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+      return;
+    }
+  } catch(e) {
+    console.warn('Blob URL generation note:', e);
+  }
+  try {
+    const w = window.open('', '_blank');
+    if(w && w.document){
+      w.document.write(`<!DOCTYPE html><html><head><title>Gangaya Finance - Full Image</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px;box-sizing:border-box;}img{max-width:100%;max-height:95vh;border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,0.5);object-fit:contain;}</style></head><body><img src="${src}" alt="Full Resolution" /></body></html>`);
+      w.document.close();
+      return;
+    }
+  } catch(_) {}
+  window.open(src, '_blank');
+}
+function downloadActivePreviewImage(){
+  if(!activePreviewImage || !activePreviewImage.src) return;
+  const src = activePreviewImage.src;
+  try {
+    if (src.startsWith('data:')) {
+      const parts = src.split(',');
+      const mime = (parts[0].match(/:(.*?);/) || ['', 'image/jpeg'])[1];
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], {type: mime});
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = 'gangaya-proof-' + Date.now() + '.jpg';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+      return;
+    }
+  } catch(_) {}
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = 'gangaya-proof-' + Date.now() + '.jpg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function viewReceiptProof(proofId){
+  const p = CR.find(x => x.id === proofId);
+  if(p && p.photo){
+    viewImagePreview(p.photo, (p.borrower || 'Customer') + ' · ' + inr(p.amt || 0));
+  } else {
+    toast(tr('No photo proof attached to this receipt', 'ఈ రసీదుకు ఫోటో జతచేయబడలేదు'), 'warn');
+  }
+}
+function viewBugScreenshot(bugId){
+  const b = CB.find(x => x.id === bugId);
+  const src = b && (b.photo || b.screenshot);
+  if(src){
+    viewImagePreview(src, 'Bug Screenshot · ' + (b.category || 'Issue'));
+  } else {
+    toast(tr('No screenshot attached to this bug report', 'ఈ సమస్యకు స్క్రీన్‌షాట్ జతచేయబడలేదు'), 'warn');
+  }
+}
+function viewMemberKycPhoto(mid){
+  const p = CP.find(x => x.mid === mid || x.id === mid) || M.find(x => x.id === mid);
+  const src = (p && (p.photo || p.kyc_photo)) || null;
+  if(src){
+    viewImagePreview(src, (p.name || 'Member') + ' · KYC Photo');
+  } else {
+    toast(tr('No photo attached to this member profile', 'ఈ ప్రొఫైల్‌కు ఫోటో జతచేయబడలేదు'), 'warn');
+  }
+}
+function imagePreviewModalHtml(){
+  if(!activePreviewImage) return '';
+  const { src, title } = activePreviewImage;
+  return `
+  <div id="gf-img-modal-ov" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:99999;padding:16px;overflow:auto" onclick="if(event.target.id==='gf-img-modal-ov')closeImagePreview()">
+    <div class="card" style="max-width:700px;width:100%;max-height:90vh;display:flex;flex-direction:column;padding:18px;border-radius:16px;background:var(--s);box-shadow:0 24px 60px rgba(0,0,0,0.6);border:1.5px solid var(--b)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid var(--b);padding-bottom:10px">
+        <div style="font-weight:800;font-size:15px;color:var(--t)">${esc(title)}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="button" class="sm" onclick="openImageInNewTab(activePreviewImage&&activePreviewImage.src)" style="font-size:11.5px;padding:4px 10px;border-radius:8px">
+            ${tr('Open Fullscreen ↗', 'పూర్తి స్క్రీన్ ↗')}
+          </button>
+          <button type="button" class="sm" onclick="downloadActivePreviewImage()" style="font-size:11.5px;padding:4px 10px;border-radius:8px">
+            ${tr('Download ⤓', 'డౌన్‌లోడ్ ⤓')}
+          </button>
+          <button type="button" class="sm" onclick="closeImagePreview()" style="font-size:14px;padding:3px 10px;border-radius:8px;font-weight:900;color:var(--r)">
+            ✕
+          </button>
+        </div>
+      </div>
+      <div style="flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:8px;background:rgba(0,0,0,0.25);border-radius:10px">
+        <img src="${src}" alt="Preview" style="max-width:100%;max-height:70vh;object-fit:contain;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25)">
+      </div>
+    </div>
+  </div>`;
+}
+
+let searchDebounceTimers = {};
+function debounceSearch(key, val, delay = 180){
+  if(key === 'rmq') rmq = val;
+  else if(key === 'adminSupportSearch') adminSupportSearch = val;
+  else if(key === 'adminBugsSearch') adminBugsSearch = val;
+  else if(key === 'adminProfilesSearch') adminProfilesSearch = val;
+  else if(key === 'adminKycSearch') adminKycSearch = val;
+  else if(key === 'adminCrSearch') adminCrSearch = val;
+  else if(key === 'mbSearch') mbSearch = val;
+  else if(key === 'lq') lq = val;
+  else if(key === 'arq') arq = val;
+  else if(key === 'colQuery') colQuery = val;
+  else if(key === 'actQuery') actQuery = val;
+
+  if(searchDebounceTimers[key]) clearTimeout(searchDebounceTimers[key]);
+  searchDebounceTimers[key] = setTimeout(() => {
+    draw();
+  }, delay);
+}
+
 function dlgHtml(){
-  if (!dlg && !tmsg) return '';
+  if (!dlg && !tmsg && !activePreviewImage) return '';
   let dHtml = '';
   if (dlg) {
     if (typeof dlg === 'string') {
@@ -3450,7 +3622,7 @@ function dlgHtml(){
       dHtml = `<div style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px"><div class="card" role="dialog" aria-modal="true" style="max-width:420px;margin:0"><p style="margin:0 0 12px">${esc(dlg.m)}</p><div class="acts"><button class="p" onclick="dlgOk()">${esc(dlg.ok)}</button>${dlg.noCancel ? '' : `<button onclick="dlg=null;draw()">${tr('Cancel','వద్దు')}</button>`}</div></div></div>`;
     }
   }
-  return dHtml + (tmsg ? `<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>` : '');
+  return dHtml + (tmsg ? `<div class="toast" role="status" aria-live="polite">${esc(tmsg)}</div>` : '') + imagePreviewModalHtml();
 }
 async function once(fn){if(busy)return;busy=true;const to=setTimeout(()=>{busy=false},15000);try{await w(fn)}finally{clearTimeout(to);busy=false;draw()}}
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})(),
@@ -3486,7 +3658,7 @@ ${l.pays.map(x=>`<div class="rec"><div class="m">${fd(x.t.d)}, ${tm(x.t)} · ${x
 function ledgerTab(){const q=lq.trim().toLowerCase(),ms=M.filter(m=>!m.archived&&(!lv||m.village==lv)&&(!q||(m.name+' '+(m.te||'')).toLowerCase().includes(q))).sort((a,b)=>nm(a).localeCompare(nm(b))),
 rows=ms.map(m=>({m,L:ledger(m),pc:T.filter(t=>t.mid==m.id&&t.type=='pay').length})),
 S=rows.reduce((a,{L,pc})=>{a.n+=L.length;a.c+=pc;for(const l of L){a.g+=l.given;a.r+=l.repay;a.p+=l.paid}return a},{n:0,c:0,g:0,r:0,p:0});
-return `<div class="card"><div class="row" style="margin-bottom:8px"><div><h2 style="margin:0">${tr('Member Ledgers & Passbooks','సభ్యుల ఖాతా పుస్తకాలు')}</h2><div class="m" style="font-size:12px">${tr('Complete loan records, interest and balance tracking','అప్పులు, వడ్డీ మరియు బాకీ వివరాలు')}</div></div><button class="p sm" onclick="dl()">${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button></div><div class="g"><input id="lq" value="${esc(lq)}" placeholder="${tr('Search name','పేరు వెతకండి')}" oninput="lq=this.value;draw()"><select id="lvs" onchange="lv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==lv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
+return `<div class="card"><div class="row" style="margin-bottom:8px"><div><h2 style="margin:0">${tr('Member Ledgers & Passbooks','సభ్యుల ఖాతా పుస్తకాలు')}</h2><div class="m" style="font-size:12px">${tr('Complete loan records, interest and balance tracking','అప్పులు, వడ్డీ మరియు బాకీ వివరాలు')}</div></div><button class="p sm" onclick="dl()">${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button></div><div class="g"><input id="lq" value="${esc(lq)}" placeholder="${tr('Search name','పేరు వెతకండి')}" oninput="debounceSearch('lq', this.value)"><select id="lvs" onchange="lv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==lv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select></div>
 <p class="m" style="margin:8px 0 0">${rows.length} ${tr('borrowers','రుణగ్రహీతలు')} · ${tr('Loans taken','తీసుకున్న అప్పులు')} <b>${S.n}</b> · ${tr('Payments','చెల్లింపులు')} <b>${S.c}</b><br>${tr('Given','ఇచ్చినది')} ${inr(S.g)} · ${tr('To return','తిరిగి')} ${inr(S.r)} · ${tr('Paid','చెల్లించినది')} ${inr(S.p)} · ${tr('Due','బాకీ')} <b>${inr(Math.max(S.r-S.p,0))}</b></p></div>`
 +(rows.map(({m,L,pc})=>{const g=L.reduce((a,l)=>a+l.given,0),r=L.reduce((a,l)=>a+l.repay,0),p=L.reduce((a,l)=>a+l.paid,0),d=r-p,open=lgv==m.id;
 return `<div class="card"><div class="row"><div><b>${esc(nm(m))}</b> <span class="m">${esc(sb(m))} ${esc(vl(m.village))}</span>
@@ -3832,7 +4004,7 @@ function activityTab(){
       </div>
 
       <div class="g" style="margin-top:10px">
-        <input id="act_q" value="${esc(actQuery)}" placeholder="${tr('Search borrower name / phone...','పేరు లేదా ఫోన్ నంబర్ శోధించండి...')}" oninput="actQuery=this.value;draw()">
+        <input id="act_q" value="${esc(actQuery)}" placeholder="${tr('Search borrower name / phone...','పేరు లేదా ఫోన్ నంబర్ శోధించండి...')}" oninput="debounceSearch('actQuery', this.value)">
         <select onchange="actVillage=this.value;draw()">
           <option value="">${tr('All Villages','అన్ని ఊర్లు')}</option>
           ${V.map(v => `<option value="${esc(v.name)}" ${v.name===actVillage?'selected':''}>${esc(nm(v))}</option>`).join('')}
@@ -4028,7 +4200,7 @@ function collect(){
             <option value="">${tr('Other village…','ఇతర ఊరు…')}</option>
             ${V.map((v,i)=>`<option value="${i}" ${v.name==vil?'selected':''}>${esc(nm(v))} (${v.day!=null?dn(v.day):'-'})</option>`).join('')}
           </select>
-          <input id="col_q" value="${esc(colQuery)}" placeholder="${tr('Search member in this village...','సభ్యుడి పేరు వెతకండి...')}" oninput="colQuery=this.value;draw()">
+          <input id="col_q" value="${esc(colQuery)}" placeholder="${tr('Search member in this village...','సభ్యుడి పేరు వెతకండి...')}" oninput="debounceSearch('colQuery', this.value)">
         </div>
       </div>
       ${recentFatherNotesHtml()}
@@ -4156,7 +4328,7 @@ function getRemList(allMembers){
   for(const m of M){
     if(m.archived)continue;
     const s=st(m);
-    if(s.due<=0)continue;
+    if(!allMembers && s.due<=0)continue;
     const paidToday = T.some(t => t.mid == m.id && t.d == td && t.type == 'pay');
     if(paidToday && !allMembers) continue;
     const dl=s.next?Math.round((new Date(s.next+'T00:00:00')-new Date(td+'T00:00:00'))/864e5):null;
@@ -5076,15 +5248,23 @@ function remindersTab(){
     if(rmf=='td'&&!r.isTd)return false;
     if(rmf=='up'&&!r.isUp)return false;
     if(rmf=='all'&&r.s.due<=0)return false;
-    if(rmv&&r.m.village!=rmv)return false;
+    if(rmv && String(r.m.village||'').trim().toLowerCase() !== String(rmv).trim().toLowerCase()) return false;
     if(rmq){
-      const q=rmq.toLowerCase(),n=(r.m.name||'').toLowerCase(),te=(r.m.te||'').toLowerCase(),p=(r.m.phone||'');
-      if(!n.includes(q)&&!te.includes(q)&&!p.includes(q))return false;
+      const q=rmq.toLowerCase().trim();
+      const n=(r.m.name||'').toLowerCase();
+      const te=(r.m.te||'').toLowerCase();
+      const p=(r.m.phone||'').toLowerCase();
+      const v=(r.m.village||'').toLowerCase();
+      if(!n.includes(q)&&!te.includes(q)&&!p.includes(q)&&!v.includes(q))return false;
     }
     return true;
   });
   const unsentQueue=filtered.filter(r=>!RM.has(r.m.id+'_'+today())&&!skippedRemIds.has(r.m.id));
   const nextRem=unsentQueue[0]||null;
+  const uniqueVillages = Array.from(new Set([
+    ...V.map(v => (v.name || '').trim()),
+    ...M.map(m => (m.village || '').trim())
+  ])).filter(Boolean).sort((a,b) => a.localeCompare(b));
   return `
     <div class="g" style="margin-bottom:12px">
       <div class="card stat" style="border-left:4px solid var(--r);cursor:pointer" onclick="rmf='od';draw()">
@@ -5132,10 +5312,10 @@ function remindersTab(){
         <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
       </div>
       <div class="g">
-        <input type="search" placeholder="${tr('Search client name / phone...','క్లయింట్ పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="rmq=this.value;draw()">
-        <select onchange="rmv=this.value;draw()">
+        <input id="rmq-search" type="search" placeholder="${tr('Search client name / phone / village...','క్లయింట్ పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="debounceSearch('rmq', this.value)">
+        <select id="rmv-select" onchange="rmv=this.value;draw()">
           <option value="">${tr('All villages','అన్ని ఊర్లు')}</option>
-          ${V.map(v=>`<option value="${esc(v.name)}" ${v.name==rmv?'selected':''}>${esc(nm(v))}</option>`).join('')}
+          ${uniqueVillages.map(vName=>`<option value="${esc(vName)}" ${vName.toLowerCase()===(rmv||'').toLowerCase()?'selected':''}>${esc(vName)}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -5183,7 +5363,19 @@ function remindersTab(){
           ` : ''}
         </div>
       `;
-    }).join('')||`<div class="card empty"><p class="m">${tr('No clients matching filters ','రిమైండర్లు ఏమీ లేవు ')}</p></div>`}
+    }).join('')||`
+      <div class="card empty" style="padding:24px;text-align:center">
+        <p class="m" style="margin:0 0 8px">${tr('No clients matching filters','ఎలాంటి రికార్డులూ లేవు')}</p>
+        ${rmf !== 'any' ? `
+          <div style="font-size:12.5px;color:var(--t);margin-top:6px">
+            <span>${rmv ? tr('No active dues in ' + rmv + '.', rmv + ' లో ఎలాంటి బాకీలు లేవు.') : tr('No active dues matching filter.', 'ఎలాంటి బాకీలు లేవు.')}</span>
+            <button type="button" class="sm p" onclick="rmf='any';draw();" style="margin-left:8px;border-radius:6px;font-size:11.5px;font-weight:700">
+              ${tr('View All Registered Clients (' + M.filter(m=>!m.archived && (!rmv || String(m.village||'').trim().toLowerCase() === String(rmv).trim().toLowerCase())).length + ') →', 'అందరి రికార్డులు చూడండి (' + M.filter(m=>!m.archived && (!rmv || String(m.village||'').trim().toLowerCase() === String(rmv).trim().toLowerCase())).length + ') →')}
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `}
     ${nextRem?`
       <div style="position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:5;display:flex;gap:8px;background:var(--bg);padding:8px 0">
         <button class="p" style="flex:1;padding:14px;font-size:16px;white-space:normal" onclick="sendRemind('${nextRem.m.id}')">
@@ -5567,7 +5759,7 @@ function members(){
     <!-- Search & Village Filter Bar -->
     <div style="background:var(--s);padding:10px 12px;border-radius:10px;border:1px solid var(--b);margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div style="flex:1.4;min-width:200px">
-        <input id="mbSearch" value="${esc(mbSearch)}" placeholder="${tr('Search by name, Telugu or phone…','పేరు లేదా ఫోన్ నంబర్‌తో వెతకండి…')}" oninput="mbSearch=this.value;draw()" style="width:100%;font-size:13.5px">
+        <input id="mbSearch" value="${esc(mbSearch)}" placeholder="${tr('Search by name, Telugu or phone…','పేరు లేదా ఫోన్ నంబర్‌తో వెతకండి…')}" oninput="debounceSearch('mbSearch', this.value)" style="width:100%;font-size:13.5px">
       </div>
       <div style="flex:1;min-width:180px">
         <select id="mbVillageFilter" onchange="mbVillageFilter=this.value;draw()" style="width:100%;font-size:13.5px;font-weight:600">
@@ -5783,7 +5975,7 @@ return `<div class="card">
 <div class="row"><h2 style="margin:0">${tr('Archived Khatas & Records','ఆర్కైవ్ చేసిన ఖాతాలు & రికార్డులు')}</h2>${rows.length?`<button class="sm" onclick="dlArchived()">${tr('Download Excel','ఎక్సెల్ డౌన్‌లోడ్')}</button>`:''}</div>
 <p class="m" style="margin:6px 0 10px">${tr('These accounts and their records are completely isolated here and excluded from active collections, ledger, receipts and reports. You can review full history or restore them to active at any time.','ఈ ఖాతాలు మరియు వాటి రికార్డులు ఇక్కడ భద్రపరచబడ్డాయి. యాక్టివ్ ఖాతాలు, వసూళ్లు మరియు రసీదులలో కలపబడవు.')}</p>
 <div class="g">
-<input id="arq" value="${esc(arq)}" placeholder="${tr('Search archived name…','ఆర్కైవ్ చేసిన పేరు వెతకండి…')}" oninput="arq=this.value;draw()">
+<input id="arq" value="${esc(arq)}" placeholder="${tr('Search archived name…','ఆర్కైవ్ చేసిన పేరు వెతకండి…')}" oninput="debounceSearch('arq', this.value)">
 <select id="arvs" onchange="arv=this.value;draw()"><option value="">${tr('All villages','అన్ని ఊర్లు')}</option>${V.map(v=>`<option value="${esc(v.name)}" ${v.name==arv?'selected':''}>${esc(nm(v))}</option>`).join('')}</select>
 </div>
 <p class="m" style="margin:8px 0 0">${rows.length} ${tr('archived accounts','ఆర్కైవ్ చేసిన ఖాతాలు')} · ${tr('Loans','అప్పులు')} <b>${S.n}</b> · ${tr('Payments','చెల్లింపులు')} <b>${S.c}</b> · ${tr('Records','రికార్డులు')} <b>${S.t}</b><br>${tr('Given','ఇచ్చినది')} ${inr(S.g)} · ${tr('To return','తిరిగి')} ${inr(S.r)} · ${tr('Paid','చెల్లించినది')} ${inr(S.p)} · ${tr('Due','బాకీ')} <b>${inr(Math.max(S.r-S.p,0))}</b></p>
@@ -5855,9 +6047,9 @@ function histSection(){
     `:''}
     ${hp.map((r,i)=>`
     <div class="hist-grid">
-      <input type="date" value="${esc(r.d)}" min="1990-01-01" max="${today()}" onchange="hp[${i}].d=this.value" aria-label="Payment ${i+1} date">
-      <input type="number" inputmode="numeric" placeholder="₹" value="${esc(r.a)}" oninput="hp[${i}].a=this.value;hsum()" aria-label="Payment ${i+1} amount">
-      <select onchange="hp[${i}].m=this.value" aria-label="Payment ${i+1} mode">
+      <input id="hpd-${i}" type="date" value="${esc(r.d)}" min="1990-01-01" max="${today()}" onchange="hp[${i}].d=this.value" aria-label="Payment ${i+1} date">
+      <input id="hpa-${i}" type="number" inputmode="numeric" placeholder="₹" value="${esc(r.a)}" oninput="hp[${i}].a=this.value;hsum()" aria-label="Payment ${i+1} amount">
+      <select id="hpm-${i}" onchange="hp[${i}].m=this.value" aria-label="Payment ${i+1} mode">
         <option value="cash" ${r.m=='cash'?'selected':''}>${tr('Cash','నగదు')}</option>
         <option value="upi" ${r.m=='upi'?'selected':''}>UPI</option>
       </select>
@@ -6700,7 +6892,7 @@ function villages(){
             <td>
               <div style="font-weight:800;font-size:14.5px;color:var(--t)">${esc(nm(v))}</div>
               <div style="margin-top:4px;display:flex;gap:4px;align-items:center">
-                <input value="${esc(v.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" onchange="setVTe(${i},this.value)" style="font-size:12px;padding:3px 6px;max-width:140px">
+                <input id="v-te-${i}" value="${esc(v.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" onchange="setVTe(${i},this.value)" style="font-size:12px;padding:3px 6px;max-width:140px">
                 <button type="button" class="sm" onclick="tlVIndex(${i})" title="${tr('Auto-transliterate to Telugu','తెలుగు లిప్యంతరీకరణ')}" style="padding:2px 6px;font-size:11px">Auto</button>
               </div>
             </td>
@@ -9442,13 +9634,16 @@ async function adminVerifyClientPayment(proofId){
 }
 
 async function adminRejectClientPayment(proofId, reason){
-  if(!owner) return;
+  const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
+  const isAdmin = owner || role === 'a' || role === 'all' || em === 'durgasravan21@gmail.com' || em.includes('durgasravan');
+  if(!isAdmin && !owner) return;
   const p = CR.find(x => x.id === proofId);
   if(!p) return;
 
   p.status = 'rejected';
   p.rejection_reason = reason || tr('Payment could not be verified on bank ledger', 'బ్యాంక్ లెడ్జర్‌లో చెల్లింపు ధృవీకరించబడలేదు');
   p.rejected_at = new Date().toISOString();
+  try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
 
   // Live dispatch to unified Server Sync API
   fetch('/api/client-submit', {
@@ -9923,7 +10118,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v113</span>
+            <span class="v18-pill">v114</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10452,9 +10647,26 @@ function renderClientDashboard(){
             <td style="padding:8px;font-weight:700;color:var(--ok)">${inr(p.amt)}</td>
             <td style="padding:8px">${p.mode ? p.mode.toUpperCase() : 'UPI'} ${p.utr ? '· <span style="font-family:monospace">' + esc(p.utr) + '</span>' : ''}</td>
             <td style="padding:8px">
-              <span class="chip" style="background:${p.status === 'verified' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'};color:${p.status === 'verified' ? 'var(--ok)' : '#d97706'};font-weight:800;font-size:11px">
-                ${p.status === 'verified' ? tr('OFFICIAL VERIFIED RECEIPT ✓','ధృవీకరించిన రసీదు ✓') : tr('PENDING VERIFICATION ⟳','పరిశీలనలో ఉంది ⟳')}
-              </span>
+              ${p.status === 'rejected' ? `
+                <div>
+                  <span class="chip" style="background:rgba(239,68,68,0.15);color:var(--r);font-weight:800;font-size:11px;border-color:rgba(239,68,68,0.3)">
+                    ${tr('PAYMENT REJECTED ✕', 'చెల్లింపు తిరస్కరించబడింది ✕')}
+                  </span>
+                  ${p.rejection_reason ? `
+                    <div style="font-size:11px;color:var(--r);margin-top:4px">
+                      <b>${tr('Reason: ', 'కారణం: ')}</b>${esc(p.rejection_reason)}
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ((p.status === 'verified' || p.status === 'auto_verified') ? `
+                <span class="chip" style="background:rgba(16,185,129,0.15);color:var(--ok);font-weight:800;font-size:11px;border-color:rgba(16,185,129,0.3)">
+                  ${tr('OFFICIAL VERIFIED RECEIPT ✓', 'ధృవీకరించిన రసీదు ✓')}
+                </span>
+              ` : `
+                <span class="chip" style="background:rgba(245,158,11,0.15);color:#d97706;font-weight:800;font-size:11px;border-color:rgba(245,158,11,0.3)">
+                  ${tr('PENDING VERIFICATION ⟳', 'పరిశీలనలో ఉంది ⟳')}
+                </span>
+              `)}
             </td>
           </tr>
           `).join('')}
@@ -10886,7 +11098,9 @@ function renderClientDashboard(){
       ${activeBug.photo ? `
       <div style="padding:12px 16px;border-bottom:1px solid var(--b);background:var(--c)">
         <div class="m" style="font-size:11.5px;margin-bottom:4px;font-weight:700">${tr('Attached Screenshot:','జతచేసిన ఫోటో:')}</div>
-        <a href="${activeBug.photo}" target="_blank" rel="noopener"><img src="${activeBug.photo}" style="max-height:160px;border-radius:8px;border:1px solid var(--b)" alt="Screenshot"></a>
+        <div style="display:inline-block;cursor:pointer" onclick="viewBugScreenshot('${activeBug.id}'); event.stopPropagation();" title="${tr('Click to view full image', 'పెద్దగా చూడటానికి క్లిక్ చేయండి')}">
+          <img src="${activeBug.photo}" style="max-height:160px;border-radius:8px;border:1px solid var(--b)" alt="Screenshot">
+        </div>
       </div>
       ` : ''}
 
@@ -11088,7 +11302,7 @@ function renderClientDashboard(){
 
 function renderClientReminderBanner(m) {
   if (!m) return '';
-  const remNotif = NT.find(n => (n.to === 'client' || n.type === 'reminder') && (n.mid === m.id || n.mid === m.phone || n.mid === clientMid) && !n.read);
+  const remNotif = NT.find(n => (n.type === 'reminder' || n.type === 'pay_reminder') && (n.mid === m.id || n.mid === m.phone || n.mid === clientMid) && !n.read);
   if (!remNotif) return '';
   return `
   <div class="card" style="border:2px solid var(--amber);background:linear-gradient(135deg,rgba(245,158,11,0.12) 0%,rgba(245,158,11,0.03) 100%);margin-bottom:16px;padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(245,158,11,0.12)">
@@ -11629,7 +11843,7 @@ function renderAdminSupportChatPanel(){
             ${openCount} ${tr('Open','పెండింగ్')}
           </span>
         </div>
-        <input type="search" value="${esc(adminSupportSearch)}" oninput="adminSupportSearch=this.value;draw();" placeholder="${tr('Search ID, name, phone...','వెతకండి...')}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:12px">
+        <input id="admin-support-search" type="search" value="${esc(adminSupportSearch)}" oninput="debounceSearch('adminSupportSearch', this.value);" placeholder="${tr('Search ID, name, phone...','వెతకండి...')}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:12px">
         <div style="display:flex;gap:4px">
           <button type="button" class="sm" onclick="adminCsFilter='all';draw();" style="flex:1;padding:4px 6px;font-size:11px;border-radius:6px;${adminCsFilter==='all'?'background:var(--p);color:#fff;border-color:var(--p)':''}">${tr('All','అన్నీ')} (${consolidated.length})</button>
           <button type="button" class="sm" onclick="adminCsFilter='open';draw();" style="flex:1;padding:4px 6px;font-size:11px;border-radius:6px;${adminCsFilter==='open'?'background:var(--r);color:#fff;border-color:var(--r)':''}">${tr('Open','ఓపెన్')} (${openCount})</button>
@@ -11792,7 +12006,7 @@ function renderAdminBugsChatPanel(){
             ${activeCount} ${tr('Active','సమస్యలు')}
           </span>
         </div>
-        <input type="search" value="${esc(adminBugsSearch)}" oninput="adminBugsSearch=this.value;draw();" placeholder="${tr('Search Bug ID, borrower, category...','వెతకండి...')}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:12px">
+        <input id="admin-bugs-search" type="search" value="${esc(adminBugsSearch)}" oninput="debounceSearch('adminBugsSearch', this.value);" placeholder="${tr('Search Bug ID, borrower, category...','వెతకండి...')}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:12px">
         <div style="display:flex;gap:4px">
           <button type="button" class="sm" onclick="adminBugFilter='all';draw();" style="flex:1;padding:4px 6px;font-size:11px;border-radius:6px;${adminBugFilter==='all'?'background:var(--r);color:#fff;border-color:var(--r)':''}">${tr('All','అన్నీ')} (${consolidated.length})</button>
           <button type="button" class="sm" onclick="adminBugFilter='active';draw();" style="flex:1;padding:4px 6px;font-size:11px;border-radius:6px;${adminBugFilter==='active'?'background:var(--r);color:#fff;border-color:var(--r)':''}">${tr('Active','యాక్టివ్')} (${activeCount})</button>
@@ -11869,10 +12083,12 @@ function renderAdminBugsChatPanel(){
       <!-- Screenshot Attachment Preview -->
       ${activeBug.photo ? `
       <div style="padding:10px 16px;border-bottom:1px solid var(--b);background:var(--c);display:flex;align-items:center;gap:12px">
-        <a href="${activeBug.photo}" target="_blank" rel="noopener"><img src="${activeBug.photo}" style="max-height:80px;border-radius:6px;border:1px solid var(--b)" alt="Screenshot"></a>
+        <div style="display:inline-block;cursor:pointer" onclick="viewBugScreenshot('${activeBug.id}'); event.stopPropagation();" title="${tr('Click to view full image', 'పెద్దగా చూడటానికి క్లిక్ చేయండి')}">
+          <img src="${activeBug.photo}" style="max-height:80px;border-radius:6px;border:1px solid var(--b)" alt="Screenshot">
+        </div>
         <div class="m" style="font-size:12px">
           <b>${tr('Borrower Screenshot Attached','స్క్రీన్‌షాట్ జతచేయబడింది')}</b><br>
-          <a href="${activeBug.photo}" target="_blank" rel="noopener" style="color:var(--p);font-weight:700">${tr('Open Full Screenshot ↗','పూర్తి ఫోటో చూడు ↗')}</a>
+          <button type="button" class="sm" onclick="viewBugScreenshot('${activeBug.id}');" style="color:var(--p);font-weight:700;background:none;border:none;padding:0;cursor:pointer">${tr('Open Full Screenshot ↗','పూర్తి ఫోటో చూడు ↗')}</button>
         </div>
       </div>
       ` : ''}
@@ -11970,7 +12186,7 @@ function renderAdminBorrowerProfiles(){
     </div>
 
     <div style="margin-bottom:14px">
-      <input type="search" value="${esc(adminProfilesSearch)}" oninput="adminProfilesSearch=this.value;draw();" placeholder="${tr('Search borrower by name, phone, village, email...','పేరు, ఫోన్, ఊరు ద్వారా వెతకండి...')}" style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13.5px">
+      <input id="admin-profiles-search" type="search" value="${esc(adminProfilesSearch)}" oninput="debounceSearch('adminProfilesSearch', this.value);" placeholder="${tr('Search borrower by name, phone, village, email...','పేరు, ఫోన్, ఊరు ద్వారా వెతకండి...')}" style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13.5px">
     </div>
 
     ${list.length > 0 ? `
@@ -12065,7 +12281,7 @@ function renderAdminKycDocuments(){
 
     <!-- Filters and Search -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <input type="search" value="${esc(adminKycSearch)}" oninput="adminKycSearch=this.value;draw();" placeholder="${tr('Search borrower name or ID...','పేరు ద్వారా వెతకండి...')}" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13px">
+      <input id="admin-kyc-search" type="search" value="${esc(adminKycSearch)}" oninput="debounceSearch('adminKycSearch', this.value);" placeholder="${tr('Search borrower name or ID...','పేరు ద్వారా వెతకండి...')}" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13px">
       <div style="display:flex;gap:6px">
         <button type="button" class="sm" onclick="adminKycFilter='all';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminKycFilter==='all'?'background:var(--p);color:#fff;border-color:var(--p)':''}">${tr('All','అన్నీ')} (${CA.length})</button>
         <button type="button" class="sm" onclick="adminKycFilter='signed';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminKycFilter==='signed'?'background:var(--ok);color:#fff;border-color:var(--ok)':''}">${tr('Signed ✓','సంతకం అయినవి')}</button>
@@ -12078,7 +12294,7 @@ function renderAdminKycDocuments(){
       ${list.map(agr => `
       <div style="background:var(--s);padding:14px;border-radius:12px;border:1.5px solid ${agr.signed ? 'var(--ok)' : 'var(--b)'};display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div style="display:flex;gap:12px;align-items:center">
-          ${agr.selfie_photo ? `<a href="${agr.selfie_photo}" target="_blank" rel="noopener"><img src="${agr.selfie_photo}" style="height:48px;width:48px;border-radius:8px;border:1.5px solid var(--ok);object-fit:cover" alt="Selfie" title="Selfie captured at signing"></a>` : `<div style="width:48px;height:48px;border-radius:8px;background:var(--c);border:1px dashed var(--b);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--m)">No Selfie</div>`}
+          ${agr.selfie_photo ? `<div style="display:inline-block;cursor:pointer" onclick="viewImagePreview('${agr.selfie_photo}', '${tr('Selfie Photo Verification', 'సెల్ఫీ ఫోటో ధృవీకరణ')}'); event.stopPropagation();" title="${tr('Click to view full image', 'పెద్దగా చూడటానికి క్లిక్ చేయండి')}"><img src="${agr.selfie_photo}" style="height:48px;width:48px;border-radius:8px;border:1.5px solid var(--ok);object-fit:cover" alt="Selfie" title="Selfie captured at signing"></div>` : `<div style="width:48px;height:48px;border-radius:8px;background:var(--c);border:1px dashed var(--b);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--m)">No Selfie</div>`}
           <div>
             <b style="font-size:14.5px">${esc(agr.borrower || agr.signed_name || 'Borrower')}</b>
             <div class="m" style="font-size:12px;margin-top:2px">
@@ -12117,6 +12333,7 @@ function renderAdminPaymentVerifications(){
 
   if(adminCrFilter === 'pending') list = list.filter(x => x.status === 'pending');
   else if(adminCrFilter === 'auto_verified') list = list.filter(x => x.status === 'auto_verified' || x.status === 'verified');
+  else if(adminCrFilter === 'rejected') list = list.filter(x => x.status === 'rejected');
 
   if(q){
     list = list.filter(p => {
@@ -12128,9 +12345,10 @@ function renderAdminPaymentVerifications(){
     });
   }
 
-  const totalClientCollections = CR.reduce((acc, c) => acc + (num(c.amt) || 0), 0);
+  const totalClientCollections = CR.filter(c => c.status !== 'rejected').reduce((acc, c) => acc + (num(c.amt) || 0), 0);
   const pendingCount = CR.filter(x => x.status === 'pending').length;
   const autoVerifiedCount = CR.filter(x => x.status === 'auto_verified' || x.status === 'verified').length;
+  const rejectedCount = CR.filter(x => x.status === 'rejected').length;
 
   return `
   <div class="card" style="border:1.5px solid var(--ok)">
@@ -12143,33 +12361,34 @@ function renderAdminPaymentVerifications(){
       </div>
       <div style="text-align:right">
         <div style="font-size:20px;font-weight:900;color:var(--ok);font-family:monospace">${inr(totalClientCollections)}</div>
-        <div class="m" style="font-size:11px">${tr('Total Client Submissions','మొత్తం క్లయింట్ చెల్లింపులు')}</div>
+        <div class="m" style="font-size:11px">${tr('Total Verified Collections','మొత్తం ఆమోదించిన చెల్లింపులు')}</div>
       </div>
     </div>
 
     <!-- Filters & Search -->
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-      <input type="search" value="${esc(adminCrSearch)}" oninput="adminCrSearch=this.value;draw();" placeholder="${tr('Search borrower, UTR, amount...','వెతకండి...')}" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13px">
-      <div style="display:flex;gap:6px">
+      <input id="admin-cr-search" type="search" value="${esc(adminCrSearch)}" oninput="debounceSearch('adminCrSearch', this.value);" placeholder="${tr('Search borrower, UTR, amount...','వెతకండి...')}" style="flex:1;min-width:200px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:13px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button type="button" class="sm" onclick="adminCrFilter='all';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='all'?'background:var(--ok);color:#fff;border-color:var(--ok)':''}">${tr('All','అన్నీ')} (${CR.length})</button>
         <button type="button" class="sm" onclick="adminCrFilter='pending';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='pending'?'background:#d97706;color:#fff;border-color:#d97706':''}">${tr('Pending','పరిశీలన')} (${pendingCount})</button>
         <button type="button" class="sm" onclick="adminCrFilter='auto_verified';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='auto_verified'?'background:var(--p);color:#fff;border-color:var(--p)':''}">${tr('Verified','ధృవీకరించినవి')} (${autoVerifiedCount})</button>
+        <button type="button" class="sm" onclick="adminCrFilter='rejected';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminCrFilter==='rejected'?'background:var(--r);color:#fff;border-color:var(--r)':''}">${tr('Rejected','తిరస్కరించినవి')} (${rejectedCount})</button>
       </div>
     </div>
 
     ${list.length > 0 ? `
     <div style="display:flex;flex-direction:column;gap:12px">
       ${list.map(p => `
-      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid ${p.status==='pending' ? '#d97706' : 'var(--ok)'}">
+      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid ${p.status==='pending' ? '#d97706' : (p.status==='rejected' ? 'var(--r)' : 'var(--ok)')}">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
           <div>
             <b style="font-size:15px">${esc(p.borrower)}</b> ${p.village ? '<span class="m">(' + esc(vl(p.village)) + ')</span>' : ''}
             ${p.phone ? '<span class="m" style="font-size:12px"> · ' + esc(p.phone) + '</span>' : ''}
           </div>
           <div style="display:flex;align-items:center;gap:10px">
-            <div style="font-size:18px;font-weight:900;color:var(--ok);font-family:monospace">${inr(p.amt)}</div>
-            <span class="chip" style="background:${p.status==='pending' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.12)'};color:${p.status==='pending' ? '#d97706' : 'var(--ok)'};font-weight:800;font-size:11px">
-              ${p.status==='pending' ? tr('Pending Safety Check','పరిశీలనలో ఉంది') : (p.status==='auto_verified' ? tr('Auto-Verified via UPI ✓','UPI ద్వారా ధృవీకరించబడింది ✓') : tr('Verified Receipt ✓','ధృవీకరించిన రసీదు ✓'))}
+            <div style="font-size:18px;font-weight:900;color:${p.status==='rejected' ? 'var(--r)' : 'var(--ok)'};font-family:monospace">${inr(p.amt)}</div>
+            <span class="chip" style="background:${p.status==='pending' ? 'rgba(245,158,11,0.15)' : (p.status==='rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.12)')};color:${p.status==='pending' ? '#d97706' : (p.status==='rejected' ? 'var(--r)' : 'var(--ok)')};font-weight:800;font-size:11px">
+              ${p.status==='pending' ? tr('Pending Safety Check','పరిశీలనలో ఉంది') : (p.status==='rejected' ? tr('Rejected ✕','తిరస్కరించబడింది ✕') : (p.status==='auto_verified' ? tr('Auto-Verified via UPI ✓','UPI ద్వారా ధృవీకరించబడింది ✓') : tr('Verified Receipt ✓','ధృవీకరించిన రసీదు ✓')))}
             </span>
           </div>
         </div>
@@ -12177,8 +12396,20 @@ function renderAdminPaymentVerifications(){
         <div style="font-size:13px;margin-bottom:6px">
           <b>${tr('Mode & Reference: ','విధానం & UTR: ')}</b><span style="font-family:monospace;font-weight:700">${esc(p.mode ? p.mode.toUpperCase() : 'UPI')} · ${esc(p.utr || 'N/A')}</span> · ${fd(p.d || today())}
         </div>
+
+        ${p.status === 'rejected' && p.rejection_reason ? `
+          <div style="font-size:12px;color:var(--r);margin:6px 0;background:rgba(239,68,68,0.06);padding:6px 10px;border-radius:6px;border:1px solid rgba(239,68,68,0.2)">
+            <b>${tr('Rejection Reason: ', 'తిరస్కరణ కారణం: ')}</b>${esc(p.rejection_reason)}
+          </div>
+        ` : ''}
         
-        ${p.photo ? `<div style="margin:8px 0"><a href="${p.photo}" target="_blank" rel="noopener"><img src="${p.photo}" style="max-height:140px;border-radius:8px;border:1px solid var(--b)"></a></div>` : ''}
+        ${p.photo ? `
+          <div style="margin:8px 0">
+            <div style="display:inline-block;cursor:pointer" onclick="viewReceiptProof('${p.id}');event.stopPropagation();" title="${tr('Click to view full image','పెద్దగా చూడటానికి క్లిక్ చేయండి')}">
+              <img src="${p.photo}" style="max-height:140px;border-radius:8px;border:1px solid var(--b)" alt="Receipt Proof">
+            </div>
+          </div>
+        ` : ''}
         
         <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
           <button class="sm" onclick="viewBorrowerFullProfile('${p.mid}')" style="border-radius:8px;font-weight:700;font-size:12.5px;color:var(--p)">${tr('Profile / KYC','ప్రొఫైల్')}</button>
@@ -12189,6 +12420,10 @@ function renderAdminPaymentVerifications(){
             <button class="sm d" onclick="const r=prompt('${tr('Reason for rejection:','తిరస్కరణ కారణం:')}');if(r!==null)adminRejectClientPayment('${p.id}', r);" style="border-radius:8px;font-weight:700;font-size:13px">
               ${tr('Reject ✕','తిరస్కరించు ✕')}
             </button>
+          ` : (p.status === 'rejected' ? `
+            <button class="p sm" onclick="adminVerifyClientPayment('${p.id}')" style="border-radius:8px;font-weight:800;font-size:12.5px;background:var(--ok);border-color:var(--ok)">
+              ${tr('Reconsider & Approve ✓','తిరిగి పరిశీలించి ఆమోదించు ✓')}
+            </button>
           ` : `
             <button class="sm" onclick="adminReconcileClientPayment('${p.id}')" style="border-radius:8px;font-weight:700;font-size:12.5px;${p.reconciled ? 'background:rgba(16,185,129,0.15);color:var(--ok);border-color:var(--ok)' : ''}">
               ${p.reconciled ? tr('Bank Credit Reconciled ✓','బ్యాంక్ క్రెడిట్ సరిచూశారు ✓') : tr('Reconcile Bank Credit ✓','బ్యాంక్ క్రెడిట్ ధృవీకరించు ✓')}
@@ -12196,7 +12431,7 @@ function renderAdminPaymentVerifications(){
             <button class="sm" onclick="openReceipt('${p.id}')" style="border-radius:8px;font-weight:700;font-size:12.5px">
               ${tr('View Receipt →','రసీదు చూడు →')}
             </button>
-          `}
+          `)}
         </div>
       </div>
       `).join('')}
@@ -12792,7 +13027,12 @@ function _drawInner(){
   if ((role === 'a' || role === 'f') && !passkeyUnlocked) {
     return app.innerHTML = renderPasskeyModal();
   }
-  const keep={};app.querySelectorAll('input[id],select[id]').forEach(e=>keep[e.id]=e.value);const fid=document.activeElement&&document.activeElement.id;
+  const keep={};
+  app.querySelectorAll('input[id],select[id],textarea[id]').forEach(e=>keep[e.id]=e.value);
+  const activeEl = document.activeElement;
+  const fid = activeEl && activeEl.id;
+  const selStart = (activeEl && typeof activeEl.selectionStart === 'number') ? activeEl.selectionStart : null;
+  const selEnd = (activeEl && typeof activeEl.selectionEnd === 'number') ? activeEl.selectionEnd : null;
   const adm=owner&&role=='a',archCount=M.filter(m=>m.archived).length,remList=getRemList(),remCount=remList.length,hasOd=remList.some(r=>r.isOd),pndRc=qitems().length;
 const tabs=adm?[
   ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
@@ -12860,7 +13100,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v113</span>
+          <span class="v18-pill">v114</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -12917,13 +13157,44 @@ ${scannerModal()}
 ${upiScannedModalHtml()}
 ${upiPayModalHtml()}
 ${fatherNewLoanModal()}`;
-for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.value=keep[k]}if(fid){const e=document.getElementById(fid);if(e&&e.focus){e.focus();try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}}}
+  for(const k in keep){
+    const e = document.getElementById(k);
+    if(e && keep[k] !== '') e.value = keep[k];
+  }
+  if(fid){
+    const e = document.getElementById(fid);
+    if(e && e.focus){
+      e.focus();
+      if(selStart !== null && selEnd !== null){
+        try{ e.setSelectionRange(selStart, selEnd); }catch(_){}
+      }
+    }
+  }
+}
+function isTypingActive(){
+  const activeEl = document.activeElement;
+  if (!activeEl) return false;
+  const tag = activeEl.tagName;
+  return (tag === 'INPUT' || tag === 'TEXTAREA') && !['radio', 'checkbox', 'button', 'submit'].includes(activeEl.type);
+}
+
+function safeDraw(force){
+  if (force || !isTypingActive()) {
+    draw();
+  } else {
+    if (window._deferredDrawTimer) clearTimeout(window._deferredDrawTimer);
+    window._deferredDrawTimer = setTimeout(() => {
+      if (!isTypingActive()) draw();
+    }, 1500);
+  }
+}
+
 (async()=>{
   try{
     slowNetTimer = setTimeout(() => {
       if(!db && !offlineMode && !dbErr){
         isSlowNet = true;
-        draw();
+        safeDraw();
       }
     }, 3400);
     db = await claude.use('db');
@@ -12931,17 +13202,17 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     isSlowNet = false;
     if(db){
       const sub=(c,fn,cl)=>db.collection(c).onSnapshot(
-        sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},
-        e=>{console.warn('Subscription warning for '+c,e);if(M.length===0){dbErr=(e&&(e.message||e.code))||'Cannot read data';draw()}}
+        sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));},
+        e=>{console.warn('Subscription warning for '+c,e);if(M.length===0){dbErr=(e&&(e.message||e.code))||'Cannot read data';safeDraw()}}
       );
-      sub('members',a=>{M=a;syncRoleFromUser();ensureVillagesFromMembers();draw();},cM);
-      sub('villages',a=>{V=a;ensureVillagesFromMembers();draw();},cV);
-      sub('txns',a=>onTxnsUpdate(a),cT);
+      sub('members',a=>{M=a;syncRoleFromUser();ensureVillagesFromMembers();safeDraw();},cM);
+      sub('villages',a=>{V=a;ensureVillagesFromMembers();safeDraw();},cV);
+      sub('txns',a=>{onTxnsUpdate(a);safeDraw();},cT);
       sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
       sub('notifs',a=>onNotifsUpdate(a),cNT);
-      sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);
-      sub('loan_requests',a=>{LR=mergeLoanRequests(a,NT);draw()},cLR);
-      sub('upi_credits',a=>{UC=a;draw()},cUC);
+      sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}safeDraw()}},a=>a);
+      sub('loan_requests',a=>{LR=mergeLoanRequests(a,NT);safeDraw();},cLR);
+      sub('upi_credits',a=>{UC=a;safeDraw();},cUC);
       // Resilient merged subscriptions: never wipe out locally submitted items on partial snapshot
       function mergeSnapList(incoming, existing, storageKey) {
         const map = new Map();
@@ -12959,11 +13230,22 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
               }
             });
             mergedTh.sort((a,b) => (a.ts||0) - (b.ts||0));
+            let finalStatus = inc.status || ex.status || 'pending';
+            if (ex.status === 'rejected' || inc.status === 'rejected') {
+              finalStatus = 'rejected';
+            } else if (ex.status === 'verified' || inc.status === 'verified' || ex.status === 'auto_verified' || inc.status === 'auto_verified') {
+              finalStatus = 'verified';
+            } else if (ex.status === 'open' || inc.status === 'open') {
+              finalStatus = 'open';
+            }
             map.set(inc.id, {
               ...ex,
               ...inc,
               thread: mergedTh,
-              status: (ex.status === 'open' || inc.status === 'open') ? 'open' : inc.status,
+              rejection_reason: inc.rejection_reason || ex.rejection_reason || inc.rejectionReason || ex.rejectionReason || '',
+              rejected_at: inc.rejected_at || ex.rejected_at || '',
+              verified_at: inc.verified_at || ex.verified_at || '',
+              status: finalStatus,
               ts: Math.max(ex.ts || 0, inc.ts || 0)
             });
           }
@@ -12972,12 +13254,12 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(res)); } catch(_) {} }
         return res;
       }
-      sub('client_receipts', a => { CR = mergeSnapList(a, CR, 'gf_client_receipts'); draw(); }, a=>a);
-      sub('client_support', a => { CS = mergeSnapList(a, CS, 'gf_client_support'); draw(); }, a=>a);
-      sub('client_agreements', a => { CA = mergeSnapList(a, CA, 'gf_client_agreements'); draw(); }, a=>a);
-      sub('lockouts', a => { LK = a || []; draw(); }, a=>a);
-      sub('client_bugs', a => { CB = mergeSnapList(a, CB, 'gf_client_bugs'); draw(); }, a=>a);
-      sub('client_profiles', a => { CP = mergeSnapList(a, CP, 'gf_client_profiles'); draw(); }, a=>a);
+      sub('client_receipts', a => { CR = mergeSnapList(a, CR, 'gf_client_receipts'); safeDraw(); }, a=>a);
+      sub('client_support', a => { CS = mergeSnapList(a, CS, 'gf_client_support'); safeDraw(); }, a=>a);
+      sub('client_agreements', a => { CA = mergeSnapList(a, CA, 'gf_client_agreements'); safeDraw(); }, a=>a);
+      sub('lockouts', a => { LK = a || []; safeDraw(); }, a=>a);
+      sub('client_bugs', a => { CB = mergeSnapList(a, CB, 'gf_client_bugs'); safeDraw(); }, a=>a);
+      sub('client_profiles', a => { CP = mergeSnapList(a, CP, 'gf_client_profiles'); safeDraw(); }, a=>a);
 
       if (db.loadAll) {
         // Parallel concurrent startup requests

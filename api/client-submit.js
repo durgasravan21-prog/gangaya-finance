@@ -226,12 +226,23 @@ module.exports = async (req, res) => {
           (rem.thread || []).forEach(m => thMap.set((m.ts||0) + '_' + (m.text||''), m));
           (loc.thread || []).forEach(m => thMap.set((m.ts||0) + '_' + (m.text||''), m));
           const mergedThread = Array.from(thMap.values()).sort((a,b) => (a.ts||0) - (b.ts||0));
+          let finalStatus = loc.status || rem.status || 'pending';
+          if (loc.status === 'rejected' || rem.status === 'rejected') {
+            finalStatus = 'rejected';
+          } else if (loc.status === 'verified' || rem.status === 'verified' || loc.status === 'auto_verified' || rem.status === 'auto_verified') {
+            finalStatus = 'verified';
+          } else if (loc.status === 'open' || rem.status === 'open') {
+            finalStatus = 'open';
+          }
           map.set(loc.id, {
             ...rem,
             ...loc,
             thread: mergedThread,
             reply: loc.reply || rem.reply || '',
-            status: (loc.status === 'open' || rem.status === 'open') ? 'open' : (loc.status || rem.status),
+            rejection_reason: loc.rejection_reason || rem.rejection_reason || loc.rejectionReason || rem.rejectionReason || '',
+            rejected_at: loc.rejected_at || rem.rejected_at || '',
+            verified_at: loc.verified_at || rem.verified_at || '',
+            status: finalStatus,
             ts: Math.max(rem.ts || 0, loc.ts || 0)
           });
         }
