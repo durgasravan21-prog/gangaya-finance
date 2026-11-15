@@ -1628,7 +1628,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=109"></script>
+<script src="/runtime.js?v=110"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -7960,14 +7960,27 @@ function submitClientSupportMsg(ev){
 function submitClientSupportMsgDirect(msgText, topic = 'General'){
   if(!msgText || !msgText.trim()) return;
   const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
+  
+  // Check if customer already has an existing conversation in CS
+  let existingItem = CS.find(c => 
+    (m.id && c.mid === m.id) || 
+    (clientMid && c.mid === clientMid) || 
+    (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
+    (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
+  );
+  if (existingItem) {
+    return sendClientFollowUpSupport(existingItem.id, msgText);
+  }
+
   const activeMid = (m && m.id) || clientMid || 'guest';
   const clientUserEmail = (typeof me !== 'undefined' && me && me.email) || m.email || '';
   const ticketId = 'TKT-' + Math.floor(10000 + Math.random() * 90000);
+  const now = Date.now();
   const initialThread = [
-    { sender: 'client', text: msgText.trim(), ts: Date.now(), by: m.name || tr('Customer','ఖాతాదారుడు') }
+    { sender: 'client', text: msgText.trim(), ts: now, by: m.name || tr('Customer','ఖాతాదారుడు') }
   ];
   const newMsg = {
-    id: 'cs_' + Date.now(),
+    id: 'cs_' + now,
     ticket_id: ticketId,
     mid: activeMid,
     borrower: m.name || tr('Customer','ఖాతాదారుడు'),
@@ -7979,7 +7992,7 @@ function submitClientSupportMsgDirect(msgText, topic = 'General'){
     thread: initialThread,
     reply: '',
     status: 'open',
-    ts: Date.now()
+    ts: now
   };
 
   CS.unshift(newMsg);
@@ -8005,11 +8018,20 @@ function submitClientSupportMsgDirect(msgText, topic = 'General'){
       msg: msgText.trim(),
       thread: initialThread
     })
+  }).then(async r => {
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.item) {
+        const sIdx = CS.findIndex(x => x.id === d.item.id || x.id === newMsg.id);
+        if (sIdx >= 0) CS[sIdx] = d.item;
+        else CS.unshift(d.item);
+        try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+      }
+    }
   }).catch(() => {});
 
   broadcastLiveChatMessage('support', newMsg);
   toast(tr('Message sent to Durga Sravan ✓', 'సందేశం దుర్గా శ్రావణ్ గారికి పంపబడింది ✓'));
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 200);
 }
 
 function sendClientFollowUpSupport(ticketRef, text){
@@ -8064,11 +8086,20 @@ function sendClientFollowUpSupport(ticketRef, text){
       thread: item.thread,
       status: 'open'
     })
+  }).then(async r => {
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.item) {
+        const sIdx = CS.findIndex(x => x.id === d.item.id || x.id === item.id);
+        if (sIdx >= 0) CS[sIdx] = d.item;
+        else CS.unshift(d.item);
+        try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+      }
+    }
   }).catch(() => {});
 
   broadcastLiveChatMessage('support', item);
   toast(tr('Message sent to Durga Sravan ✓', 'సందేశం దుర్గా శ్రావణ్ గారికి పంపబడింది ✓'));
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 function buildAgreementDocumentHtml(mid, isAdminCopy) {
@@ -9463,7 +9494,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v109</span>
+            <span class="v18-pill">v110</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10803,11 +10834,19 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
       thread: item.thread,
       resolved_at: item.resolved_at
     })
+  }).then(async r => {
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.item) {
+        const sIdx = CS.findIndex(x => x.id === d.item.id);
+        if (sIdx >= 0) CS[sIdx] = d.item;
+        try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+      }
+    }
   }).catch(() => {});
 
   broadcastLiveChatMessage('support', item);
   toast(tr('Message delivered to borrower ✓', 'సందేశం ఖాతాదారునికి చేరింది ✓'));
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 async function sendAdminBugReply(bugId, replyText, statusOverride){
@@ -10871,11 +10910,19 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
       thread: bug.thread,
       resolved_at: bug.resolved_at
     })
+  }).then(async r => {
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.item) {
+        const bIdx = CB.findIndex(x => x.id === d.item.id);
+        if (bIdx >= 0) CB[bIdx] = d.item;
+        try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
+      }
+    }
   }).catch(() => {});
 
   broadcastLiveChatMessage('bug', bug);
   toast(tr('Update delivered to borrower ✓', 'అప్‌డేట్ ఖాతాదారునికి చేరింది ✓'));
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 // Backward compatibility wrappers
@@ -11079,9 +11126,12 @@ function renderAdminSupportChatPanel(){
             <div style="font-size:13px;font-weight:700;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
               ${esc(item.borrower || 'Borrower')} ${item.village ? '<span class="m" style="font-size:11px font-weight:normal">(' + esc(vl(item.village)) + ')</span>' : ''}
             </div>
-            <div class="m" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">
-              ${esc(item.topic || 'Inquiry')}: ${esc(item.msg || '')}
-            </div>
+            ${(() => {
+              const th = (Array.isArray(item.thread) && item.thread.length > 0) ? item.thread : ((typeof getTicketThread === 'function') ? getTicketThread(item) : []);
+              const last = th.length > 0 ? th[th.length - 1] : { text: item.msg || '' };
+              const prefix = last.sender === 'admin' ? tr('You: ', 'మీరు: ') : '';
+              return `<div class="m" style="font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;color:var(--t)">${prefix}${esc(last.text || item.msg || 'Inquiry')}</div>`;
+            })()}
             <div class="m" style="font-size:10px;text-align:right;margin-top:4px">
               ${item.ts ? fd(new Date(item.ts).toISOString().slice(0,10)) : ''}
             </div>
@@ -11794,23 +11844,47 @@ function initLiveChatDeskChannel(){
 
       if(chatType === 'support'){
         const idx = CS.findIndex(x => x.id === item.id || (item.ticket_id && x.ticket_id && x.ticket_id.toUpperCase() === String(item.ticket_id).toUpperCase()));
-        if(idx !== -1) CS[idx] = item;
-        else CS.unshift(item);
+        if(idx !== -1) {
+          const ex = CS[idx];
+          const mergedTh = [...(ex.thread || [])];
+          (item.thread || []).forEach(m => {
+            if (!mergedTh.some(em => em.ts === m.ts && em.text === m.text)) {
+              mergedTh.push(m);
+            }
+          });
+          mergedTh.sort((a,b) => (a.ts||0) - (b.ts||0));
+          CS[idx] = { ...ex, ...item, thread: mergedTh, status: item.status || ex.status, ts: Math.max(ex.ts||0, item.ts||0) };
+        } else {
+          CS.unshift(item);
+        }
         try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
 
         // Check if viewing in Admin Support
-        if (tab === 'su' && adminSupportSub === 'support' && activeChatTicketId === item.id) {
-          const thread = item.thread || [];
-          const lastMsg = thread[thread.length - 1];
-          if (lastMsg) {
-            appendMessageToActiveThreadDOM('admin-support-chat-thread', lastMsg, lastMsg.sender === 'admin');
+        if (tab === 'su' && adminSupportSub === 'support') {
+          const curActive = CS.find(x => x.id === activeChatTicketId);
+          const isSame = curActive && (
+            curActive.id === item.id ||
+            (curActive.mid && curActive.mid === item.mid) ||
+            (curActive.phone && item.phone && curActive.phone.slice(-10) === item.phone.slice(-10))
+          );
+          if (isSame || activeChatTicketId === item.id || !activeChatTicketId) {
+            if (!activeChatTicketId) activeChatTicketId = item.id;
+            const thread = item.thread || [];
+            const lastMsg = thread[thread.length - 1];
+            if (lastMsg) {
+              appendMessageToActiveThreadDOM('admin-support-chat-thread', lastMsg, lastMsg.sender === 'admin');
+              playChime();
+              return;
+            }
+          } else {
             playChime();
+            toast(tr('New message from ' + (item.borrower || 'Customer') + ' ✓', (item.borrower || 'ఖాతాదారుడు') + ' నుండి సందేశం వచ్చింది ✓'));
+            draw();
             return;
           }
         }
         // Check if viewing in Client Support
-        if (role === 'c' && clientTab === 'my_support' && (clientChatTicketId === item.id || !clientChatTicketId)) {
-          if (!clientChatTicketId) clientChatTicketId = item.id;
+        if (role === 'c' && clientTab === 'my_support') {
           const thread = item.thread || [];
           const lastMsg = thread[thread.length - 1];
           if (lastMsg) {
@@ -12055,7 +12129,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v109</span>
+          <span class="v18-pill">v110</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -12140,8 +12214,29 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       // Resilient merged subscriptions: never wipe out locally submitted items on partial snapshot
       function mergeSnapList(incoming, existing, storageKey) {
         const map = new Map();
-        (incoming || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, x); });
-        (existing || []).forEach(x => { if (x && x.id && !map.has(x.id) && !isTestRecord(x)) map.set(x.id, x); });
+        (existing || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, x); });
+        (incoming || []).forEach(inc => {
+          if (!inc || !inc.id || isTestRecord(inc)) return;
+          if (!map.has(inc.id)) {
+            map.set(inc.id, inc);
+          } else {
+            const ex = map.get(inc.id);
+            const mergedTh = [...(ex.thread || [])];
+            (inc.thread || []).forEach(m => {
+              if (!mergedTh.some(em => em.ts === m.ts && em.text === m.text)) {
+                mergedTh.push(m);
+              }
+            });
+            mergedTh.sort((a,b) => (a.ts||0) - (b.ts||0));
+            map.set(inc.id, {
+              ...ex,
+              ...inc,
+              thread: mergedTh,
+              status: (ex.status === 'open' || inc.status === 'open') ? 'open' : inc.status,
+              ts: Math.max(ex.ts || 0, inc.ts || 0)
+            });
+          }
+        });
         const res = Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
         if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(res)); } catch(_) {} }
         return res;
@@ -12234,13 +12329,25 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             const idx = CS.findIndex(x => x.id === item.id);
             if (idx >= 0) {
               const prev = CS[idx];
-              if (JSON.stringify(prev) !== JSON.stringify(item)) {
-                // If currently viewing this support ticket, append new messages directly
+              const mergedTh = [...(prev.thread || [])];
+              (item.thread || []).forEach(m => {
+                if (!mergedTh.some(em => em.ts === m.ts && em.text === m.text)) {
+                  mergedTh.push(m);
+                }
+              });
+              mergedTh.sort((a,b) => (a.ts||0) - (b.ts||0));
+              const mergedItem = {
+                ...prev,
+                ...item,
+                thread: mergedTh,
+                status: (prev.status === 'open' || item.status === 'open') ? 'open' : item.status,
+                ts: Math.max(prev.ts || 0, item.ts || 0)
+              };
+              if (JSON.stringify(prev) !== JSON.stringify(mergedItem)) {
                 const threadId = isAdm ? 'admin-support-chat-thread' : 'client-support-chat-thread';
                 const curActiveId = isAdm ? activeChatTicketId : clientChatTicketId;
                 if (curActiveId === item.id) {
-                  const arr = item.thread || [];
-                  arr.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
+                  mergedTh.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
                 }
                 if (_initialServerSyncDone && !isAdm && !prev.reply && item.reply) {
                   playChime();
@@ -12252,7 +12359,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
                   );
                   toast(tr('New reply received from Admin ✓', 'అడ్మిన్ నుండి సమాధానం వచ్చింది ✓'));
                 }
-                CS[idx] = item; changed = true;
+                CS[idx] = mergedItem; changed = true;
               }
             } else {
               if (_initialServerSyncDone && isAdm) {
@@ -12443,5 +12550,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=109').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=110').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

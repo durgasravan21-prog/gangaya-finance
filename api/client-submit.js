@@ -248,6 +248,9 @@ module.exports = async (req, res) => {
       if (targetPhone10 && targetPhone10.length === 10 && xPhone10 && xPhone10.length === 10 && xPhone10 === targetPhone10) return true;
       if (authPhone10 && authPhone10.length === 10 && xPhone10 && xPhone10.length === 10 && xPhone10 === authPhone10) return true;
 
+      // Match by customer name if provided
+      if (qName && x.borrower && x.borrower.toLowerCase() === qName) return true;
+
       return false;
     }
 
@@ -309,16 +312,18 @@ module.exports = async (req, res) => {
 
       // STRICT CONSOLIDATION: Only ONE support chat per customer
       let existingSupport = null;
-      if (rawMid && rawMid !== 'guest') existingSupport = serverStore.support.find(x => x.mid === rawMid);
+      if (rawMid && rawMid !== 'guest' && rawMid !== 'public-client') existingSupport = serverStore.support.find(x => x.mid === rawMid);
       if (!existingSupport && rawPhone && rawPhone.length >= 10) existingSupport = serverStore.support.find(x => x.phone && x.phone.includes(rawPhone.slice(-10)));
       if (!existingSupport && rawEmail) existingSupport = serverStore.support.find(x => x.email && x.email.toLowerCase() === rawEmail);
+      if (!existingSupport && borrowerName && borrowerName !== 'Customer' && borrowerName !== 'Borrower') existingSupport = serverStore.support.find(x => x.borrower && x.borrower.toLowerCase() === borrowerName.toLowerCase());
 
-      if (!existingSupport && (rawMid !== 'guest' || rawPhone || rawEmail)) {
+      if (!existingSupport && (rawMid !== 'guest' || rawPhone || rawEmail || borrowerName)) {
         const remote = await fetchSupabaseCollections();
         existingSupport = (remote?.support || []).find(x =>
-          (rawMid && rawMid !== 'guest' && x.mid === rawMid) ||
+          (rawMid && rawMid !== 'guest' && rawMid !== 'public-client' && x.mid === rawMid) ||
           (rawPhone && rawPhone.length >= 10 && x.phone && x.phone.includes(rawPhone.slice(-10))) ||
-          (rawEmail && x.email && x.email.toLowerCase() === rawEmail)
+          (rawEmail && x.email && x.email.toLowerCase() === rawEmail) ||
+          (borrowerName && borrowerName !== 'Customer' && borrowerName !== 'Borrower' && x.borrower && x.borrower.toLowerCase() === borrowerName.toLowerCase())
         );
         if (existingSupport) {
           const sIdx = serverStore.support.findIndex(x => x.id === existingSupport.id);
@@ -420,16 +425,18 @@ module.exports = async (req, res) => {
 
       // STRICT CONSOLIDATION: Only ONE bug chat per customer
       let existingBug = null;
-      if (rawMid && rawMid !== 'guest') existingBug = serverStore.bugs.find(x => x.mid === rawMid);
+      if (rawMid && rawMid !== 'guest' && rawMid !== 'public-client') existingBug = serverStore.bugs.find(x => x.mid === rawMid);
       if (!existingBug && rawPhone && rawPhone.length >= 10) existingBug = serverStore.bugs.find(x => x.phone && x.phone.includes(rawPhone.slice(-10)));
       if (!existingBug && rawEmail) existingBug = serverStore.bugs.find(x => x.email && x.email.toLowerCase() === rawEmail);
+      if (!existingBug && borrowerName && borrowerName !== 'Customer' && borrowerName !== 'Borrower') existingBug = serverStore.bugs.find(x => x.borrower && x.borrower.toLowerCase() === borrowerName.toLowerCase());
 
-      if (!existingBug && (rawMid !== 'guest' || rawPhone || rawEmail)) {
+      if (!existingBug && (rawMid !== 'guest' || rawPhone || rawEmail || borrowerName)) {
         const remote = await fetchSupabaseCollections();
         existingBug = (remote?.bugs || []).find(x =>
-          (rawMid && rawMid !== 'guest' && x.mid === rawMid) ||
+          (rawMid && rawMid !== 'guest' && rawMid !== 'public-client' && x.mid === rawMid) ||
           (rawPhone && rawPhone.length >= 10 && x.phone && x.phone.includes(rawPhone.slice(-10))) ||
-          (rawEmail && x.email && x.email.toLowerCase() === rawEmail)
+          (rawEmail && x.email && x.email.toLowerCase() === rawEmail) ||
+          (borrowerName && borrowerName !== 'Customer' && borrowerName !== 'Borrower' && x.borrower && x.borrower.toLowerCase() === borrowerName.toLowerCase())
         );
         if (existingBug) {
           const bIdx = serverStore.bugs.findIndex(x => x.id === existingBug.id);
