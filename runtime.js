@@ -128,11 +128,11 @@
       const render = () => {
         const curTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('gangaya_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         const isDark = curTheme === 'dark';
-        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? 'Light' : 'Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create your account (first time setup)' : 'Sign in to continue') + '</p>' +
+        const o = overlay('<form id="rt-f" class="card" style="width:100%;max-width:340px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><h1 style="margin:0">Gangaya Finance</h1><button type="button" class="sm" id="rt-th" style="padding:2px 9px;font-size:12px">' + (isDark ? 'Light' : 'Dark') + '</button></div><p class="m" style="margin:0 0 12px">' + (isSignUp ? 'Create staff account' : 'Staff & Admin Sign In') + '</p>' +
           '<div class="g" style="grid-template-columns:1fr"><input id="rt-e" type="email" autocomplete="username" placeholder="Email" required><input id="rt-p" type="password" autocomplete="' + (isSignUp ? 'new-password' : 'current-password') + '" placeholder="Password (min 6 chars)" minlength="6" required></div>' +
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
-          '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
-          '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b);display:flex;flex-direction:column;gap:6px"><a href="#" id="rt-verify-now" style="color:var(--ok);font-size:12.5px;font-weight:700;text-decoration:none">Instant Verify Email (No wait) &rsaquo;</a><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a><a href="#" id="rt-magic" style="color:var(--p);font-size:12px;font-weight:700;text-decoration:none">Email not arriving? Send Instant Magic Login Link &rsaquo;</a></div></form>');
+          '<p style="text-align:center;margin:12px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
+          '<div style="text-align:center;margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--b)"><a href="/" onclick="location.href=\'/\';return false;" style="color:var(--m);font-size:12.5px;text-decoration:none">&lsaquo; Back to Borrower Portal</a></div></form>');
         const thBtn = o.querySelector('#rt-th');
         if (thBtn) {
           thBtn.onclick = () => {
@@ -153,69 +153,6 @@
             isSignUp = !isSignUp;
             msg = '';
             render();
-          };
-        }
-        const verifyBtn = o.querySelector('#rt-verify-now');
-        if (verifyBtn) {
-          verifyBtn.onclick = async ev => {
-            ev.preventDefault();
-            const emailInput = o.querySelector('#rt-e');
-            const em = emailInput ? emailInput.value.trim() : '';
-            if (!em || !em.includes('@')) {
-              o.querySelector('#rt-m').style.color = 'var(--r)';
-              o.querySelector('#rt-m').textContent = 'Please enter your email above to verify.';
-              if (emailInput) emailInput.focus();
-              return;
-            }
-            verifyBtn.textContent = 'Verifying in cloud ledger…';
-            verifyBtn.style.pointerEvents = 'none';
-            const vRes = await window.instantConfirmEmail(em);
-            verifyBtn.textContent = 'Instant Verify Email (No wait) ›';
-            verifyBtn.style.pointerEvents = 'auto';
-            o.querySelector('#rt-m').style.color = vRes.success ? 'var(--ok)' : 'var(--r)';
-            o.querySelector('#rt-m').textContent = vRes.message;
-          };
-        }
-        const resendBtn = o.querySelector('#rt-resend');
-        if (resendBtn) {
-          resendBtn.onclick = async ev => {
-            ev.preventDefault();
-            const emailInput = o.querySelector('#rt-e');
-            const em = emailInput ? emailInput.value.trim() : '';
-            if (!em || !em.includes('@')) {
-              o.querySelector('#rt-m').style.color = 'var(--r)';
-              o.querySelector('#rt-m').textContent = 'Please enter your email above, then click resend.';
-              if (emailInput) emailInput.focus();
-              return;
-            }
-            resendBtn.textContent = 'Sending confirmation email...';
-            resendBtn.style.pointerEvents = 'none';
-            const resRes = await window.resendConfirmationEmail(em);
-            resendBtn.textContent = 'Link expired? Resend confirmation email ›';
-            resendBtn.style.pointerEvents = 'auto';
-            o.querySelector('#rt-m').style.color = resRes.success ? 'var(--ok)' : 'var(--r)';
-            o.querySelector('#rt-m').textContent = resRes.message;
-          };
-        }
-        const magicBtn = o.querySelector('#rt-magic');
-        if (magicBtn) {
-          magicBtn.onclick = async ev => {
-            ev.preventDefault();
-            const emailInput = o.querySelector('#rt-e');
-            const em = emailInput ? emailInput.value.trim() : '';
-            if (!em || !em.includes('@')) {
-              o.querySelector('#rt-m').style.color = 'var(--r)';
-              o.querySelector('#rt-m').textContent = 'Please enter your email above to receive Magic Link.';
-              if (emailInput) emailInput.focus();
-              return;
-            }
-            magicBtn.textContent = 'Sending Magic Link...';
-            magicBtn.style.pointerEvents = 'none';
-            const magicRes = await window.sendMagicLoginLink(em);
-            magicBtn.textContent = 'Email not arriving? Send Instant Magic Login Link ›';
-            magicBtn.style.pointerEvents = 'auto';
-            o.querySelector('#rt-m').style.color = magicRes.success ? 'var(--ok)' : 'var(--r)';
-            o.querySelector('#rt-m').textContent = magicRes.message;
           };
         }
         o.querySelector('#rt-f').onsubmit = async ev => {
@@ -1005,13 +942,13 @@
       return;
     }
 
-    // Allow direct access to borrower / client portal when navigating to ?portal=client
-    const isClientPortal = (urlParams.get('portal') === 'client');
-    if (!forceLogin && isClientPortal && !s && !hasCachedProf) {
+    // Allow direct access to borrower / client portal without any login or verification barrier
+    if (!forceLogin && !s && !hasCachedProf) {
       prof = { id: 'public-client', role: 'client', name: 'Borrower', mid: '' };
       uid = 'public-client';
       hasCachedProf = true;
       const o = document.getElementById('rt-ov'); if (o) o.remove();
+      window.__showLogin = () => loginUI();
       finish();
       return;
     }

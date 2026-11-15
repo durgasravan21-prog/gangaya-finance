@@ -296,24 +296,85 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Test submission ignored' });
     }
 
-    // 1. Customer Support Message Submission
+    // 1. Customer Support Message Submission (Strictly ONE chat per customer)
     if (action === 'submit_support') {
       const msgText = String(body.msg || '').slice(0, 500).trim();
       if (!msgText || msgText.length < 3) {
         return res.status(400).json({ ok: false, error: 'Valid message text required' });
       }
+      const rawMid = String(body.mid || 'guest').trim();
+      const rawPhone = String(body.phone || '').slice(0, 20).trim();
+      const rawEmail = String(body.email || '').toLowerCase().trim();
+      const borrowerName = String(body.borrower || 'Customer').slice(0, 60);
+
+      // STRICT CONSOLIDATION: Only ONE support chat per customer
+      let existingSupport = null;
+      if (rawMid && rawMid !== 'guest') existingSupport = serverStore.support.find(x => x.mid === rawMid);
+      if (!existingSupport && rawPhone && rawPhone.length >= 10) existingSupport = serverStore.support.find(x => x.phone && x.phone.includes(rawPhone.slice(-10)));
+      if (!existingSupport && rawEmail) existingSupport = serverStore.support.find(x => x.email && x.email.toLowerCase() === rawEmail);
+
+      if (!existingSupport && (rawMid !== 'guest' || rawPhone || rawEmail)) {
+        const remote = await fetchSupabaseCollections();
+        existingSupport = (remote?.support || []).find(x =>
+          (rawMid && rawMid !== 'guest' && x.mid === rawMid) ||
+          (rawPhone && rawPhone.length >= 10 && x.phone && x.phone.includes(rawPhone.slice(-10))) ||
+          (rawEmail && x.email && x.email.toLowerCase() === rawEmail)
+        );
+        if (existingSupport) {
+          const sIdx = serverStore.support.findIndex(x => x.id === existingSupport.id);
+          if (sIdx === -1) serverStore.support.unshift(existingSupport);
+          else existingSupport = serverStore.support[sIdx];
+        }
+      }
+
+      if (existingSupport) {
+        if (!Array.isArray(existingSupport.thread)) existingSupport.thread = [];
+        existingSupport.thread.push({
+          sender: 'client',
+          text: msgText,
+          ts: Date.now(),
+          by: borrowerName || existingSupport.borrower || 'Customer'
+        });
+        existingSupport.status = 'open';
+        existingSupport.ts = Date.now();
+        existingSupport.msg = msgText;
+        if (body.topic) existingSupport.topic = body.topic;
+        if (borrowerName && !existingSupport.borrower) existingSupport.borrower = borrowerName;
+        if (rawPhone && !existingSupport.phone) existingSupport.phone = rawPhone;
+        if (rawEmail && !existingSupport.email) existingSupport.email = rawEmail;
+
+        const notif = {
+          id: 'n_cs_' + Date.now(),
+          type: 'client_support',
+          mid: existingSupport.mid,
+          mname: existingSupport.borrower,
+          text: `Customer Support [${existingSupport.ticket_id || 'Chat'} · ${existingSupport.topic}] from ${existingSupport.borrower}: ${msgText}`,
+          ts: Date.now(),
+          read: false
+        };
+        serverStore.notifs.unshift(notif);
+
+        await Promise.all([
+          trySupabaseWrite('client_support', existingSupport.id, existingSupport),
+          trySupabaseWrite('notifs', notif.id, notif)
+        ]);
+
+        await broadcastRealtimeWebhook('chat_message', { chatType: 'support', item: existingSupport, ts: Date.now() });
+        return res.status(200).json({ ok: true, message: 'Message sent to Durga Sravan (Admin)', item: existingSupport });
+      }
+
       const ticketId = String(body.ticket_id || ('TKT-' + Math.floor(10000 + Math.random() * 90000))).toUpperCase();
       const initialThread = Array.isArray(body.thread) && body.thread.length > 0 ? body.thread : [
-        { sender: 'client', text: msgText, ts: Date.now(), by: String(body.borrower || 'Customer').slice(0, 60) }
+        { sender: 'client', text: msgText, ts: Date.now(), by: borrowerName }
       ];
       const item = {
         id: body.id || ('cs_' + Date.now()),
         ticket_id: ticketId,
-        mid: String(body.mid || 'guest').trim(),
-        borrower: String(body.borrower || 'Customer').slice(0, 60),
-        email: String(body.email || '').toLowerCase().trim(),
+        mid: rawMid,
+        borrower: borrowerName,
+        email: rawEmail,
         village: String(body.village || '').slice(0, 60),
-        phone: String(body.phone || '').slice(0, 20),
+        phone: rawPhone,
         topic: String(body.topic || 'General').slice(0, 40),
         msg: msgText,
         thread: initialThread,
@@ -346,16 +407,70 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Support ticket ' + ticketId + ' delivered to Admin successfully', item });
     }
 
-    // 2. Technical Bug Report Submission
+    // 2. Technical Bug Report Submission (Strictly ONE bug chat per customer)
     if (action === 'submit_bug') {
       const desc = String(body.description || body.desc || '').slice(0, 600).trim();
       if (!desc || desc.length < 5) {
         return res.status(400).json({ ok: false, error: 'Detailed bug description required' });
       }
-      const bugId = String(body.bug_id || ('BUG-' + Math.floor(10000 + Math.random() * 90000))).toUpperCase();
-      const initialThread = Array.isArray(body.thread) && body.thread.length > 0 ? body.thread : [
-        { sender: 'client', text: desc, ts: Date.now(), by: String(body.borrower || 'Customer').slice(0, 60) }
-      ];
+      const rawMid = String(body.mid || 'guest').trim();
+      const rawPhone = String(body.phone || '').slice(0, 20).trim();
+      const rawEmail = String(body.email || '').toLowerCase().trim();
+      const borrowerName = String(body.borrower || 'Customer').slice(0, 60);
+
+      // STRICT CONSOLIDATION: Only ONE bug chat per customer
+      let existingBug = null;
+      if (rawMid && rawMid !== 'guest') existingBug = serverStore.bugs.find(x => x.mid === rawMid);
+      if (!existingBug && rawPhone && rawPhone.length >= 10) existingBug = serverStore.bugs.find(x => x.phone && x.phone.includes(rawPhone.slice(-10)));
+      if (!existingBug && rawEmail) existingBug = serverStore.bugs.find(x => x.email && x.email.toLowerCase() === rawEmail);
+
+      if (!existingBug && (rawMid !== 'guest' || rawPhone || rawEmail)) {
+        const remote = await fetchSupabaseCollections();
+        existingBug = (remote?.bugs || []).find(x =>
+          (rawMid && rawMid !== 'guest' && x.mid === rawMid) ||
+          (rawPhone && rawPhone.length >= 10 && x.phone && x.phone.includes(rawPhone.slice(-10))) ||
+          (rawEmail && x.email && x.email.toLowerCase() === rawEmail)
+        );
+        if (existingBug) {
+          const bIdx = serverStore.bugs.findIndex(x => x.id === existingBug.id);
+          if (bIdx === -1) serverStore.bugs.unshift(existingBug);
+          else existingBug = serverStore.bugs[bIdx];
+        }
+      }
+
+      if (existingBug) {
+        if (!Array.isArray(existingBug.thread)) existingBug.thread = [];
+        existingBug.thread.push({
+          sender: 'client',
+          text: desc,
+          ts: Date.now(),
+          by: borrowerName
+        });
+        existingBug.status = 'investigating';
+        existingBug.ts = Date.now();
+        existingBug.description = desc;
+        if (body.category) existingBug.category = body.category;
+
+        const notif = {
+          id: 'n_cb_' + Date.now(),
+          type: 'client_bug',
+          mid: existingBug.mid,
+          mname: existingBug.borrower,
+          text: `Bug Report [${existingBug.bug_id || 'Issue'} · ${existingBug.category}] from ${existingBug.borrower}: ${desc}`,
+          ts: Date.now(),
+          read: false
+        };
+        serverStore.notifs.unshift(notif);
+
+        await Promise.all([
+          trySupabaseWrite('client_bugs', existingBug.id, existingBug),
+          trySupabaseWrite('notifs', notif.id, notif)
+        ]);
+
+        await broadcastRealtimeWebhook('chat_message', { chatType: 'bug', item: existingBug, ts: Date.now() });
+        return res.status(200).json({ ok: true, message: 'Bug update sent to technical team', item: existingBug });
+      }
+
       const item = {
         id: body.id || ('bug_' + Date.now()),
         bug_id: bugId,
