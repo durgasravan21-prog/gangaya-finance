@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=96"></script>
+<script src="/runtime.js?v=97"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2027,28 +2027,65 @@ function syncRoleFromUser(){
   owner = false;
   role = 'c';
   let found = null;
-  if (em.includes('mohanadeep') || em.includes('suda')) {
-    found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+  if (em) {
+    if (em.includes('mohanadeep') || em.includes('suda')) {
+      found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+    }
+    if (!found) {
+      found = M.find(x => x.email && x.email.toLowerCase() === em);
+    }
+    if (!found && me && me.id) {
+      found = M.find(x => x.id === me.id);
+    }
+    if (!found) {
+      const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
+      if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
+    }
+    // AUTO-CREATE NEW BORROWER MEMBER IF NOT PRESENT
+    if (!found) {
+      const rawName = em.split('@')[0];
+      const cleanName = rawName.replace(/[0-9_.-]+/g, ' ').trim().replace(/\b\w/g, l => l.toUpperCase()) || 'Customer';
+      const newMid = (me && me.id) || ('m_' + rawName.replace(/[^a-zA-Z0-9]/g, ''));
+      found = {
+        id: newMid,
+        name: (me && me.name && me.name !== 'Customer') ? me.name : cleanName,
+        email: em,
+        village: 'Guntur',
+        phone: '',
+        inst: 0,
+        freq: 1,
+        created: today(),
+        archived: false
+      };
+      M.unshift(found);
+      if (db && db.collection) {
+        db.collection('members').doc(found.id).set({ ...found }).catch(() => {});
+      }
+      fetch('/api/client-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_member',
+          id: found.id,
+          mid: found.id,
+          name: found.name,
+          email: found.email,
+          village: found.village,
+          phone: found.phone
+        })
+      }).catch(() => {});
+    }
   }
-  if (!found && em) {
-    found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
-  }
-  if (!found) {
-    const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
-    if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
-  }
+
   if (found) {
     clientMid = found.id;
-    try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-  } else if (clientMid) {
-    const realM = M.find(x => x.id === clientMid || x.phone === clientMid || (clientMid === 'm_mohanadeep' && (x.name && (x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305'))))));
-    if (realM) {
-      clientMid = realM.id;
-      try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-    }
-  } else if (me && me.mid) {
-    clientMid = me.mid;
-    try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+    try {
+      localStorage.setItem('gf_client_mid', clientMid);
+      if (em) localStorage.setItem('gf_client_mid_' + em, clientMid);
+    } catch(_) {}
+  } else if (!em && clientMid) {
+    const realM = M.find(x => x.id === clientMid || x.phone === clientMid);
+    if (realM) clientMid = realM.id;
   }
   // Clean up any stray fake loan or fake member from local memory
   if (T.some(t => t.id === 't_mohana_loan1')) {
@@ -2138,22 +2175,48 @@ seedFromCache();
 syncRoleFromUser();
 
 function resolveActiveClientMember(){
-  let m = M.find(x => x.id === clientMid);
-  if(!m && clientMid){
-    m = M.find(x => x.phone === clientMid || x.name === clientMid);
-  }
-  if(!m && typeof me !== 'undefined' && me && me.email){
-    const em = (me.email || '').toLowerCase();
-    if(em.includes('mohanadeep') || em.includes('suda')){
+  let m = null;
+  const em = String((typeof me !== 'undefined' && me && me.email) || '').toLowerCase().trim();
+
+  // If authenticated user is present, prioritize finding their specific member record by email or ID
+  if (em) {
+    if (em.includes('mohanadeep') || em.includes('suda')) {
       m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
     }
+    if (!m) {
+      m = M.find(x => x.email && x.email.toLowerCase() === em);
+    }
+    if (!m && me && me.id) {
+      m = M.find(x => x.id === me.id);
+    }
+    if (!m) {
+      const emailMid = localStorage.getItem('gf_client_mid_' + em);
+      if (emailMid) m = M.find(x => x.id === emailMid);
+    }
+    if (!m) {
+      const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
+      if (cp && cp.mid) m = M.find(x => x.id === cp.mid);
+    }
+    if (!m) {
+      const rawName = em.split('@')[0];
+      const cleanName = rawName.replace(/[0-9_.-]+/g, ' ').trim().toLowerCase();
+      if (cleanName.length > 3) {
+        m = M.find(x => x.name && x.name.toLowerCase().replace(/\s+/g, '').includes(cleanName.replace(/\s+/g, '')));
+      }
+    }
   }
-  if(!m && clientMid === 'm_mohanadeep'){
-    m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+
+  // Fallback to clientMid only if m not found yet AND user is not bound to a different email
+  if (!m && clientMid && !em) {
+    m = M.find(x => x.id === clientMid || x.phone === clientMid);
   }
-  if(m && m.id && clientMid !== m.id){
+
+  if (m && m.id && clientMid !== m.id) {
     clientMid = m.id;
-    try { localStorage.setItem('gf_client_mid', m.id); } catch(_) {}
+    try { 
+      localStorage.setItem('gf_client_mid', m.id);
+      if (em) localStorage.setItem('gf_client_mid_' + em, m.id);
+    } catch(_) {}
   }
   return m || null;
 }
@@ -6581,13 +6644,9 @@ function submitClientReceiptProof(ev){
     toast(tr('Please enter valid amount paid', 'సరైన మొత్తం నమోదు చేయండి'), 'warn');
     return;
   }
-  let activeMid = clientMid;
-  if (!activeMid || activeMid === 'm_mohanadeep') {
-    const realM = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-    if (realM) activeMid = realM.id;
-  }
-  const member = M.find(x => x.id === activeMid || x.phone === activeMid) || {};
-  if (!activeMid && member.id) activeMid = member.id;
+  const mActive = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
+  const activeMid = (mActive && mActive.id) || clientMid || ((me && me.id) || 'guest');
+  const member = mActive || M.find(x => x.id === activeMid || x.phone === activeMid) || {};
   const newReceipt = {
     id: 'cr_' + Date.now(),
     mid: activeMid,
@@ -6781,9 +6840,9 @@ function buildAgreementDocumentHtml(mid, isAdminCopy) {
   agr = agr || {};
 
   const photoSrc = (agr && agr.selfie_photo) || (prof && prof.photo) || (m && m.photo) || '';
-  const borrowerName = esc((agr && agr.signed_name) || (prof && prof.name) || (m && m.name) || 'Suda Mohanadeep');
+  const borrowerName = esc((agr && agr.signed_name) || (prof && prof.name) || (m && m.name) || ((me && me.name && me.name !== 'Customer') ? me.name : 'Borrower'));
   const borrowerVillage = (typeof vl === 'function' && m.village) ? esc(vl(m.village)) : esc(m.village || prof.place || 'Guntur Dist, Andhra Pradesh');
-  const borrowerPhone = esc(m.phone || prof.phone1 || prof.phone || '9494201305');
+  const borrowerPhone = esc(m.phone || prof.phone1 || prof.phone || 'N/A');
   const borrowerPhone2 = esc(prof.phone2 || m.phone2 || 'N/A');
   const borrowerEmail = esc(prof.email || m.email || (typeof me !== 'undefined' && me && me.email) || 'N/A');
   const borrowerAge = esc(prof.age || m.age || '32');
@@ -6966,17 +7025,11 @@ function signClientAgreement(ev){
     toast(tr('Please enter full legal name and accept agreement terms', 'పూర్తి పేరు నమోదు చేసి నిబంధనలను అంగీకరించండి'), 'warn');
     return;
   }
-  let m = M.find(x => x.id === clientMid);
+  let m = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
   if(!m && clientMid){
-    m = M.find(x => x.phone === clientMid || x.name === clientMid);
+    m = M.find(x => x.id === clientMid || x.phone === clientMid || x.name === clientMid);
   }
-  if(!m && typeof me !== 'undefined' && me && me.email){
-    const em = (me.email || '').toLowerCase();
-    if(em.includes('mohanadeep') || em.includes('suda')){
-      m = M.find(x => x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305')));
-    }
-  }
-  const activeMid = (m && m.id) || clientMid || 'm_mohanadeep';
+  const activeMid = (m && m.id) || clientMid || ((me && me.id) || 'guest');
   const agrId = 'agr_' + activeMid;
   var agrSelfie = '';
   try { var _si = document.getElementById('ca-popup-selfie-img') || document.getElementById('ca-selfie-img'); if (_si && _si.src && _si.src.startsWith('data:image')) { agrSelfie = _si.src; } } catch(_) {}
@@ -7344,9 +7397,10 @@ function resolveBugReport(bugId, status, notes){
    strictly generated ONLY AFTER Durga Sravan (Admin) verifies!
    ------------------------------------------------------------- */
 function lodgeClientPayment(midVal, amtVal, utrVal, photoVal){
-  const activeMid = midVal || clientMid || 'm_mohanadeep';
+  const mActive = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
+  const activeMid = midVal || (mActive && mActive.id) || clientMid || ((me && me.id) || 'guest');
   const numAmt = Math.max(1, Math.round(Number(amtVal) || 0));
-  const member = M.find(x => x.id === activeMid) || {};
+  const member = mActive || M.find(x => x.id === activeMid || x.phone === activeMid) || {};
   const utr = str(utrVal, 30).trim() || ('UPI' + Date.now().toString().slice(-8));
   const receiptProofId = 'cr_' + Date.now();
 
@@ -7675,7 +7729,7 @@ async function submitClientLoanApplication(ev){
         id: 'n_lr_' + Date.now(),
         type: 'loan_req',
         rawId: reqId,
-        mid: clientMid,
+        mid: activeMid,
         mname: m.name || 'Customer',
         amt: amt,
         repay: repay,
@@ -7698,7 +7752,7 @@ async function submitClientLoanApplication(ev){
     body: JSON.stringify({
       action: 'apply_loan',
       id: reqId,
-      mid: clientMid,
+      mid: activeMid,
       borrower: m.name || 'Customer',
       village: m.village || '',
       phone: m.phone || '',
@@ -7715,7 +7769,15 @@ async function submitClientLoanApplication(ev){
 
   LR.unshift(loanAppObj);
   f.reset();
-  toast(tr('Loan application submitted to Durga Sravan for review & sanction ✓', 'అప్పు దరఖాస్తు దుర్గా శ్రావణ్ గారి పరిశీలనకు సమర్పించబడింది ✓'));
+  if (typeof showActionAlert === 'function') {
+    showActionAlert(
+      tr('Loan Application Submitted ✓', 'అప్పు దరఖాస్తు సమర్పించబడింది ✓'),
+      tr(`Your loan request of ${inr(amt)} has been submitted directly to Durga Sravan (Admin). You will receive an update once reviewed.`, `${inr(amt)} అప్పు దరఖాస్తు విజయవంతంగా అడ్మిన్ కు సమర్పించబడింది. పరిశీలించిన వెంటనే తెలియజేయబడుతుంది.`),
+      tr('Applicant: ', 'దరఖాస్తుదారు: ') + (m.name || 'Customer') + ' • ' + (m.village || 'Guntur') + ' • ' + reqId
+    );
+  } else {
+    toast(tr('Loan application submitted to Durga Sravan for review & sanction ✓', 'అప్పు దరఖాస్తు దుర్గా శ్రావణ్ గారి పరిశీలనకు సమర్పించబడింది ✓'));
+  }
   draw();
 }
 
@@ -7916,20 +7978,9 @@ async function adminRequestReSignature(mid, reason){
 }
 
 function renderClientDashboard(){
-  let m = M.find(x => x.id === clientMid);
-  if(!m && M.length > 0 && clientMid){
-    // If not found by ID, try finding by phone or name
-    m = M.find(x => x.phone === clientMid || x.name === clientMid);
-  }
-  if(!m && typeof me !== 'undefined' && me && me.email){
-    const em = (me.email || '').toLowerCase();
-    if(em.includes('mohanadeep') || em.includes('suda')){
-      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-      if(m) {
-        clientMid = m.id;
-        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-      }
-    }
+  let m = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
+  if(!m && clientMid){
+    m = M.find(x => x.id === clientMid || x.phone === clientMid || x.name === clientMid);
   }
 
   // Top header for client portal
@@ -7941,7 +7992,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v96</span>
+            <span class="v18-pill">v97</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9511,7 +9562,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v96</span>
+          <span class="v18-pill">v97</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>

@@ -743,7 +743,14 @@
           return { id: uid, name: 'Gangaya (Father)', email: em, role: 'collector', mid: '' };
         }
         let cName = (prof && prof.name) || '';
-        if (!cName && (em.includes('mohanadeep') || em.includes('suda'))) cName = 'Suda Mohanadeep';
+        if (!cName && em) {
+          if (em.includes('mohanadeep') || em.includes('suda')) {
+            cName = 'Suda Mohanadeep';
+          } else {
+            const raw = em.split('@')[0].replace(/[0-9_.-]+/g, ' ').trim();
+            cName = raw.replace(/\b\w/g, l => l.toUpperCase()) || 'Customer';
+          }
+        }
         return {
           id: uid,
           name: cName || 'Customer',
@@ -829,8 +836,13 @@
       
       // STRICT RBAC: ALL other users are CLIENTS / BORROWERS (role = 'client')
       let clientName = (rProf && rProf.name) || (uObj && uObj.user_metadata && uObj.user_metadata.name) || '';
-      if (!clientName && (uEmail.includes('mohanadeep') || uEmail.includes('suda'))) {
-        clientName = 'Suda Mohanadeep';
+      if (!clientName && uEmail) {
+        if (uEmail.includes('mohanadeep') || uEmail.includes('suda')) {
+          clientName = 'Suda Mohanadeep';
+        } else {
+          const raw = uEmail.split('@')[0].replace(/[0-9_.-]+/g, ' ').trim();
+          clientName = raw.replace(/\b\w/g, l => l.toUpperCase()) || 'Customer';
+        }
       }
       return {
         id,
@@ -962,10 +974,12 @@
       window.__signout = async () => {
         try { await sb.auth.signOut(); } catch (_) {}
         try { localStorage.removeItem('gf_prof'); } catch (_) {}
+        try { localStorage.removeItem('gf_client_mid'); } catch (_) {}
+        try { sessionStorage.clear(); } catch (_) {}
         try {
           for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
-            if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_'))) {
+            if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_') || k.startsWith('gf_client') || k.startsWith('gf_agreement'))) {
               localStorage.removeItem(k);
             }
           }
@@ -1063,10 +1077,12 @@
     window.__signout = async () => {
       try { await sb.auth.signOut(); } catch (_) {}
       try { localStorage.removeItem('gf_prof'); } catch (_) {}
+      try { localStorage.removeItem('gf_client_mid'); } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const k = localStorage.key(i);
-          if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_'))) {
+          if (k && (k.startsWith('sb-') || k.startsWith('gf_prof') || k.startsWith('gf_c_') || k.startsWith('gf_client') || k.startsWith('gf_agreement'))) {
             localStorage.removeItem(k);
           }
         }

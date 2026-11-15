@@ -533,6 +533,32 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Bug report status updated successfully', item: bug });
     }
 
+    // 15. Auto-Create / Provision New Borrower Member
+    if (action === 'create_member') {
+      const mid = String(body.id || body.mid || '').trim();
+      const email = String(body.email || '').toLowerCase().trim();
+      const name = String(body.name || '').slice(0, 60).trim();
+      const village = String(body.village || 'Guntur').slice(0, 60).trim();
+      const phone = String(body.phone || '').slice(0, 20).trim();
+      if (!mid || !name) {
+        return res.status(400).json({ ok: false, error: 'Member ID and name required' });
+      }
+      const memberObj = {
+        id: mid,
+        name: name,
+        email: email,
+        village: village,
+        phone: phone,
+        inst: 0,
+        freq: 1,
+        created: new Date().toISOString().slice(0, 10),
+        archived: false,
+        created_at: Date.now()
+      };
+      await trySupabaseWrite('members', memberObj.id, memberObj);
+      return res.status(200).json({ ok: true, message: 'Member created successfully', member: memberObj });
+    }
+
     return res.status(400).json({ ok: false, error: 'Unknown submission action' });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err.message || 'Server error processing submission' });
