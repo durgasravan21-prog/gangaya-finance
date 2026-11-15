@@ -315,7 +315,7 @@ h2 { font-size: 16px; margin: 0 0 10px; font-weight: 700; }
     font-weight: 700;
     line-height: 1;
   }
-  main { padding: 12px 14px calc(115px + env(safe-area-inset-bottom, 0px)); }
+  main { padding: 12px 14px calc(40px + env(safe-area-inset-bottom, 0px)); }
 }
 
 .client-mobile-dock { display: none; }
@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=89"></script>
+<script src="/runtime.js?v=90"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1449,6 +1449,40 @@ let passkeyUnlocked=(sessionStorage.getItem('gf_passkey_verified')==='1');
 let passkeyAttempts=parseInt(sessionStorage.getItem('gf_passkey_attempts')||'0',10);
 let lastUserActivity=Date.now();
 const INACTIVITY_TIMEOUT_MS=60*60*1000;
+
+let clientSearchFilter = '';
+function onClientSearchInput(val){
+  clientSearchFilter = val;
+  const listEl = document.getElementById('clientSearchResults');
+  if (listEl) {
+    listEl.innerHTML = renderClientSearchResults();
+  }
+}
+function renderClientSearchResults(){
+  const q = String(clientSearchFilter || '').trim().toLowerCase();
+  const digits = q.replace(/\D/g, '');
+  const activeM = M.filter(x => !x.archived);
+  let filtered = activeM;
+  if (q) {
+    filtered = activeM.filter(x => {
+      const nameMatch = (x.name && x.name.toLowerCase().includes(q)) || (x.te && x.te.toLowerCase().includes(q));
+      const phoneMatch = digits && x.phone && cleanPh(x.phone).includes(digits);
+      const vilMatch = x.village && vl(x.village).toLowerCase().includes(q);
+      return nameMatch || phoneMatch || vilMatch;
+    });
+  }
+  if (!filtered.length) {
+    return '<div style="padding:20px;text-align:center;background:var(--s);border-radius:10px;border:1px dashed var(--b)">' +
+      '<p class="m" style="margin:0">' + tr('No borrower account found for: ','ఎలాంటి ఖాతా కనపడలేదు: ') + '<b>' + esc(clientSearchFilter) + '</b></p>' +
+      '<span class="m" style="font-size:11.5px;display:block;margin-top:4px">' + tr('Please verify name spelling or enter 10-digit phone number.','దయచేసి పేరు లేదా 10 అంకెల ఫోన్ నంబర్ సరిచూడండి.') + '</span></div>';
+  }
+  return filtered.map(x => '<div onclick="selectClientMember(\'' + x.id + '\')" style="background:var(--s);padding:12px 14px;border-radius:10px;border:1.5px solid var(--b);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;transition:border-color 0.15s ease" onmouseover="this.style.borderColor=\'var(--p)\'" onmouseout="this.style.borderColor=\'var(--b)\'">' +
+    '<div style="min-width:0"><b style="font-size:14.5px;color:var(--t)">' + esc(x.name) + (x.te ? ' <span class="m">(' + esc(x.te) + ')</span>' : '') + '</b>' +
+    '<div class="m" style="font-size:12px;margin-top:2px">' + esc(vl(x.village)) + ' · ' + (x.phone ? ph(x.phone) : 'No phone') + '</div></div>' +
+    '<button type="button" class="sm p" style="border-radius:8px;font-size:12px;font-weight:700;flex-shrink:0">' + tr('Open Account →','ఖాతా తెరువు →') + '</button></div>'
+  ).join('');
+}
+
 let clientPayStep='set_amount'; // 'set_amount' | 'scan_pay' | 'waiting' | 'success'
 let clientPayCustomAmt=0;
 let clientPayLastUtr='';
@@ -7610,7 +7644,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v89</span>
+            <span class="v18-pill">v90</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -7641,26 +7675,17 @@ function renderClientDashboard(){
         ${tr('Select your registered borrower name or enter your 10-digit phone number to view your active loans, repayment schedule, and download official receipts.', 'మీ అప్పు వివరాలు, చెల్లింపుల షెడ్యూల్ మరియు రసీదులు చూడటానికి మీ పేరు లేదా ఫోన్ నంబర్ ఎంచుకోండి.')}
       </p>
 
-      <div style="text-align:left;margin-bottom:18px">
-        <label style="font-size:12.5px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">${tr('Select Your Name:','మీ పేరును ఎంచుకోండి:')}</label>
-        <select onchange="selectClientMember(this.value)" style="width:100%;padding:11px;font-size:14px;border-radius:10px;background:var(--s);border:1.5px solid var(--b);color:var(--t)">
-          <option value="">-- ${tr('Select Borrower Name', 'ఖాతాదారుని పేరును ఎంచుకోండి')} --</option>
-          ${M.filter(x => !x.archived).map(x => `<option value="${x.id}">${esc(x.name)} ${x.te ? '(' + esc(x.te) + ')' : ''} — ${esc(vl(x.village))} (${esc(x.phone || 'No phone')})</option>`).join('')}
-        </select>
-      </div>
-
-      <div class="row" style="margin:16px 0;align-items:center">
-        <hr style="flex:1;border:none;border-top:1px solid var(--b)">
-        <span class="m" style="padding:0 10px;font-size:12px">${tr('OR SEARCH BY PHONE','లేదా ఫోన్ నంబర్ ద్వారా')}</span>
-        <hr style="flex:1;border:none;border-top:1px solid var(--b)">
-      </div>
-
-      <form onsubmit="event.preventDefault();const p=this.phone.value.replace(/\D/g,'');const found=M.find(x=>cleanPh(x.phone).includes(p));if(found){selectClientMember(found.id)}else{toast(tr('No record found with this phone number','ఈ ఫోన్ నంబర్‌తో రికార్డు కనపడలేదు'),'warn')}">
-        <div style="display:flex;gap:8px">
-          <input name="phone" type="tel" placeholder="${tr('Enter 10-digit Phone / WhatsApp','10 అంకెల ఫోన్ నంబర్')}" required style="flex:1;padding:11px;font-size:14px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t)">
-          <button type="submit" class="p" style="padding:11px 18px;border-radius:10px;font-weight:700">${tr('Find My Account →','ఖాతా వెతుకు →')}</button>
+      <!-- SINGLE UNIFIED SEARCH INPUT (NAME OR PHONE) -->
+      <form onsubmit="event.preventDefault();const qInp=document.getElementById('clientSearchQuery');if(qInp){const val=qInp.value.trim().toLowerCase();const d=val.replace(/\D/g,'');const mList=M.filter(x=>!x.archived);const match=mList.find(x=>(x.name&&x.name.toLowerCase().includes(val))||(d&&x.phone&&cleanPh(x.phone).includes(d)));if(match){selectClientMember(match.id);}else{toast(tr('No account matching: '+val,'ఖాతా కనపడలేదు: '+val),'warn');}}" style="margin-bottom:14px">
+        <div style="position:relative">
+          <input id="clientSearchQuery" type="text" autocomplete="name" placeholder="${tr('Search your Name or 10-digit Phone...','మీ పేరు లేదా 10 అంకెల ఫోన్ నంబర్‌తో వెతకండి...')}" oninput="onClientSearchInput(this.value)" value="${esc(clientSearchFilter)}" autofocus style="width:100%;padding:13px 16px;font-size:15px;border-radius:12px;border:2px solid var(--p);background:var(--s);color:var(--t);font-weight:600;box-sizing:border-box">
         </div>
       </form>
+
+      <!-- UNIFIED SEARCH RESULTS LIST -->
+      <div id="clientSearchResults" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;text-align:left">
+        ${renderClientSearchResults()}
+      </div>
     </div>`;
   }
 
@@ -7699,71 +7724,16 @@ function renderClientDashboard(){
     ['privacy', tr('Privacy Policy', 'గోప్యతా విధానం')]
   ];
 
-  const clientMobileSelector = `
-  <div style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <span style="font-size:11.5px;font-weight:700;color:var(--m);text-transform:uppercase;letter-spacing:0.04em">
-        ${tr('Jump to Section:','విభాగాన్ని ఎంచుకోండి:')}
-      </span>
-      <span class="chip" style="font-size:11px;font-weight:700;color:var(--p)">9 ${tr('Options Available','ఆప్షన్లు అందుబాటులో ఉన్నాయి')}</span>
-    </div>
-    <select onchange="setClientTab(this.value)" style="width:100%;padding:11px 14px;font-size:14px;font-weight:700;border-radius:10px;background:var(--s);border:1.5px solid var(--p);color:var(--t)">
-      ${clientTabs.map(([k, label]) => `<option value="${k}" ${clientTab === k ? 'selected' : ''}>${label}</option>`).join('')}
-    </select>
-  </div>`;
 
-  const clientQuickHub = `
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:16px">
-    <button type="button" class="card" onclick="setClientTab('my_pay')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_pay'?'var(--p)':'var(--b)'};background:${clientTab==='my_pay'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:20px;font-weight:900;color:var(--p);margin-bottom:2px">₹</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Pay UPI','UPI చెల్లింపు')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Instant UTR','తక్షణ రసీదు')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('my_loans')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_loans'?'var(--p)':'var(--b)'};background:${clientTab==='my_loans'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:18px;font-weight:900;color:var(--p);margin-bottom:2px">#</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Schedule','వాయిదాల షెడ్యూల్')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Calendar','క్యాలెండర్')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('apply_loan')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='apply_loan'?'var(--p)':'var(--b)'};background:${clientTab==='apply_loan'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:20px;font-weight:900;color:var(--ok);margin-bottom:2px">+</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Apply Loan','కొత్త అప్పు')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Sanction','దరఖాస్తు')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('my_profile')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_profile'?'var(--p)':'var(--b)'};background:${clientTab==='my_profile'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:16px;font-weight:900;color:var(--p);margin-bottom:2px">ID</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Profile & KYC','వ్యక్తిగత వివరాలు')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Photo & Phone','ఫోటో')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('my_agreement')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_agreement'?'var(--p)':'var(--b)'};background:${clientTab==='my_agreement'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:16px;font-weight:900;color:var(--p);margin-bottom:2px">GF</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Agreement','అప్పు ఒప్పందం')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Digital Sign','సంతకం')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('my_support')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='my_support'?'var(--p)':'var(--b)'};background:${clientTab==='my_support'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:18px;font-weight:900;color:var(--p);margin-bottom:2px">?</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Support','సహాయం')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Message Admin','సందేశం')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('report_bug')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='report_bug'?'var(--p)':'var(--b)'};background:${clientTab==='report_bug'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:18px;font-weight:900;color:var(--r);margin-bottom:2px">!</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('Report Bug','సమస్య')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Tech Desk','సాంకేతిక')}</span>
-    </button>
-    <button type="button" class="card" onclick="setClientTab('faqs')" style="margin:0;padding:12px 6px;text-align:center;border:1.5px solid ${clientTab==='faqs'?'var(--p)':'var(--b)'};background:${clientTab==='faqs'?'rgba(99,102,241,0.08)':'var(--c)'};cursor:pointer;border-radius:12px">
-      <div style="font-size:16px;font-weight:900;color:var(--m);margin-bottom:2px">i</div>
-      <b style="font-size:12px;display:block;color:var(--t)">${tr('FAQs','ప్రశ్నలు')}</b>
-      <span class="m" style="font-size:10.5px">${tr('Help Center','సహాయం')}</span>
-    </button>
-  </div>`;
 
   const clientTabButtons = `
-  <div class="tabs client-tabs" role="tablist">
+  <nav class="tabs client-tabs" role="tablist" aria-label="${tr('Client Portal Navigation','క్లయింట్ పోర్టల్ నావిగేషన్')}" style="margin-bottom:18px;display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none">
     ${clientTabs.map(([k, label]) => `
-      <button role="tab" aria-selected="${clientTab === k}" class="${clientTab === k ? 'on' : ''}" onclick="setClientTab('${k}')" style="white-space:nowrap">
+      <button role="tab" aria-selected="${clientTab === k}" class="${clientTab === k ? 'on' : ''}" onclick="setClientTab('${k}')" style="white-space:nowrap;border-radius:10px;padding:9px 15px;font-weight:700;font-size:13px">
         <span>${label}</span>
       </button>
     `).join('')}
-  </div>`;
+  </nav>`;
 
   let clientBody = '';
 
@@ -8740,31 +8710,9 @@ function renderClientDashboard(){
     </div>
   </div>` : '';
 
-    const clientMobileDock = `
-  <aside class="client-mobile-dock" aria-label="Client Navigation Dock">
-    <button type="button" class="client-dock-btn ${clientTab === 'my_loans' ? 'active' : ''}" onclick="setClientTab('my_loans')" title="${tr('Loans & Schedule','అప్పులు & షెడ్యూల్')}">
-      <span style="font-size:16px;font-weight:900;line-height:1">#</span>
-      <span class="client-dock-lbl">${tr('Loans','అప్పులు')}</span>
-    </button>
-    <button type="button" class="client-dock-btn ${clientTab === 'my_pay' ? 'active' : ''}" onclick="setClientTab('my_pay')" title="${tr('UPI Pay & Receipts','చెల్లింపులు & రసీదులు')}">
-      <span style="font-size:16px;font-weight:900;line-height:1">₹</span>
-      <span class="client-dock-lbl">${tr('Pay UPI','చెల్లించు')}</span>
-    </button>
-    <button type="button" class="client-dock-btn ${clientTab === 'apply_loan' ? 'active' : ''}" onclick="setClientTab('apply_loan')" title="${tr('Apply for Loan','కొత్త అప్పు దరఖాస్తు')}">
-      <span style="font-size:16px;font-weight:900;line-height:1">+</span>
-      <span class="client-dock-lbl">${tr('Apply','దరఖాస్తు')}</span>
-    </button>
-    <button type="button" class="client-dock-btn ${clientTab === 'my_profile' ? 'active' : ''}" onclick="setClientTab('my_profile')" title="${tr('Personal Profile & KYC','వ్యక్తిగత వివరాలు')}">
-      <span style="font-size:15px;font-weight:900;line-height:1">ID</span>
-      <span class="client-dock-lbl">${tr('Profile','ప్రొఫైల్')}</span>
-    </button>
-    <button type="button" class="client-dock-btn ${clientTab === 'my_support' ? 'active' : ''}" onclick="setClientTab('my_support')" title="${tr('Customer Support','సహాయం & మెసేజ్‌లు')}">
-      <span style="font-size:16px;font-weight:900;line-height:1">?</span>
-      <span class="client-dock-lbl">${tr('Support','సహాయం')}</span>
-    </button>
-  </aside>`;
 
-  return topNav + clientQuickHub + clientMobileSelector + clientTabButtons + clientBody + agreementPopupModal + clientMobileDock;
+
+  return topNav + clientTabButtons + clientBody + agreementPopupModal;
 }
 
 /* -------------------------------------------------------------
@@ -9263,7 +9211,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v89</span>
+          <span class="v18-pill">v90</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9495,5 +9443,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=89').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=90').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
