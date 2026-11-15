@@ -178,9 +178,32 @@ module.exports = async (req, res) => {
   }
 
   // -------------------------------------------------------------
-  // GET: Fetch Submissions (for Admin and Client synchronization)
+  // GET: Fetch Submissions & Device Lock Status
   // -------------------------------------------------------------
   if (req.method === 'GET') {
+    if (req.query.action === 'check_lock_status') {
+      const qCid = (req.query.cid || '').trim();
+      let isLocked = false;
+      let match = null;
+      if (qCid) {
+        try {
+          const resSb = await fetch(`${SUPABASE_URL}/rest/v1/docs?select=data&collection=eq.lockouts`, {
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` },
+            signal: AbortSignal.timeout(3000)
+          });
+          if (resSb.ok) {
+            const rows = await resSb.json();
+            const lockouts = (rows || []).map(r => r.data).filter(Boolean);
+            match = lockouts.find(x => x && x.cid === qCid);
+            if (match && match.status === 'locked') {
+              isLocked = true;
+            }
+          }
+        } catch (_) {}
+      }
+      return res.status(200).json({ ok: true, locked: isLocked, lock: match || null });
+    }
+
     const role = (req.query.role || '').trim();
     const mid = (req.query.mid || '').trim();
     const qEmail = (req.query.email || '').toLowerCase().trim();
@@ -1232,6 +1255,65 @@ module.exports = async (req, res) => {
         });
       }
       return res.status(200).json({ ok: true, message: 'Member created successfully', member: memberObj });
+    }
+
+    // 16. Remote Device Unlock by Admin Durga Sravan
+    if (action === 'unlock_device') {
+      const lockId = String(body.lockId || '').trim();
+      const cid = String(body.cid || '').trim();
+      const unlockedBy = String(body.unlocked_by || 'Admin Durga Sravan').trim();
+
+      let targetId = lockId;
+      let doc = null;
+      if (lockId) {
+        doc = await getExistingDoc('lockouts', lockId);
+      }
+      if (!doc && cid) {
+        try {
+          const resSb = await fetch(`${SUPABASE_URL}/rest/v1/docs?select=*&collection=eq.lockouts`, {
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` },
+            signal: AbortSignal.timeout(3000)
+          });
+          if (resSb.ok) {
+            const rows = await resSb.json();
+            const match = (rows || []).find(r => r && r.data && r.data.cid === cid);
+            if (match) {
+              doc = match.data;
+              targetId = match.id;
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (doc) {
+        doc.status = 'unlocked';
+        doc.unlocked_at = new Date().toISOString();
+        doc.unlocked_by = unlockedBy;
+        await trySupabaseWrite('lockouts', doc.id || targetId, doc);
+      } else if (lockId || cid) {
+        const newDoc = {
+          id: lockId || ('lock_' + Date.now()),
+          cid: cid,
+          status: 'unlocked',
+          unlocked_at: new Date().toISOString(),
+          unlocked_by: unlockedBy
+        };
+        await trySupabaseWrite('lockouts', newDoc.id, newDoc);
+      }
+
+      // Broadcast device_unlocked event so locked client immediately restores access
+      await broadcastRealtimeWebhook('device_unlocked', { cid: cid || doc?.cid, lockId: lockId || doc?.id, ts: Date.now() });
+
+      return res.status(200).json({ ok: true, unlocked: true, message: 'Device unlocked and real-time signal broadcast' });
+    }
+
+    // 17. Device Lockout Telemetry Event
+    if (action === 'device_lockout_event') {
+      const lock = body.lock;
+      if (lock && lock.id) {
+        await trySupabaseWrite('lockouts', lock.id, lock);
+      }
+      return res.status(200).json({ ok: true, saved: true });
     }
 
     return res.status(400).json({ ok: false, error: 'Unknown submission action' });

@@ -1717,22 +1717,69 @@ function getClientId(){
 
 function isDeviceLockedOut(){
   try{
-    if(localStorage.getItem('gf_locked_status')==='locked') return true;
-    const cid=getClientId();
-    const lk=LK.find(x=>(x.cid===cid||x.ip==='this_device')&&x.status==='locked');
-    return !!lk;
+    // 1. Admin Durga Sravan is NEVER locked out under any circumstance
+    const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
+    const isAdmin = owner || role === 'a' || em === 'durgasravan21@gmail.com' || em.includes('durgasravan');
+    if (isAdmin) {
+      try { localStorage.removeItem('gf_locked_status'); } catch(_) {}
+      return false;
+    }
+
+    // 2. Strict Per-Device Isolation via unique Client ID (cid)
+    const cid = getClientId();
+    if (!cid) return false;
+
+    // Check in-memory sync from database (LK)
+    const myLock = LK.find(x => x.cid === cid);
+    if (myLock) {
+      if (myLock.status === 'unlocked') {
+        // Admin has unlocked this device!
+        try {
+          localStorage.removeItem('gf_locked_status');
+          sessionStorage.removeItem('gf_passkey_attempts');
+        } catch(_) {}
+        passkeyAttempts = 0;
+        return false;
+      } else if (myLock.status === 'locked') {
+        try { localStorage.setItem('gf_locked_status', 'locked'); } catch(_) {}
+        return true;
+      }
+    }
+
+    // 3. Fallback: If localStorage says locked, check if database cleared it
+    if (localStorage.getItem('gf_locked_status') === 'locked') {
+      if (Array.isArray(LK) && LK.length > 0 && !LK.some(x => x.cid === cid && x.status === 'locked')) {
+        try {
+          localStorage.removeItem('gf_locked_status');
+          sessionStorage.removeItem('gf_passkey_attempts');
+        } catch(_) {}
+        passkeyAttempts = 0;
+        return false;
+      }
+      return true;
+    }
+    return false;
   }catch(_){return false;}
 }
 
 function triggerDeviceLockout(reason){
+  // Admin Durga Sravan is immune
+  const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
+  const isAdmin = owner || role === 'a' || em === 'durgasravan21@gmail.com' || em.includes('durgasravan');
+  if (isAdmin) {
+    toast(tr('Admin passkey reset. Welcome Durga Sravan.', 'అడ్మిన్ పాస్‌కీ రీసెట్ చేయబడింది.'), 'warn');
+    passkeyAttempts = 0;
+    return;
+  }
+
   try{localStorage.setItem('gf_locked_status','locked')}catch(_){}
   const lockId='lock_'+Date.now();
   const cid=getClientId();
   const lockObj={
     id:lockId,
     cid:cid,
-    ip:'this_device',
-    user:(me&&me.email)||(user&&user.email)||'Admin/Collector Session',
+    ip:'client_device',
+    user:(me&&me.email)||(user&&user.email)||'Client Device',
     attempts:3,
     reason:reason||'Exceeded 3 failed security passkey attempts',
     ts:Date.now(),
@@ -1743,23 +1790,102 @@ function triggerDeviceLockout(reason){
     db.collection('lockouts').doc(lockId).set(lockObj).catch(()=>{});
   }
   LK.unshift(lockObj);
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'device_lockout_event', lock: lockObj })
+  }).catch(()=>{});
   draw();
 }
 
-function unlockDevice(lockId){
+async function unlockDevice(lockId){
   try{localStorage.removeItem('gf_locked_status')}catch(_){}
   try{sessionStorage.removeItem('gf_passkey_attempts')}catch(_){}
   passkeyAttempts=0;
-  const lk=LK.find(x=>x.id===lockId||(x.cid===getClientId()&&x.status==='locked'));
+
+  let lk = LK.find(x => x.id === lockId || (x.cid === getClientId() && x.status === 'locked'));
+  if (!lk && lockId) {
+    lk = LK.find(x => x.id === lockId);
+  }
+  const targetCid = (lk && lk.cid) || '';
+
   if(lk){
     lk.status='unlocked';
     lk.unlocked_at=new Date().toISOString();
+    lk.unlocked_by=(me&&me.email)||'Admin Durga Sravan';
     if(db&&db.collection){
       db.collection('lockouts').doc(lk.id).set(lk).catch(()=>{});
     }
   }
-  toast(tr('Access Unlocked & Restored ✓','యాక్సెస్ అన్‌లాక్ చేయబడింది ✓'));
+
+  try {
+    await fetch('/api/client-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'unlock_device',
+        lockId: lockId,
+        cid: targetCid,
+        unlocked_by: (me&&me.email)||'Admin Durga Sravan'
+      })
+    });
+  } catch(_) {}
+
+  try {
+    if (liveChatDeskChannel && typeof liveChatDeskChannel.send === 'function') {
+      liveChatDeskChannel.send({
+        type: 'broadcast',
+        event: 'device_unlocked',
+        payload: { cid: targetCid, lockId: lockId, ts: Date.now() }
+      }).catch(() => {});
+    }
+  } catch(_) {}
+
+  toast(tr('Access Unlocked & Restored ✓ Remote Device Notified', 'యాక్సెస్ అన్‌లాక్ చేయబడింది ✓'));
   draw();
+}
+
+async function unlockAllDevices(){
+  const lockedList = LK.filter(x => x.status === 'locked');
+  if (lockedList.length === 0) {
+    toast(tr('No locked devices found.', 'లాక్ అయిన పరికరాలు ఏవీ లేవు.'));
+    return;
+  }
+  for (const lk of lockedList) {
+    await unlockDevice(lk.id);
+  }
+  toast(tr('All ' + lockedList.length + ' device(s) have been unlocked ✓', 'అన్ని పరికరాలు విజయవంతంగా అన్‌లాక్ చేయబడ్డాయి ✓'));
+}
+
+async function unlockDeviceByCid(targetCid){
+  if (!targetCid) return;
+  const lk = LK.find(x => x.cid === targetCid);
+  if (lk) {
+    await unlockDevice(lk.id);
+  } else {
+    try {
+      await fetch('/api/client-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'unlock_device',
+          cid: targetCid,
+          unlocked_by: (me && me.email) || 'Admin Durga Sravan'
+        })
+      });
+    } catch(_) {}
+    try {
+      if (liveChatDeskChannel && typeof liveChatDeskChannel.send === 'function') {
+        liveChatDeskChannel.send({
+          type: 'broadcast',
+          event: 'device_unlocked',
+          payload: { cid: targetCid, ts: Date.now() }
+        }).catch(() => {});
+      }
+    } catch(_) {}
+    toast(tr('Device unlocked and notified ✓', 'పరికరం అన్‌లాక్ చేయబడింది ✓'));
+    draw();
+  }
 }
 
 function recordUserActivity(){
@@ -7722,38 +7848,228 @@ async function verifyPasskeySubmit(ev){
   }
 }
 
+let lockoutAutoPollerTimer = null;
+let lockoutAppealSubmitted = false;
+
 function renderLockoutScreen(){
   const cid = getClientId();
-  const lk = LK.find(x => (x.cid === cid || x.ip === 'this_device') && x.status === 'locked');
+  const lk = LK.find(x => x.cid === cid && x.status === 'locked') || LK.find(x => x.cid === cid);
   const lockId = (lk && lk.id) || ('LOCK-' + cid.slice(-6).toUpperCase());
-  return `<div class="card" role="alert" style="max-width:540px;margin:50px auto;text-align:center;padding:36px 24px;border-color:var(--r);box-shadow:0 12px 36px rgba(239,68,68,0.18)">
-    <div style="width:68px;height:68px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;color:#ef4444;font-size:28px;font-weight:900">
+
+  // Ensure Realtime channel is initialized so we can receive instant unlock broadcast
+  if (typeof initLiveChatDeskChannel === 'function') {
+    setTimeout(initLiveChatDeskChannel, 100);
+  }
+
+  // Start background poller if not already running
+  if (!lockoutAutoPollerTimer) {
+    lockoutAutoPollerTimer = setInterval(async () => {
+      // 1. Check local LK sync
+      if (!isDeviceLockedOut()) {
+        clearInterval(lockoutAutoPollerTimer);
+        lockoutAutoPollerTimer = null;
+        if (typeof playChime === 'function') playChime();
+        toast(tr('Device Unlocked by Admin ✓ Restoring Access...', 'మీ పరికరం అడ్మిన్ ద్వారా అన్‌లాక్ చేయబడింది ✓'));
+        draw();
+        return;
+      }
+      // 2. Poll server endpoint for remote unlock acknowledgment
+      try {
+        const res = await fetch('/api/client-submit?action=check_lock_status&cid=' + encodeURIComponent(cid), { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.ok && data.locked === false) {
+            clearInterval(lockoutAutoPollerTimer);
+            lockoutAutoPollerTimer = null;
+            try {
+              localStorage.removeItem('gf_locked_status');
+              sessionStorage.removeItem('gf_passkey_attempts');
+            } catch(_) {}
+            passkeyAttempts = 0;
+            if (typeof playChime === 'function') playChime();
+            toast(tr('Device Unlocked by Admin ✓ Welcome back!', 'మీ పరికరం అడ్మిన్ ద్వారా అన్‌లాక్ చేయబడింది ✓'));
+            draw();
+          }
+        }
+      } catch(_) {}
+    }, 2500);
+  }
+
+  const appealSent = lockoutAppealSubmitted;
+
+  return `<div class="card" role="alert" style="max-width:540px;margin:40px auto;text-align:center;padding:32px 22px;border:1.5px solid var(--r);box-shadow:0 16px 40px rgba(239,68,68,0.18)">
+    <div style="width:64px;height:64px;border-radius:50%;background:rgba(239,68,68,0.12);border:2px solid #ef4444;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;color:#ef4444;font-size:26px;font-weight:900">
       ✕
     </div>
-    <h2 style="color:var(--r);font-size:22px;margin:0 0 10px">${tr('Security Access Denied — Device Locked Out', 'సెక్యూరిటీ యాక్సెస్ తిరస్కరించబడింది — లాక్ చేయబడింది')}</h2>
-    <p style="font-size:14px;color:var(--t);margin:0 0 14px;line-height:1.6">
-      ${tr('3 consecutive failed security passkey attempts were recorded from this device. To protect financial ledger integrity, this session has been locked out.', 'ఈ పరికరం నుండి వరుసగా 3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేయబడింది. ఆర్థిక రికార్డుల రక్షణ కోసం ఈ సెషన్ తాత్కాలికంగా లాక్ చేయబడింది.')}
+    
+    <h2 style="color:var(--r);font-size:21px;margin:0 0 8px;font-weight:800">
+      ${tr('Security Access Denied — Device Locked Out', 'సెక్యూరిటీ యాక్సెస్ తిరస్కరించబడింది — లాక్ చేయబడింది')}
+    </h2>
+    
+    <p style="font-size:13.5px;color:var(--t);margin:0 0 16px;line-height:1.6">
+      ${tr('3 consecutive failed security passkey attempts were recorded from this device. All financial ledgers and collection tools are blocked for security.', 'ఈ పరికరం నుండి వరుసగా 3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేయబడింది. ఆర్థిక రికార్డుల రక్షణ కోసం ఈ పరికరం తాత్కాలికంగా లాక్ చేయబడింది.')}
     </p>
-    <div style="background:var(--s);padding:12px 16px;border-radius:10px;border:1px solid var(--b);margin-bottom:20px;font-family:monospace;font-size:12.5px;color:var(--m)">
-      <div>${tr('Device Security ID: ', 'పరికర సెక్యూరిటీ ఐడి: ')}<b>${esc(lockId)}</b></div>
-      <div>${tr('Timestamp: ', 'సమయం: ')}${fd(today())}, ${new Date().toLocaleTimeString()}</div>
+
+    <!-- Security ID & Client ID Card -->
+    <div style="background:var(--s);padding:12px 14px;border-radius:10px;border:1px solid var(--b);margin-bottom:18px;text-align:left;font-size:12.5px;color:var(--m)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span>${tr('Device Security ID: ', 'పరికర సెక్యూరిటీ ఐడి: ')}<b style="color:var(--t);font-family:monospace">${esc(lockId)}</b></span>
+        <button type="button" class="sm" onclick="navigator.clipboard.writeText('${lockId}');toast(tr('Security ID copied ✓','సెక్యూరిటీ ఐడి కాపీ చేయబడింది ✓'));" style="padding:2px 8px;font-size:11px;border-radius:6px">
+          ${tr('Copy', 'కాపీ')}
+        </button>
+      </div>
+      <div>${tr('Client Device ID: ', 'క్లయింట్ పరికర ఐడి: ')}<span style="font-family:monospace;font-size:11.5px">${esc(cid)}</span></div>
+      <div style="margin-top:4px;font-size:11px;color:var(--m)">${tr('Timestamp: ', 'సమయం: ')}${fd(today())}, ${new Date().toLocaleTimeString()}</div>
     </div>
-    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;padding:14px;text-align:left;margin-bottom:24px">
-      <div style="font-weight:700;font-size:13px;color:var(--p);margin-bottom:4px">${tr('How to Unlock / Restore Access:', 'యాక్సెస్ తిరిగి పొందడం ఎలా:')}</div>
-      <div class="m" style="font-size:12px;line-height:1.5">
-        ${tr('Please contact System Administrator (Durga Sravan). The admin can verify your identity and 1-click Unlock this device from the Admin Security Management Dashboard.', 'సిస్టమ్ అడ్మినిస్ట్రేటర్ (దుర్గా శ్రావణ్) ని సంప్రదించండి. అడ్మిన్ డాష్‌బోర్డ్ ద్వారా ఈ పరికరాన్ని సులభంగా అన్‌లాక్ చేయవచ్చు.')}
+
+    <!-- Instructions Notice -->
+    <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:12px;text-align:left;margin-bottom:20px;font-size:12.5px;line-height:1.5">
+      <div style="font-weight:700;color:var(--r);margin-bottom:3px">${tr('Notice: Only Administrator Can Unlock', 'గమనిక: అడ్మిన్ మాత్రమే అన్‌లాక్ చేయగలరు')}</div>
+      <div class="m" style="font-size:12px">
+        ${tr('This device cannot self-unlock. To regain access, please contact System Administrator Durga Sravan or submit an appeal below. Once Admin approves and unlocks this device from the Admin Security Dashboard, this screen will automatically refresh and restore access.', 'ఈ పరికరం నుండి నేరుగా అన్‌లాక్ చేయడం సాధ్యం కాదు. తిరిగి యాక్సెస్ పొందడానికి, దయచేసి అడ్మిన్ దుర్గా శ్రావణ్‌ని సంప్రదించండి లేదా కింద అభ్యర్థన పంపండి. అడ్మిన్ ఆమోదించిన వెంటనే ఈ స్క్రీన్ ఆటోమేటిక్‌గా అన్‌లాక్ అవుతుంది.')}
       </div>
     </div>
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="p sm" onclick="const p=prompt('${tr('Enter Admin Master Passkey (12101992) to unlock:','అడ్మిన్ పాస్‌కీ (12101992) నమోదు చేయండి:')}');if(p==='12101992'){unlockDevice('${lockId}');}" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:800;background:var(--ok);border-color:var(--ok)">
-        ${tr('Admin Unlock (12101992) ✓', 'అడ్మిన్ అన్‌లాక్ (12101992) ✓')}
-      </button>
-      <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="sm" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-        <span>${tr('Contact Admin via WhatsApp →', 'వాట్సాప్‌లో అడ్మిన్‌ని సంప్రదించు →')}</span>
+
+    <!-- In-App Support Appeal Box -->
+    <div style="background:var(--s);border:1px solid var(--b);border-radius:12px;padding:16px;text-align:left;margin-bottom:20px">
+      <div style="font-weight:700;font-size:13.5px;color:var(--t);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--p)"></span>
+        <span>${tr('Submit In-App Unlock Appeal to Admin', 'అడ్మిన్‌కు అన్‌లాక్ అభ్యర్థన పంపండి')}</span>
+      </div>
+
+      ${appealSent ? `
+        <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;font-size:12.5px;color:var(--ok);line-height:1.5">
+          <div style="font-weight:800;margin-bottom:4px">✓ ${tr('Unlock Appeal Sent to Admin Support Desk', 'అభ్యర్థన అడ్మిన్ సపోర్ట్ డెస్క్‌కు పంపబడింది')}</div>
+          <div>${tr('Admin Durga Sravan has been notified. This screen is live-polling and will automatically unlock as soon as Admin approves it.', 'అడ్మిన్ దుర్గా శ్రావణ్ గారికి నోటిఫికేషన్ వెళ్లింది. అడ్మిన్ ఆమోదించిన వెంటనే ఈ పేజీ ఆటోమేటిక్‌గా ఓపెన్ అవుతుంది.')}</div>
+        </div>
+      ` : `
+        <form onsubmit="submitLockoutAppeal(event, '${lockId}', '${cid}')" style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--m);display:block;margin-bottom:3px">${tr('Your Full Name', 'మీ పేరు')}</label>
+            <input id="lock-appeal-name" type="text" placeholder="${tr('Enter your name','మీ పేరు నమోదు చేయండి')}" value="${esc((me && me.name) || (user && user.email) || '')}" required style="width:100%;padding:8px 10px;font-size:12.5px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--t)">
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--m);display:block;margin-bottom:3px">${tr('Your Mobile Number', 'మీ మొబైల్ నంబర్')}</label>
+            <input id="lock-appeal-phone" type="tel" placeholder="${tr('10-digit mobile number','10 అంకెల మొబైల్ నంబర్')}" value="${esc((me && me.phone) || '')}" required style="width:100%;padding:8px 10px;font-size:12.5px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--t)">
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--m);display:block;margin-bottom:3px">${tr('Reason / Appeal Notes', 'కారణం / వివరాలు')}</label>
+            <textarea id="lock-appeal-reason" rows="2" placeholder="${tr('e.g. Forgot passkey, requesting device unlock...','ఉదా: పాస్‌కీ మర్చిపోయాను, దయచేసి అన్‌లాక్ చేయండి...')}" required style="width:100%;padding:8px 10px;font-size:12.5px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--t);resize:none"></textarea>
+          </div>
+          <button type="submit" class="p sm" style="padding:10px;font-size:13px;font-weight:800;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:6px">
+            <span>${tr('Send Unlock Request to Admin Support →', 'సపోర్ట్‌కి అన్‌లాక్ అభ్యర్థన పంపండి →')}</span>
+          </button>
+        </form>
+      `}
+    </div>
+
+    <!-- Direct Contact Options: WhatsApp & Call -->
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+      <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (Security ID: ' + lockId + ', Client ID: ' + cid + '). Please review and unlock my Gangaya Finance access.')}" target="_blank" class="p sm" style="padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;background:#25D366;border-color:#25D366;color:#fff">
+        <span>${tr('WhatsApp Admin (9398011913) →', 'వాట్సాప్‌లో అడ్మిన్‌ని సంప్రదించు →')}</span>
       </a>
-      <button class="sm" onclick="location.reload()" style="padding:10px 18px;border-radius:10px;font-size:13px">${tr('Check Status / Refresh ⟳', 'స్థితిని తనిఖీ చేయి ⟳')}</button>
+      <a href="tel:9398011913" class="sm" style="padding:10px 16px;border-radius:10px;font-size:12.5px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--b);background:var(--s);color:var(--t)">
+        <span>${tr('Direct Call: 9398011913', 'నేరుగా కాల్ చేయండి: 9398011913')}</span>
+      </a>
+    </div>
+
+    <!-- Live Polling Status Indicator -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--m)">
+      <span class="pulse-dot" style="background:#10b981"></span>
+      <span>${tr('Listening for Admin remote unlock signal...', 'అడ్మిన్ అన్‌లాక్ సిగ్నల్ కోసం వేచి చూస్తోంది...')}</span>
+      <button type="button" class="sm" onclick="checkUnlockNow('${cid}')" style="padding:4px 10px;border-radius:6px;font-size:11px;margin-left:6px">
+        ${tr('Check Status ⟳', 'స్థితిని తనిఖీ చేయి ⟳')}
+      </button>
     </div>
   </div>`;
+}
+
+async function submitLockoutAppeal(event, lockId, cid){
+  if(event) event.preventDefault();
+  const nameEl = document.getElementById('lock-appeal-name');
+  const phoneEl = document.getElementById('lock-appeal-phone');
+  const reasonEl = document.getElementById('lock-appeal-reason');
+
+  const name = nameEl ? nameEl.value.trim() : '';
+  const phone = phoneEl ? phoneEl.value.trim() : '';
+  const reason = reasonEl ? reasonEl.value.trim() : '';
+
+  if (!name || name.length < 2) {
+    toast(tr('Please enter your full name', 'దయచేసి మీ పూర్తి పేరు నమోదు చేయండి'), 'warn');
+    return;
+  }
+  if (!phone || phone.replace(/\D/g, '').length < 10) {
+    toast(tr('Please enter a valid 10-digit mobile number', 'దయచేసి సరైన 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి'), 'warn');
+    return;
+  }
+
+  const appealText = `[DEVICE UNLOCK APPEAL]\nDevice ID: ${lockId}\nClient ID: ${cid}\nPhone: ${phone}\nName: ${name}\nReason: ${reason}`;
+
+  const payload = {
+    action: 'submit_support',
+    borrower: name,
+    phone: phone,
+    topic: 'Device Lockout Appeal',
+    msg: appealText,
+    urgency: 'high',
+    cid: cid,
+    lockId: lockId,
+    details: appealText,
+    d: today(),
+    ts: Date.now()
+  };
+
+  try {
+    const res = await fetch('/api/client-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      lockoutAppealSubmitted = true;
+      toast(tr('Appeal sent to Admin Durga Sravan ✓ Waiting for unlock...', 'అభ్యర్థన అడ్మిన్‌కు పంపబడింది ✓'));
+      draw();
+    } else {
+      toast(tr('Error sending appeal. Please WhatsApp admin directly.', 'అభ్యర్థన పంపడంలో లోపం. దయచేసి వాట్సాప్ చేయండి.'), 'warn');
+    }
+  } catch(_) {
+    toast(tr('Network error. Please contact WhatsApp: 9398011913', 'నెట్‌వర్క్ లోపం. దయచేసి వాట్సాప్‌లో సంప్రదించండి.'), 'warn');
+  }
+}
+
+async function checkUnlockNow(cid){
+  toast(tr('Checking unlock status with Mumbai cloud...', 'అన్‌లాక్ స్థితిని తనిఖీ చేస్తోంది...'));
+  try {
+    const res = await fetch('/api/client-submit?action=check_lock_status&cid=' + encodeURIComponent(cid), { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.ok && data.locked === false) {
+        try {
+          localStorage.removeItem('gf_locked_status');
+          sessionStorage.removeItem('gf_passkey_attempts');
+        } catch(_) {}
+        passkeyAttempts = 0;
+        if (typeof playChime === 'function') playChime();
+        toast(tr('Device Unlocked by Admin ✓ Welcome back!', 'మీ పరికరం అడ్మిన్ ద్వారా అన్‌లాక్ చేయబడింది ✓'));
+        draw();
+        return;
+      }
+    }
+  } catch(_) {}
+
+  // Also check local LK
+  if (!isDeviceLockedOut()) {
+    try {
+      localStorage.removeItem('gf_locked_status');
+      sessionStorage.removeItem('gf_passkey_attempts');
+    } catch(_) {}
+    passkeyAttempts = 0;
+    if (typeof playChime === 'function') playChime();
+    toast(tr('Device Unlocked by Admin ✓ Welcome back!', 'మీ పరికరం అడ్మిన్ ద్వారా అన్‌లాక్ చేయబడింది ✓'));
+    draw();
+  } else {
+    toast(tr('Device is still locked. Please wait for Admin Durga Sravan to approve.', 'పరికరం ఇంకా లాక్ చేయబడి ఉంది. అడ్మిన్ ఆమోదం కోసం వేచి చూడండి.'), 'warn');
+  }
 }
 
 function renderPasskeyModal(){
@@ -9607,7 +9923,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v112</span>
+            <span class="v18-pill">v113</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -11370,6 +11686,11 @@ function renderAdminSupportChatPanel(){
           ${activeItem.phone ? '<a href="tel:' + esc(activeItem.phone) + '" class="chip" style="text-decoration:none;font-size:11px;font-weight:700;color:var(--p)">☎ ' + esc(activeItem.phone) + '</a>' : ''}
         </div>
         <div style="display:flex;gap:6px;align-items:center">
+          ${(activeItem.cid || activeItem.topic === 'Device Lockout Appeal' || (activeItem.details && activeItem.details.includes('DEVICE UNLOCK APPEAL'))) ? `
+            <button class="p sm" onclick="unlockDeviceByCid('${activeItem.cid || ''}')" style="border-radius:8px;font-weight:800;font-size:11.5px;background:var(--ok);border-color:var(--ok)">
+              ${tr('Unlock Device ✓', 'పరికరం అన్‌లాక్ చేయి ✓')}
+            </button>
+          ` : ''}
           <button class="sm" onclick="viewBorrowerFullProfile('${activeItem.mid}')" style="border-radius:8px;font-weight:700;font-size:11.5px;color:var(--p)">
             ${tr('Profile / KYC','ప్రొఫైల్')}
           </button>
@@ -11931,45 +12252,66 @@ function adminLockoutsTab(){
   return `
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <h2 style="margin:0">${tr('Security Lockouts & Banned IP Management','సెక్యూరిటీ లాక్‌అవుట్ & పరికరాల నిర్వహణ')}</h2>
-      <span class="chip" style="background:${activeLockouts.length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${activeLockouts.length > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
-        ${activeLockouts.length} ${tr('Active Lockout(s)','లాక్ చేయబడినవి')}
-      </span>
+      <h2 style="margin:0">${tr('Security Lockouts & Device Management','సెక్యూరిటీ లాక్‌అవుట్ & పరికరాల నిర్వహణ')}</h2>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="chip" style="background:${activeLockouts.length > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${activeLockouts.length > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+          ${activeLockouts.length} ${tr('Active Lockout(s)','లాక్ చేయబడినవి')}
+        </span>
+        ${activeLockouts.length > 0 ? `
+          <button type="button" class="p sm" onclick="unlockAllDevices()" style="border-radius:8px;font-size:11.5px;font-weight:800;background:var(--ok);border-color:var(--ok)">
+            ${tr('Unlock All Devices ✓','అన్ని పరికరాలు అన్‌లాక్ చేయి ✓')}
+          </button>
+        ` : ''}
+      </div>
     </div>
     <p class="m" style="margin:0 0 16px;font-size:13px">
-      ${tr('Devices and sessions locked out due to exceeding 3 failed passkey attempts. Administrators can review and 1-click Unlock / Unban them below.', '3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేసి లాక్ అయిన పరికరాల జాబితా. అడ్మిన్ ఇక్కడి నుండి అన్‌లాక్ చేయవచ్చు.')}
+      ${tr('Devices locked out due to exceeding 3 failed passkey attempts. Administrators can review identity appeals and 1-click Unlock them below. Blocked devices cannot self-unlock.', '3 సార్లు తప్పుడు పాస్‌కీ నమోదు చేసి లాక్ అయిన పరికరాల జాబితా. అడ్మిన్ మాత్రమే ఇక్కడి నుండి అన్‌లాక్ చేయగలరు.')}
     </p>
 
     ${LK.length > 0 ? `
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:10px">
       <thead>
         <tr style="border-bottom:1px solid var(--b);text-align:left">
-          <th style="padding:8px">${tr('Lockout ID / CID','ఐడి')}</th>
-          <th style="padding:8px">${tr('Reason','కారణం')}</th>
+          <th style="padding:8px">${tr('Lockout ID / Device CID','ఐడి / పరికరం')}</th>
+          <th style="padding:8px">${tr('Reason / Appeal','కారణం / అభ్యర్థన')}</th>
           <th style="padding:8px">${tr('Attempts','ప్రయత్నాలు')}</th>
           <th style="padding:8px">${tr('Status','స్థితి')}</th>
           <th style="padding:8px">${tr('Action','చర్య')}</th>
         </tr>
       </thead>
       <tbody>
-        ${LK.map(lk => `
-        <tr style="border-bottom:1px solid var(--b)">
-          <td style="padding:8px;font-family:monospace;font-size:12px">${esc(lk.id)}</td>
-          <td style="padding:8px">${esc(lk.reason || 'Failed passkey')}</td>
-          <td style="padding:8px;font-weight:700">${lk.attempts || 3} / 3</td>
-          <td style="padding:8px">
-            <span class="chip" style="background:${lk.status === 'locked' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)'};color:${lk.status === 'locked' ? 'var(--r)' : 'var(--ok)'};font-weight:800;font-size:11px">
-              ${lk.status === 'locked' ? tr('BANNED / LOCKED','లాక్ అయింది') : tr('UNLOCKED ✓','అన్‌లాక్ అయింది ✓')}
-            </span>
-          </td>
-          <td style="padding:8px">
-            ${lk.status === 'locked' ? `
-            <button class="p sm" onclick="unlockDevice('${lk.id}')" style="border-radius:8px;font-weight:700;font-size:12px">
-              ${tr('Unlock / Unban ✓','అన్‌లాక్ చేయి ✓')}
-            </button>` : `<span class="m" style="font-size:12px">${tr('Restored ✓','పునరుద్ధరించబడింది ✓')}</span>`}
-          </td>
-        </tr>
-        `).join('')}
+        ${LK.map(lk => {
+          const appeal = CS.find(cs => cs.cid === lk.cid || (cs.details && cs.details.includes(lk.id)) || (cs.msg && cs.msg.includes(lk.id)));
+          return `
+          <tr style="border-bottom:1px solid var(--b)">
+            <td style="padding:8px;font-family:monospace;font-size:12px">
+              <div><b>${esc(lk.id)}</b></div>
+              <div style="font-size:11px;color:var(--m)">CID: ${esc(lk.cid || 'unknown')}</div>
+              <div style="font-size:10.5px;color:var(--m)">${lk.ts ? new Date(lk.ts).toLocaleString() : ''}</div>
+            </td>
+            <td style="padding:8px">
+              <div>${esc(lk.reason || 'Failed passkey')}</div>
+              ${appeal ? `
+                <div style="margin-top:4px;padding:4px 8px;border-radius:6px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);font-size:11.5px">
+                  <b>${tr('Appeal from: ', 'అభ్యర్థన: ')}</b>${esc(appeal.borrower || appeal.name || 'User')} (${esc(appeal.phone || '')})
+                </div>
+              ` : ''}
+            </td>
+            <td style="padding:8px;font-weight:700">${lk.attempts || 3} / 3</td>
+            <td style="padding:8px">
+              <span class="chip" style="background:${lk.status === 'locked' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)'};color:${lk.status === 'locked' ? 'var(--r)' : 'var(--ok)'};font-weight:800;font-size:11px">
+                ${lk.status === 'locked' ? tr('BANNED / LOCKED','లాక్ అయింది') : tr('UNLOCKED ✓','అన్‌లాక్ అయింది ✓')}
+              </span>
+            </td>
+            <td style="padding:8px">
+              ${lk.status === 'locked' ? `
+              <button class="p sm" onclick="unlockDevice('${lk.id}')" style="border-radius:8px;font-weight:700;font-size:12px;background:var(--ok);border-color:var(--ok)">
+                ${tr('Unlock / Restore Access ✓','అన్‌లాక్ చేయి ✓')}
+              </button>` : `<span class="m" style="font-size:12px">${tr('Restored ✓','పునరుద్ధరించబడింది ✓')}</span>`}
+            </td>
+          </tr>
+          `;
+        }).join('')}
       </tbody>
     </table>` : `<p class="m">${tr('No security lockouts recorded. All connections healthy.','ఎలాంటి సెక్యూరిటీ లాక్‌అవుట్లు లేవు. సిస్టమ్ సురక్షితంగా ఉంది.')}</p>`}
   </div>`;
@@ -12352,6 +12694,26 @@ function initLiveChatDeskChannel(){
       if (!isTyping) draw();
     });
 
+    liveChatDeskChannel.on('broadcast', { event: 'device_unlocked' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      if (!payload) return;
+      const myCid = getClientId();
+      if (payload.cid === myCid || (payload.lockId && LK.some(x => x.id === payload.lockId && x.cid === myCid))) {
+        try {
+          localStorage.removeItem('gf_locked_status');
+          sessionStorage.removeItem('gf_passkey_attempts');
+        } catch(_) {}
+        passkeyAttempts = 0;
+        if (typeof lockoutAutoPollerTimer !== 'undefined' && lockoutAutoPollerTimer) {
+          clearInterval(lockoutAutoPollerTimer);
+          lockoutAutoPollerTimer = null;
+        }
+        playChime();
+        toast(tr('Your device has been unlocked by Admin! Access restored ✓', 'మీ పరికరం అడ్మిన్ ద్వారా అన్‌లాక్ చేయబడింది! యాక్సెస్ పునరుద్ధరించబడింది ✓'));
+        draw();
+      }
+    });
+
     liveChatDeskChannel.subscribe((status) => {
       liveChatChannelStatus = status;
       console.log('Realtime chat channel status:', status);
@@ -12498,7 +12860,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v112</span>
+          <span class="v18-pill">v113</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
