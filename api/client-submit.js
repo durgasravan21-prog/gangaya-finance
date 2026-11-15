@@ -630,7 +630,10 @@ module.exports = async (req, res) => {
 
     // 4. Payment Proof Lodgement (Pending Admin Verification)
     if (action === 'lodge_payment') {
-      const amt = Math.max(1, Math.round(Number(body.amt) || 0));
+      const amt = Math.round(Number(body.amt) || 0);
+      if (amt <= 0) {
+        return res.status(400).json({ ok: false, error: 'Payment amount must be greater than zero.' });
+      }
       const rawUtr = String(body.utr || '').slice(0, 30).trim();
       const utr = rawUtr || ('UPI-' + Date.now().toString().slice(-8));
       const item = {

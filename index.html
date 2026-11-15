@@ -2004,9 +2004,24 @@ function triggerUpiPayment(amount, note, mid){
 
 function openUpiPayDialog(amount, note, mid){
   const numAmt = Number(amount) || 0;
+  if (numAmt <= 0) {
+    toast(tr('Invalid payment amount. Amount must be greater than zero.', 'చెల్లింపు మొత్తం ₹0 కంటే ఎక్కువ ఉండాలి.'), 'warn');
+    return;
+  }
+  const m = mid ? M.find(x => x.id == mid) : null;
+  if (m) {
+    const curDue = Math.max(0, st(m).due);
+    if (curDue <= 0) {
+      toast(tr('This borrower has already cleared all dues (₹0 balance). No payment needed.', 'ఈ ఖాతాదారుడికి ఎలాంటి బాకీ లేదు (₹0). చెల్లించాల్సిన అవసరం లేదు.'), 'warn');
+      return;
+    }
+    if (numAmt > curDue) {
+      toast(tr('Payment amount (' + inr(numAmt) + ') cannot exceed outstanding loan balance (' + inr(curDue) + ').', 'చెల్లింపు మొత్తం (' + inr(numAmt) + ') మిగిలిన బాకీ (' + inr(curDue) + ') కంటే ఎక్కువ ఉండకూడదు.'), 'warn');
+      return;
+    }
+  }
   const dispAmt = inr(numAmt);
   const recCode = note || 'Gangaya Finance';
-  const m = mid ? M.find(x => x.id == mid) : null;
   const memName = m ? nm(m) : '';
   const upiUrl = getUpiPayUrl(amount, note);
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -2327,9 +2342,23 @@ function syncRoleFromUser(){
     try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
     return;
   }
-  if (isCollectorUser) {
+  if (isCollectorUser || (role === 'f' && passkeyUnlocked)) {
     owner = false;
     role = 'f';
+    clientMid = '';
+    try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
+    return;
+  }
+
+  // Check if current view is an Admin Management tab or Passkey is already unlocked
+  const isAdminTab = ['fa', 'lg', 'nl', 'rm', 'ac', 'mb', 'su', 'bg', 'lk'].includes(tab) ||
+                     _urlP.get('admin') === '1' ||
+                     _urlP.get('role') === 'a' ||
+                     _urlP.get('role') === 'f';
+
+  if ((isAdminTab && !clientMid) || passkeyUnlocked || role === 'a') {
+    owner = (passkeyUnlocked || role === 'a');
+    role = (role === 'f') ? 'f' : 'a';
     clientMid = '';
     try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
     return;
@@ -8133,6 +8162,10 @@ async function verifyPasskeySubmit(ev){
   // Check against both plain passkey and SHA-256 hash
   if(val === '12101992' || val === MASTER_PASSKEY || hashed === MASTER_PASSKEY_HASH){
     passkeyUnlocked = true;
+    owner = true;
+    if (role !== 'f') role = 'a';
+    clientMid = '';
+    try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
     try{
       sessionStorage.setItem('gf_passkey_verified', '1');
       sessionStorage.removeItem('gf_passkey_attempts');
@@ -8408,9 +8441,11 @@ function renderPasskeyModal(){
         <span>${tr('Unlock Dashboard ✓', 'డాష్‌బోర్డ్ అన్‌లాక్ చేయి ✓')}</span>
       </button>
 
-      <div style="display:flex;justify-content:center;gap:12px;margin-top:6px">
-        
-        ${window.__signout ? `<button type="button" class="sm d" onclick="__signout()" style="border-radius:10px;font-size:12px">${tr('Sign Out', 'సైన్ అవుట్')}</button>` : ''}
+      <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;flex-direction:column;align-items:center">
+        <button type="button" class="sm" onclick="setRole('c');draw();" style="border-radius:10px;font-size:12px;padding:7px 16px;font-weight:700">
+          ← ${tr('Borrower / Client Portal (ఖాతాదారుల లాగిన్)', 'Borrower / Client Portal (ఖాతాదారుల లాగిన్)')}
+        </button>
+        ${window.__signout ? `<button type="button" class="sm d" onclick="__signout()" style="border-radius:10px;font-size:12px;padding:4px 12px">${tr('Sign Out', 'సైన్ అవుట్')}</button>` : ''}
       </div>
     </form>
   </div>`;
@@ -8454,12 +8489,23 @@ function submitClientReceiptProof(ev){
   const photo = f.querySelector('#cr-photo-data') ? f.querySelector('#cr-photo-data').value : '';
 
   if(!amt || amt <= 0){
-    toast(tr('Please enter valid amount paid', 'సరైన మొత్తం నమోదు చేయండి'), 'warn');
+    toast(tr('Invalid payment amount. Amount must be greater than zero.', 'చెల్లింపు మొత్తం ₹0 కంటే ఎక్కువ ఉండాలి.'), 'warn');
     return;
   }
   const mActive = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
   const activeMid = (mActive && mActive.id) || clientMid || ((me && me.id) || 'guest');
   const member = mActive || M.find(x => x.id === activeMid || x.phone === activeMid) || {};
+  if (member && member.id) {
+    const curDue = Math.max(0, st(member).due);
+    if (curDue <= 0) {
+      toast(tr('This loan is already fully cleared (₹0 due balance). No payment needed.', 'ఈ అప్పు పూర్తిగా చెల్లించబడింది (బాకీ ₹0). చెల్లించాల్సిన అవసరం లేదు.'), 'warn');
+      return;
+    }
+    if (amt > curDue) {
+      toast(tr('Payment amount (' + inr(amt) + ') cannot exceed outstanding loan balance (' + inr(curDue) + '). Overpaying is not permitted.', 'చెల్లింపు మొత్తం (' + inr(amt) + ') మిగిలిన బాకీ (' + inr(curDue) + ') కంటే ఎక్కువ ఉండకూడదు. బాకీ కంటే ఎక్కువ చెల్లించలేరు.'), 'warn');
+      return;
+    }
+  }
   const newReceipt = {
     id: 'cr_' + Date.now(),
     mid: activeMid,
@@ -9226,7 +9272,25 @@ function speakPaymentSuccess(amt, borrowerName){
 }
 
 function setClientPayAmount(amt){
-  clientPayCustomAmt = Math.max(1, Math.round(Number(amt) || 0));
+  const numAmt = Math.round(Number(amt) || 0);
+  if (numAmt <= 0) {
+    toast(tr('Invalid payment amount. Amount must be greater than zero.', 'చెల్లింపు మొత్తం ₹0 కంటే ఎక్కువ ఉండాలి.'), 'warn');
+    return;
+  }
+  const mActive = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
+  const m = mActive || (clientMid ? M.find(x => x.id === clientMid || x.phone === clientMid) : null);
+  if (m) {
+    const curDue = Math.max(0, st(m).due);
+    if (curDue <= 0) {
+      toast(tr('This loan is already fully cleared (₹0 due balance). No payment needed.', 'ఈ అప్పు పూర్తిగా చెల్లించబడింది (బాకీ ₹0). చెల్లించాల్సిన అవసరం లేదు.'), 'warn');
+      return;
+    }
+    if (numAmt > curDue) {
+      toast(tr('Payment amount (' + inr(numAmt) + ') cannot exceed outstanding loan balance (' + inr(curDue) + ').', 'చెల్లింపు మొత్తం (' + inr(numAmt) + ') మిగిలిన బాకీ (' + inr(curDue) + ') కంటే ఎక్కువ ఉండకూడదు.'), 'warn');
+      return;
+    }
+  }
+  clientPayCustomAmt = numAmt;
   clientPayStep = 'scan_pay';
   draw();
 }
@@ -9603,8 +9667,23 @@ function resolveBugReport(bugId, status, notes){
 function lodgeClientPayment(midVal, amtVal, utrVal, photoVal){
   const mActive = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
   const activeMid = midVal || (mActive && mActive.id) || clientMid || ((me && me.id) || 'guest');
-  const numAmt = Math.max(1, Math.round(Number(amtVal) || 0));
+  const numAmt = Math.round(Number(amtVal) || 0);
+  if (numAmt <= 0) {
+    toast(tr('Invalid payment amount. Amount must be greater than zero.', 'చెల్లింపు మొత్తం ₹0 కంటే ఎక్కువ ఉండాలి.'), 'warn');
+    return;
+  }
   const member = mActive || M.find(x => x.id === activeMid || x.phone === activeMid) || {};
+  if (member && member.id) {
+    const curDue = Math.max(0, st(member).due);
+    if (curDue <= 0) {
+      toast(tr('This loan is already fully cleared (₹0 due balance). No payment needed.', 'ఈ అప్పు పూర్తిగా చెల్లించబడింది (బాకీ ₹0). చెల్లించాల్సిన అవసరం లేదు.'), 'warn');
+      return;
+    }
+    if (numAmt > curDue) {
+      toast(tr('Payment amount (' + inr(numAmt) + ') cannot exceed outstanding loan balance (' + inr(curDue) + ').', 'చెల్లింపు మొత్తం (' + inr(numAmt) + ') మిగిలిన బాకీ (' + inr(curDue) + ') కంటే ఎక్కువ ఉండకూడదు.'), 'warn');
+      return;
+    }
+  }
   const utr = str(utrVal, 30).trim() || ('UPI' + Date.now().toString().slice(-8));
   const receiptProofId = 'cr_' + Date.now();
 
@@ -9689,6 +9768,17 @@ async function adminVerifyClientPayment(proofId){
   if(!p) return;
 
   const m = M.find(x => x.id === p.mid) || {};
+  if (m && m.id) {
+    const curDue = Math.max(0, st(m).due);
+    if (curDue <= 0) {
+      toast(tr('This borrower already has ₹0 balance due. Cannot approve payment.', 'ఈ ఖాతాదారునికి ఎలాంటి బాకీ లేదు (₹0). చెల్లింపు ఆమోదించలేరు.'), 'warn');
+      return;
+    }
+    if (p.amt > curDue) {
+      toast(tr('Payment amount (' + inr(p.amt) + ') exceeds outstanding balance (' + inr(curDue) + '). Unjustice overpayment prevented.', 'చెల్లింపు మొత్తం (' + inr(p.amt) + ') బాకీ (' + inr(curDue) + ') కంటే ఎక్కువ ఉంది. బాకీ కంటే ఎక్కువ ఆమోదించలేరు.'), 'warn');
+      return;
+    }
+  }
   const recId = 'GF-' + Math.random().toString(36).slice(2, 10).toUpperCase();
 
   // Create official ledger payment in txns
@@ -10235,7 +10325,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v115</span>
+            <span class="v18-pill">v116</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10246,7 +10336,7 @@ function renderClientDashboard(){
       <div class="acts">
         ${m ? `<span class="chip" style="font-weight:700;color:var(--ok)">${esc(m.name)} (${esc(vl(m.village))})</span>` : ''}
         ${(m && (owner || !me || !me.email || me.id === 'public-verify')) ? `<button class="sm" onclick="clearClientMember()" style="border-radius:10px;font-size:11.5px">${tr('Switch Account','ఖాతా మార్చు')}</button>` : ''}
-        ${(owner || (me && me.role === 'admin')) ? `<button class="sm p" onclick="setRole('a')" style="border-radius:10px;font-size:11.5px">${tr('Back to Admin','అడ్మిన్ డాష్‌బోర్డ్')}</button>` : ''}
+        <button class="sm p" onclick="setRole('a');draw();" style="border-radius:10px;font-size:11.5px;font-weight:700">${tr('Admin Login','అడ్మిన్ లాగిన్')}</button>
         ${langBtn()}
         ${themeBtn()}
         ${cmdBtn()}
@@ -10267,13 +10357,19 @@ function renderClientDashboard(){
         ${tr('Enter your 10-digit registered mobile number to access your active loans, repayment schedule, and download receipts securely.', 'మీ అప్పు వివరాలు, రసీదులు మరియు చెల్లింపులు చూడటానికి మీ 10 అంకెల రిజిస్టర్డ్ ఫోన్ నంబర్ నమోదు చేయండి.')}
       </p>
 
-      <form onsubmit="event.preventDefault();const pInp=document.getElementById('clientPhoneLogin');if(pInp){const raw=pInp.value.replace(/\\D/g,'');if(raw.length!==10){toast(tr('Please enter a valid 10-digit mobile number','దయచేసి 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి'),'warn');return;}const match=M.find(x=>!x.archived&&x.phone&&cleanPh(x.phone).endsWith(raw));if(match){selectClientMember(match.id);playChime();toast(tr('Welcome, '+match.name+' ✓','స్వాగతం, '+match.name+' ✓'));}else{toast(tr('No active account found for mobile: '+raw+'. Contact Admin (9398011913).','ఈ నంబర్‌తో ఖాతా లేదు. అడ్మిన్ (9398011913) ని సంప్రదించండి.'),'warn');}}" style="margin-bottom:14px">
+      <form onsubmit="event.preventDefault();const pInp=document.getElementById('clientPhoneLogin');if(pInp){const raw=pInp.value.replace(/\\D/g,'');if(raw.length!==10){toast(tr('Please enter a valid 10-digit mobile number','దయచేసి 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి'),'warn');return;}if(raw==='9398011913'||raw.endsWith('9398011913')){toast(tr('Welcome Admin Durga Sravan! Redirecting to Management Login...','స్వాగతం అడ్మిన్ దుర్గా శ్రావణ్! అడ్మిన్ లాగిన్‌కి వెళ్తున్నారు...'));setRole('a');draw();return;}const match=M.find(x=>!x.archived&&x.phone&&cleanPh(x.phone).endsWith(raw));if(match){selectClientMember(match.id);playChime();toast(tr('Welcome, '+match.name+' ✓','స్వాగతం, '+match.name+' ✓'));}else{toast(tr('No active account found for mobile: '+raw+'. Contact Admin (9398011913).','ఈ నంబర్‌తో ఖాతా లేదు. అడ్మిన్ (9398011913) ని సంప్రదించండి.'),'warn');}}" style="margin-bottom:14px">
         <div style="margin-bottom:14px">
           <input id="clientPhoneLogin" type="tel" maxlength="10" inputmode="numeric" placeholder="${tr('Enter 10-Digit Mobile Number...','10 అంకెల మొబైల్ నంబర్...')}" autofocus style="width:100%;padding:13px 16px;font-size:16px;border-radius:12px;border:2px solid var(--p);background:var(--s);color:var(--t);font-weight:700;letter-spacing:0.05em;text-align:center;box-sizing:border-box">
         </div>
-        <button type="submit" class="p" style="width:100%;padding:12px;font-size:14px;font-weight:800;border-radius:10px">${tr('Access My Account →','నా ఖాతాలోకి ప్రవేశించు →')}</button>
+        <button type="submit" class="p" style="width:100%;padding:13px;font-size:15px;font-weight:800;border-radius:12px">${tr('Access My Account →','నా ఖాతాలోకి ప్రవేశించు →')}</button>
       </form>
-      <div class="m" style="font-size:11.5px;margin-top:12px">
+      <!-- Prominent Staff & Admin Passkey Login Button -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--b)">
+        <button type="button" class="sm p" onclick="setRole('a');draw();" style="width:100%;padding:11px 16px;font-weight:800;font-size:13.5px;border-radius:12px;background:linear-gradient(135deg,var(--p),#4338ca);color:#fff">
+          ${tr('Staff & Admin Login (నిర్వాహకుల లాగిన్) →', 'Staff & Admin Login (నిర్వాహకుల లాగిన్) →')}
+        </button>
+      </div>
+      <div class="m" style="font-size:11.5px;margin-top:14px">
         ${tr('Need help? Contact Admin Durga Sravan: ','సహాయం కోసం అడ్మిన్ దుర్గా శ్రావణ్ గారిని సంప్రదించండి: ')}<a href="tel:9398011913" style="color:var(--p);font-weight:700">9398011913</a>
       </div>
     </div>`;
@@ -13217,7 +13313,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v115</span>
+          <span class="v18-pill">v116</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
