@@ -165,9 +165,9 @@ module.exports = async (req, res) => {
     // If Client: return items matching borrower's mid, phone, email, or name
     function matchBorrower(x) {
       if (!x) return false;
-      if (mid && (x.mid === mid || (x.phone && x.phone.includes(mid)) || (x.id && x.id.includes(mid)))) return true;
+      if (mid && (x.mid === mid || (x.phone && (x.phone.includes(mid) || mid.includes(x.phone))) || (x.id && x.id.includes(mid)))) return true;
       if (qEmail && (x.email === qEmail || (x.mid && qEmail.includes(x.mid)))) return true;
-      if (qName && x.borrower && x.borrower.toLowerCase() === qName) return true;
+      if (qName && x.borrower && (x.borrower.toLowerCase() === qName || x.borrower.toLowerCase().includes(qName) || qName.includes(x.borrower.toLowerCase()))) return true;
       return false;
     }
 
@@ -318,6 +318,20 @@ module.exports = async (req, res) => {
           day: 1
         });
       }
+      if (item.mid) {
+        const existingMember = await getExistingDoc('members', item.mid);
+        const memberPayload = {
+          ...(existingMember || {}),
+          id: item.mid,
+          name: item.name,
+          email: item.email || (existingMember && existingMember.email) || '',
+          phone: item.phone1,
+          village: item.place,
+          photo: item.photo || (existingMember && existingMember.photo) || '',
+          age: item.age || (existingMember && existingMember.age) || 0
+        };
+        await trySupabaseWrite('members', item.mid, memberPayload);
+      }
       return res.status(200).json({ ok: true, message: 'Personal profile & KYC saved successfully', item });
     }
 
@@ -389,7 +403,21 @@ module.exports = async (req, res) => {
       const idx = serverStore.agreements.findIndex(x => x.id === agrObj.id || x.mid === agrObj.mid);
       if (idx >= 0) serverStore.agreements[idx] = agrObj; else serverStore.agreements.unshift(agrObj);
 
-      await trySupabaseWrite('client_agreements', agrObj.id, agrObj);
+      const notif = {
+        id: 'n_agr_' + Date.now(),
+        type: 'note',
+        mid: mid,
+        mname: agrObj.borrower,
+        text: `Loan Agreement Signed & Executed by ${agrObj.borrower} (SHA-256 Verified)`,
+        ts: Date.now(),
+        read: false
+      };
+      serverStore.notifs.unshift(notif);
+
+      await Promise.all([
+        trySupabaseWrite('client_agreements', agrObj.id, agrObj),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
       return res.status(200).json({ ok: true, message: 'Digital agreement signed & recorded', agreement: agrObj });
     }
 

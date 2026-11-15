@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=99"></script>
+<script src="/runtime.js?v=100"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2149,7 +2149,7 @@ function isTestRecord(x){
   return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
 }
 const who=()=>str(getLoggedInUser().name, 40);
-const cM=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true})).filter(m=>m.name),
+const cM=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true,email:str(d.email||'',80).toLowerCase().trim(),photo:str(d.photo||'',2000000),aadhaar:str(d.aadhaar||'',20)})).filter(m=>m.name),
 cV=a=>a.map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),day:Number.isInteger(d.day)&&d.day>=0&&d.day<=6?d.day:null})).filter(v=>v.name).sort((x,y)=>x.name.localeCompare(y.name)),
 cT=a=>a.filter(d=>OKID.test(d.id)&&OKID.test(String(d.mid))&&(d.type=='pay'||d.type=='loan')&&num(d.amt)>0&&DRE.test(d.d)&&num(d.ts)>0).map(d=>({id:d.id,mid:String(d.mid),type:d.type,amt:num(d.amt),mode:d.mode=='upi'?'upi':'cash',d:d.d,ts:num(d.ts),sent:d.sent===true,past:d.past===true,ent:num(d.entered_at),repay:d.type=='loan'?Math.max(num(d.repay),num(d.amt)):0,inst:Math.max(num(d.inst),0),by:str(d.by,40)})),
 cNT=a=>a.filter(d=>OKID.test(d.id)&&num(d.ts)>0).map(d=>({id:d.id,type:str(d.type,20)||'note',text:str(d.text,250),village:str(d.village,60),mid:str(d.mid,128),mname:str(d.mname,60),by:str(d.by,40)||'Gangaya',requested_by:str(d.requested_by||d.by,40)||'Gangaya',to:str(d.to,40),ts:num(d.ts),read:d.read===true,amt:num(d.amt),repay:num(d.repay),inst:num(d.inst),status:str(d.status,20)||'pending',d:str(d.d,20),time:str(d.time,20),approved_by:str(d.approved_by,40),approved_at:num(d.approved_at)})).sort((x,y)=>y.ts-x.ts),
@@ -2181,7 +2181,7 @@ syncRoleFromUser();
 
 function resolveActiveClientMember(){
   let m = null;
-  const em = String((typeof me !== 'undefined' && me && me.email) || '').toLowerCase().trim();
+  const em = String((typeof me !== 'undefined' && me && me.email) || (typeof user !== 'undefined' && user && user.email) || '').toLowerCase().trim();
 
   // If authenticated user is present, prioritize finding their specific member record by email or ID
   if (em) {
@@ -2191,7 +2191,7 @@ function resolveActiveClientMember(){
     if (!m) {
       m = M.find(x => x.email && x.email.toLowerCase() === em);
     }
-    if (!m && me && me.id) {
+    if (!m && typeof me !== 'undefined' && me && me.id) {
       m = M.find(x => x.id === me.id);
     }
     if (!m) {
@@ -2209,14 +2209,53 @@ function resolveActiveClientMember(){
         m = M.find(x => x.name && x.name.toLowerCase().replace(/\s+/g, '').includes(cleanName.replace(/\s+/g, '')));
       }
     }
+    // Strict isolation: non-Mohanadeep users must never be bound to Mohanadeep
+    if (m && !em.includes('mohanadeep') && !em.includes('suda') && m.name && m.name.toLowerCase().includes('mohanadeep')) {
+      m = null;
+    }
+    // Auto-create borrower member if not found for authenticated client
+    if (!m) {
+      const rawName = em.split('@')[0];
+      const cleanName = rawName.replace(/[0-9_.-]+/g, ' ').trim().replace(/\b\w/g, l => l.toUpperCase()) || 'Customer';
+      const newMid = (typeof me !== 'undefined' && me && me.id) || ('m_' + rawName.replace(/[^a-zA-Z0-9]/g, ''));
+      m = {
+        id: newMid,
+        name: (typeof me !== 'undefined' && me && me.name && me.name !== 'Customer') ? me.name : cleanName,
+        email: em,
+        village: 'Gudivada',
+        phone: '',
+        inst: 0,
+        freq: 1,
+        created: today(),
+        archived: false
+      };
+      M.unshift(m);
+      if (typeof ensureVillagesFromMembers === 'function') ensureVillagesFromMembers();
+      if (db && db.collection) {
+        db.collection('members').doc(m.id).set({ ...m }).catch(() => {});
+      }
+      fetch('/api/client-submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_member',
+          id: m.id,
+          mid: m.id,
+          name: m.name,
+          email: m.email,
+          village: m.village,
+          phone: m.phone
+        })
+      }).catch(() => {});
+    }
   }
 
-  // Fallback to clientMid only if m not found yet AND user is not bound to a different email
+  // Fallback to clientMid only if m not found yet AND user has no email
   if (!m && clientMid && !em) {
     m = M.find(x => x.id === clientMid || x.phone === clientMid);
   }
 
-  if (m && m.id && clientMid !== m.id) {
+  if (m && m.id) {
     clientMid = m.id;
     try { 
       localStorage.setItem('gf_client_mid', m.id);
@@ -2382,8 +2421,12 @@ function onNotifsUpdate(newNT){
     for(const n of newNT){
       if(!knownNotifIds.has(n.id)){
         const isFromAdmin=(n.by&&n.by.toLowerCase().includes('admin'))||n.to==='collector'||(n.by&&n.by.toLowerCase().includes('sravan'));
-        if(role=='a'&&(!isFromAdmin||n.to==='admin'||n.type==='loan'||n.type==='loan_req')){
-          const txt=n.type==='loan_req'?`Loan Approval Request: ${inr(n.amt)} for ${n.mname} from Gangaya`:n.text;
+        if(role=='a'&&(!isFromAdmin||n.to==='admin'||n.type==='loan'||n.type==='loan_req'||n.type==='client_support'||n.type==='client_bug'||n.type==='client_pay')){
+          let txt = n.text;
+          if(n.type==='loan_req') txt = `Loan Approval Request: ${inr(n.amt)} for ${n.mname}`;
+          else if(n.type==='client_support') txt = `Support Message from ${n.mname || 'Customer'}: ${n.text}`;
+          else if(n.type==='client_bug') txt = `Bug Reported by ${n.mname || 'Customer'}: ${n.text}`;
+          else if(n.type==='client_pay') txt = `Payment Proof Lodged by ${n.mname || 'Customer'}: ${inr(n.amt||0)}`;
           toast(txt);playChime();notifyBrowser('Gangaya Finance - Alert',txt);
         }else if(role=='f'&&isFromAdmin){
           const txt=`Instructions from Durga Sravan: ${n.text}`+(n.village?` (${vl(n.village)})`:'');
@@ -2401,17 +2444,27 @@ function allNotifs(){
     const isFromAdmin=(n.by&&(n.by.toLowerCase().includes('admin')||n.by.toLowerCase().includes('sravan')))||n.to==='collector';
     const isLoanReq=(n.type==='loan_req'||n.type==='loan'||Boolean(n.amt&&n.status));
     let title='', desc=n.text||'';
+    let notifType=isLoanReq?'loans':'note';
     if(isLoanReq){
       title=tr(`Loan Request: ${inr(n.amt)} for ${n.mname||'Borrower'}`, `అప్పు అభ్యర్థన: ${n.mname||'రుణగ్రహీత'} కి ${inr(n.amt)}`);
       if(!desc) desc=`${n.mname||''} (${vl(n.village||'')}) · ${tr('Amount','మొత్తం')}: ${inr(n.amt)} → ${tr('To return','తిరిగి')}: ${inr(n.repay)}`;
+    }else if(n.type==='client_support'){
+      title=tr('Customer Support: ' + (n.mname||'Borrower'), 'కస్టమర్ సపోర్ట్: ' + (n.mname||'రుణగ్రహీత'));
+      notifType='support';
+    }else if(n.type==='client_bug'){
+      title=tr('Bug Report: ' + (n.mname||'Borrower'), 'సాంకేతిక సమస్య: ' + (n.mname||'రుణగ్రహీత'));
+      notifType='bugs';
+    }else if(n.type==='client_pay'){
+      title=tr('Payment Proof: ' + (n.mname||'Borrower') + ' (' + inr(n.amt||0) + ')', 'చెల్లింపు రసీదు: ' + (n.mname||'రుణగ్రహీత'));
+      notifType='pays';
     }else{
       title=isFromAdmin?tr('Instructions from Durga Sravan','దుర్గా శ్రావణ్ నుండి సూచనలు'):tr('Message from Gangaya','గంగయ్య గారి నుండి సందేశం');
     }
-    const isUnread=(!n.read&&(n.to===(role==='a'?'admin':'collector')||(role==='a'&&isLoanReq)));
+    const isUnread=(!n.read&&(n.to===(role==='a'?'admin':'collector')||(role==='a'&&(isLoanReq||n.type==='client_support'||n.type==='client_bug'||n.type==='client_pay'))));
     list.push({
       id:'n_'+n.id,
       rawId:n.id,
-      type:isLoanReq?'loans':'note',
+      type:notifType,
       isLoanReq,
       status:n.status||'pending',
       title,
@@ -2667,9 +2720,11 @@ async function clearNotifHistory(){
 function notifPanel(){
   if(!notifOpen)return '';
   const all=allNotifs(),list=all.filter(n=>{
-    if(notifFilter=='pays')return n.type=='pay';
+    if(notifFilter=='pays')return n.type=='pay'||n.type=='pays';
     if(notifFilter=='notes')return n.type=='note';
     if(notifFilter=='loans')return n.type=='loans'||n.isLoanReq;
+    if(notifFilter=='support')return n.type=='support';
+    if(notifFilter=='bugs')return n.type=='bugs';
     return true;
   });
   const waitingReceiptCount = T.filter(t => !t.sent && !t.past).length;
@@ -2706,9 +2761,11 @@ function notifPanel(){
       ` : ''}
       <div class="chips" style="margin-bottom:12px">
         <button class="${notifFilter=='all'?'p':''}" onclick="notifFilter='all';draw()">${tr('All','అన్నీ')} (${all.length})</button>
-        <button class="${notifFilter=='pays'?'p':''}" onclick="notifFilter='pays';draw()">${tr('Payments','చెల్లింపులు')} (${all.filter(x=>x.type=='pay').length})</button>
-        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">${tr('Notes & Messages','నోట్స్ & మెసేజ్‌లు')} (${all.filter(x=>x.type=='note').length})</button>
+        <button class="${notifFilter=='support'?'p':''}" onclick="notifFilter='support';draw()">${tr('Support','సపోర్ట్')} (${all.filter(x=>x.type=='support').length})</button>
+        <button class="${notifFilter=='bugs'?'p':''}" onclick="notifFilter='bugs';draw()">${tr('Bugs','బగ్స్')} (${all.filter(x=>x.type=='bugs').length})</button>
+        <button class="${notifFilter=='pays'?'p':''}" onclick="notifFilter='pays';draw()">${tr('Payments','చెల్లింపులు')} (${all.filter(x=>x.type=='pay'||x.type=='pays').length})</button>
         <button class="${notifFilter=='loans'?'p':''}" onclick="notifFilter='loans';draw()">${tr('Loans','అప్పులు')} (${all.filter(x=>x.type=='loans'||x.isLoanReq).length})</button>
+        <button class="${notifFilter=='notes'?'p':''}" onclick="notifFilter='notes';draw()">${tr('Notes','నోట్స్')} (${all.filter(x=>x.type=='note').length})</button>
       </div>
       <div style="max-height:65vh;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
         ${list.map(n=>{
@@ -2721,6 +2778,9 @@ function notifPanel(){
             </div>
             <div class="m" style="font-size:13px">${esc(n.desc)}</div>
             ${n.extra?`<div style="margin-top:6px;padding:6px 8px;background:var(--card);border-radius:6px;font-size:13px">${esc(n.extra)}</div>`:''}
+            ${n.type==='support'?`<div class="acts" style="margin-top:6px;gap:6px"><button class="sm p" onclick="tab='su';closeNotifs();draw();">${tr('Open Customer Support','కస్టమర్ సపోర్ట్ చూడండి')}</button></div>`:''}
+            ${n.type==='bugs'?`<div class="acts" style="margin-top:6px;gap:6px"><button class="sm p" onclick="tab='bg';closeNotifs();draw();">${tr('Open Bug Report','బగ్ రిపోర్ట్ చూడండి')}</button></div>`:''}
+            ${n.type==='pays'&&n.rawId?`<div class="acts" style="margin-top:6px;gap:6px"><button class="sm p" onclick="openReceipt('${n.rawId}');closeNotifs();">${tr('View Receipt','రసీదు చూడండి')}</button></div>`:''}
             ${n.isLoanReq && n.status === 'pending' && role === 'a' ? `
               <div class="acts" style="margin-top:8px;gap:6px">
                 <button class="sm p" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700" onclick="approveLoanReq('${n.rawId}');closeNotifs();draw()">✓ ${tr('Approve & Sanction','ఆమోదించు')}</button>
@@ -7085,9 +7145,16 @@ function submitClientReceiptProof(ev){
   NT.unshift(payNotif);
   try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
 
-  toast(tr('Payment proof submitted! Pending Admin verification ✓', 'చెల్లింపు రుజువు సమర్పించబడింది! అడ్మిన్ పరిశీలనలో ఉంది ✓'));
+  showActionAlert(
+    tr('Payment Proof Submitted for Verification ✓', 'చెల్లింపు పరిశీలనకు పంపబడింది ✓'),
+    tr(`Your payment proof of ${inr(amt)} (UTR: ${utr}) has been saved in the cloud ledger and sent to Durga Sravan (Admin) for verification.`, `మీ ${inr(amt)} చెల్లింపు రసీదు (UTR: ${utr}) క్లౌడ్ లెడ్జర్‌లో భద్రపరచబడింది మరియు అడ్మిన్ గారి పరిశీలనకు పంపబడింది.`),
+    'UTR: ' + utr + ' • ' + inr(amt)
+  );
+  playChime();
+  toast(tr('Payment proof submitted for Admin verification ✓', 'చెల్లింపు రసీదు పరిశీలనకు పంపబడింది ✓'));
   f.reset();
   draw();
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
 
   if(db && db.collection){
     db.collection('client_receipts').doc(newReceipt.id).set(newReceipt).catch(e => console.warn('Sync note:', e));
@@ -7185,11 +7252,13 @@ function submitClientSupportMsg(ev){
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 
+  playChime();
   showActionAlert(
-    tr('Message Sent to Admin ✓', 'సందేశం నిర్వాహకులకు పంపబడింది ✓'),
-    tr('Your support inquiry has been successfully sent to Durga Sravan (Admin). We will assist you shortly.', 'మీ సందేశం దుర్గా శ్రావణ్ (అడ్మిన్) గారికి చేరింది. మేము త్వరలోనే స్పందిస్తాము.'),
+    tr('Message Saved & Delivered to Admin ✓', 'సందేశం భద్రపరచబడింది & అడ్మిన్‌కు చేరింది ✓'),
+    tr('Your customer support message has been securely saved to the ledger and delivered to Durga Sravan (Admin). We will assist you promptly.', 'మీ సందేశం రికార్డుల్లో భద్రపరచబడింది మరియు దుర్గా శ్రావణ్ గారికి చేరింది. మేము త్వరలోనే స్పందిస్తాము.'),
     tr('Topic: ', 'విషయం: ') + topic + ' • ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
+  toast(tr('Support message saved and sent to Admin ✓', 'సందేశం భద్రపరచబడింది మరియు అడ్మిన్‌కి పంపబడింది ✓'));
   f.reset();
   draw();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
@@ -7244,7 +7313,11 @@ function buildAgreementDocumentHtml(mid, isAdminCopy) {
   }
   agr = agr || {};
 
-  const photoSrc = (agr && agr.selfie_photo) || (prof && prof.photo) || (m && m.photo) || '';
+  let photoSrc = (agr && agr.selfie_photo) || (prof && prof.photo) || (m && m.photo) || '';
+  if (!photoSrc) {
+    const cpMatch = CP.find(x => (m.email && x.email === m.email) || (m.phone && (x.phone1 === m.phone || x.phone === m.phone)));
+    if (cpMatch && cpMatch.photo) photoSrc = cpMatch.photo;
+  }
   const borrowerName = esc((agr && agr.signed_name) || (prof && prof.name) || (m && m.name) || ((me && me.name && me.name !== 'Customer') ? me.name : 'Borrower'));
   const borrowerVillage = (typeof vl === 'function' && m.village) ? esc(vl(m.village)) : esc(m.village || prof.place || 'Guntur Dist, Andhra Pradesh');
   const borrowerPhone = esc(m.phone || prof.phone1 || prof.phone || 'N/A');
@@ -7252,9 +7325,12 @@ function buildAgreementDocumentHtml(mid, isAdminCopy) {
   const borrowerEmail = esc(prof.email || m.email || (typeof me !== 'undefined' && me && me.email) || 'N/A');
   const borrowerAge = esc(prof.age || m.age || '32');
   
-  const loanAmt = m.amt || 10000;
-  const repayAmt = m.repay || Math.round(loanAmt * 1.10);
-  const instAmt = m.inst || (m.freq === 1 ? Math.round(repayAmt / 100) : Math.round(repayAmt / 15));
+  const memberLoans = T.filter(t => (t.mid === resolvedMid || (m.id && t.mid === m.id)) && t.type === 'loan').sort((a,b) => b.ts - a.ts);
+  const lastLoan = memberLoans[0];
+  const loanReq = LR.find(r => r.mid === resolvedMid || (m.id && r.mid === m.id) || (m.name && r.mname === m.name));
+  const loanAmt = (lastLoan && lastLoan.amt) || (loanReq && loanReq.amt) || m.amt || 10000;
+  const repayAmt = (lastLoan && lastLoan.repay) || (loanReq && loanReq.repay) || m.repay || Math.round(loanAmt * 1.10);
+  const instAmt = (lastLoan && (lastLoan.inst || m.inst)) || (loanReq && loanReq.inst) || m.inst || (m.freq === 1 ? Math.round(repayAmt / 100) : Math.round(repayAmt / 15));
   const inrLoan = (typeof inr === 'function') ? inr(loanAmt) : ('Rs. ' + loanAmt);
   const inrRepay = (typeof inr === 'function') ? inr(repayAmt) : ('Rs. ' + repayAmt);
   const inrInst = (typeof inr === 'function') ? inr(instAmt) : ('Rs. ' + instAmt);
@@ -7407,8 +7483,10 @@ function buildAgreementDocumentHtml(mid, isAdminCopy) {
   return doc;
 }
 
-function downloadAgreementPdf(){
-  const docHtml = buildAgreementDocumentHtml(clientMid, false);
+function downloadAgreementPdf(mid){
+  const m = (typeof resolveActiveClientMember === 'function') ? resolveActiveClientMember() : null;
+  const targetMid = mid || (m && m.id) || clientMid;
+  const docHtml = buildAgreementDocumentHtml(targetMid, false);
   const printWin = window.open('', '_blank');
   if (!printWin) {
     toast(tr('Please allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn');
@@ -7766,13 +7844,15 @@ function submitClientBugReport(ev){
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 
+  playChime();
   showActionAlert(
     tr('Bug Reported Successfully ✓', 'సాంకేతిక సమస్య నివేదించబడింది ✓'),
-    tr('Your bug report and diagnostics have been sent to Durga Sravan (Admin). Our engineering team will review and resolve it.', 'మీ సమస్య వివరాలు మరియు సిస్టమ్ రిపోర్ట్ అడ్మిన్ గారికి చేరింది. త్వరలోనే పరిశీలించి పరిష్కరిస్తాము.'),
+    tr('Your technical bug report, diagnostics, and screenshot have been saved and sent to Durga Sravan (Admin). Our engineering team will review and resolve it promptly.', 'మీ సమస్య వివరాలు మరియు సిస్టమ్ రిపోర్ట్ అడ్మిన్ గారికి చేరింది. త్వరలోనే పరిశీలించి పరిష్కరిస్తాము.'),
     tr('Ref ID: ', 'రిఫరెన్స్: ') + bugId + ' • ' + cat
   );
+  toast(tr('Bug report logged & sent to technical team ✓', 'బగ్ రిపోర్ట్ పంపబడింది ✓'));
   f.reset();
-  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
   draw();
 }
 
@@ -8070,11 +8150,25 @@ async function saveClientPersonalDetails(ev){
   const idx = CP.findIndex(x => x.id === profObj.id || x.mid === clientMid);
   if(idx >= 0) CP[idx] = profObj; else CP.unshift(profObj);
 
+  if (place && !V.some(v => v.name.toLowerCase() === place.toLowerCase())) {
+    const newV = { name: place, te: place, day: (V.length % 7) };
+    if (db && db.collection) {
+      db.collection('villages').add(newV).then(res => {
+        if (res && res.id) newV.id = res.id;
+        V.push(newV);
+      }).catch(()=>{});
+    }
+  }
+
+  playChime();
   showActionAlert(
     tr('Profile Saved Successfully ✓', 'వ్యక్తిగత వివరాలు భద్రపరచబడ్డాయి ✓'),
-    tr('Your KYC profile, contact numbers, and photo have been securely updated in the cloud ledger.', 'మీ ప్రొఫైల్ వివరాలు మరియు ఫోటో క్లౌడ్ లెడ్జర్‌లో భద్రపరచబడ్డాయి.'),
+    tr('Your KYC profile, contact numbers, place/village, and photo have been securely updated and synced in the cloud ledger.', 'మీ ప్రొఫైల్ వివరాలు, ఫోన్ నంబర్లు, ఊరు మరియు ఫోటో క్లౌడ్ లెడ్జర్‌లో భద్రపరచబడ్డాయి.'),
     tr('Name: ', 'పేరు: ') + name + ' • ' + (place || 'Guntur')
   );
+  toast(tr('Profile & KYC details saved ✓', 'ప్రొఫైల్ వివరాలు భద్రపరచబడ్డాయి ✓'));
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
+  draw();
 }
 
 /* -------------------------------------------------------------
@@ -8410,7 +8504,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v99</span>
+            <span class="v18-pill">v100</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10124,7 +10218,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v99</span>
+          <span class="v18-pill">v100</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -10250,18 +10344,21 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       }
     }
 
+    let _initialServerSyncDone = false;
     async function syncServerSubmissions(){
       try {
         const userEmail = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
         const isAdm = (role === 'a' || role === 'all' || owner || passkeyUnlocked || userEmail === 'durgasravan21@gmail.com' || userEmail.includes('durgasravan') || ((me && me.role) === 'admin'));
         let activeMid = clientMid;
-        if (!activeMid && typeof resolveActiveClientMember === 'function') {
-          const actM = resolveActiveClientMember();
-          if (actM) activeMid = actM.id;
+        let actM = null;
+        if (typeof resolveActiveClientMember === 'function') {
+          actM = resolveActiveClientMember();
+          if (actM && actM.id) activeMid = actM.id;
         }
         const mid = isAdm ? '' : (activeMid || (me && me.mid) || '');
         const qEmail = (typeof me !== 'undefined' && me && me.email) ? encodeURIComponent(me.email) : '';
-        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid) + (qEmail ? '&email=' + qEmail : ''));
+        const qName = (actM && actM.name) ? encodeURIComponent(actM.name) : '';
+        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid) + (qEmail ? '&email=' + qEmail : '') + (qName ? '&name=' + qName : ''));
         const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
         if (!res.ok) return;
         const d = await res.json();
@@ -10284,8 +10381,26 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (isTestRecord(item)) continue;
             const idx = CS.findIndex(x => x.id === item.id);
             if (idx >= 0) {
-              if (JSON.stringify(CS[idx]) !== JSON.stringify(item)) { CS[idx] = item; changed = true; }
+              const prev = CS[idx];
+              if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                if (_initialServerSyncDone && !isAdm && !prev.reply && item.reply) {
+                  playChime();
+                  notifyBrowser('Gangaya Finance', tr('Admin replied: ' + item.reply, 'అడ్మిన్ నుండి సమాధానం: ' + item.reply));
+                  showActionAlert(
+                    tr('Admin Replied to Your Message ✓', 'అడ్మిన్ నుండి సమాధానం వచ్చింది ✓'),
+                    item.reply,
+                    tr('Topic: ', 'విషయం: ') + (item.topic || 'Support')
+                  );
+                  toast(tr('New reply received from Admin ✓', 'అడ్మిన్ నుండి సమాధానం వచ్చింది ✓'));
+                }
+                CS[idx] = item; changed = true;
+              }
             } else {
+              if (_initialServerSyncDone && isAdm) {
+                playChime();
+                notifyBrowser('Gangaya Finance', tr('New Customer Support message from ' + (item.borrower||'Customer'), (item.borrower||'ఖాతాదారుడు') + ' నుండి సందేశం: ' + (item.msg||'')));
+                toast(tr('New Support message from ' + (item.borrower||'Customer') + ' ✓', (item.borrower||'ఖాతాదారుడు') + ' నుండి కొత్త సందేశం ✓'));
+              }
               CS.unshift(item); changed = true;
             }
           }
@@ -10297,8 +10412,26 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (isTestRecord(item)) continue;
             const idx = CB.findIndex(x => x.id === item.id);
             if (idx >= 0) {
-              if (JSON.stringify(CB[idx]) !== JSON.stringify(item)) { CB[idx] = item; changed = true; }
+              const prev = CB[idx];
+              if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                if (_initialServerSyncDone && !isAdm && prev.status !== item.status) {
+                  playChime();
+                  notifyBrowser('Gangaya Finance', tr('Bug Report Update: Status is ' + item.status, 'బగ్ రిపోర్ట్ అప్‌డేట్: ' + item.status));
+                  showActionAlert(
+                    tr('Bug Report Status Updated ✓', 'సాంకేతిక సమస్య స్థితి మారింది ✓'),
+                    tr('Status: ', 'స్థితి: ') + item.status.toUpperCase() + (item.resolution_notes ? ' • ' + item.resolution_notes : ''),
+                    'Ref: ' + item.id + ' • ' + (item.category || 'Issue')
+                  );
+                  toast(tr('Bug report status updated: ' + item.status + ' ✓', 'బగ్ రిపోర్ట్ అప్‌డేట్ చేయబడింది: ' + item.status + ' ✓'));
+                }
+                CB[idx] = item; changed = true;
+              }
             } else {
+              if (_initialServerSyncDone && isAdm) {
+                playChime();
+                notifyBrowser('Gangaya Finance', tr('New Bug reported by ' + (item.borrower||'Customer'), (item.borrower||'ఖాతాదారుడు') + ' నుండి బగ్ రిపోర్ట్: ' + (item.category||'')));
+                toast(tr('New Bug reported by ' + (item.borrower||'Customer') + ' ✓', (item.borrower||'ఖాతాదారుడు') + ' నుండి బగ్ రిపోర్ట్ ✓'));
+              }
               CB.unshift(item); changed = true;
             }
           }
@@ -10323,8 +10456,26 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (isTestRecord(item)) continue;
             const idx = CR.findIndex(x => x.id === item.id);
             if (idx >= 0) {
-              if (JSON.stringify(CR[idx]) !== JSON.stringify(item)) { CR[idx] = item; changed = true; }
+              const prev = CR[idx];
+              if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                if (_initialServerSyncDone && !isAdm && prev.status !== item.status && (item.status === 'verified' || item.status === 'credited')) {
+                  playChime();
+                  notifyBrowser('Gangaya Finance', tr('Payment Verified: ₹' + item.amt, 'చెల్లింపు ధృవీకరించబడింది: ₹' + item.amt));
+                  showActionAlert(
+                    tr('Payment Verified & Credited ✓', 'చెల్లింపు ధృవీకరించబడింది ✓'),
+                    tr('Your payment proof of ₹' + item.amt + ' (UTR: ' + item.utr + ') has been verified and credited to your ledger by Admin.', 'మీ చెల్లింపు రసీదు ధృవీకరించబడింది మరియు ఖాతాలో జమ చేయబడింది.'),
+                    'UTR: ' + item.utr
+                  );
+                  toast(tr('Payment of ₹' + item.amt + ' verified & credited ✓', 'చెల్లింపు ధృవీకరించబడింది ✓'));
+                }
+                CR[idx] = item; changed = true;
+              }
             } else {
+              if (_initialServerSyncDone && isAdm) {
+                playChime();
+                notifyBrowser('Gangaya Finance', tr('Payment proof lodged by ' + (item.borrower||'Customer'), (item.borrower||'ఖాతాదారుడు') + ' నుండి ₹' + item.amt + ' చెల్లింపు రసీదు'));
+                toast(tr('Payment proof lodged by ' + (item.borrower||'Customer') + ' (₹' + item.amt + ') ✓', (item.borrower||'ఖాతాదారుడు') + ' నుండి చెల్లింపు రసీదు ✓'));
+              }
               CR.unshift(item); changed = true;
             }
           }
@@ -10349,8 +10500,26 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (isTestRecord(item)) continue;
             const idx = LR.findIndex(x => x.id === item.id);
             if (idx >= 0) {
-              if (JSON.stringify(LR[idx]) !== JSON.stringify(item)) { LR[idx] = item; changed = true; }
+              const prev = LR[idx];
+              if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                if (_initialServerSyncDone && !isAdm && prev.status !== item.status) {
+                  playChime();
+                  notifyBrowser('Gangaya Finance', tr('Loan Application: ' + item.status.toUpperCase(), 'అప్పు దరఖాస్తు: ' + item.status));
+                  showActionAlert(
+                    tr('Loan Application ' + item.status.toUpperCase() + ' ✓', 'అప్పు దరఖాస్తు: ' + item.status + ' ✓'),
+                    tr('Your loan application of ₹' + item.amt + ' has been ' + item.status + ' by Admin.', 'మీ ₹' + item.amt + ' అప్పు దరఖాస్తు ' + item.status + ' చేయబడింది.'),
+                    'Ref: ' + item.id
+                  );
+                  toast(tr('Loan application: ' + item.status + ' ✓', 'అప్పు దరఖాస్తు: ' + item.status + ' ✓'));
+                }
+                LR[idx] = item; changed = true;
+              }
             } else {
+              if (_initialServerSyncDone && isAdm && item.status === 'pending') {
+                playChime();
+                notifyBrowser('Gangaya Finance', tr('New loan application from ' + (item.mname||'Customer'), (item.mname||'ఖాతాదారుడు') + ' నుండి కొత్త అప్పు దరఖాస్తు'));
+                toast(tr('New Loan application from ' + (item.mname||'Customer') + ' (₹' + item.amt + ') ✓', (item.mname||'ఖాతాదారుడు') + ' నుండి కొత్త అప్పు దరఖాస్తు ✓'));
+              }
               LR.unshift(item); changed = true;
             }
           }
@@ -10365,6 +10534,8 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
           }
         }
 
+        _initialServerSyncDone = true;
+
         if (changed) {
           try {
             localStorage.setItem('gf_client_support', JSON.stringify(CS));
@@ -10378,7 +10549,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       } catch (_) {}
     }
     window.syncServerSubmissions = syncServerSubmissions;
-    setInterval(syncServerSubmissions, 8000);
+    setInterval(syncServerSubmissions, 4500);
 
     user = await claude.use('user');
     if(user){
@@ -10401,5 +10572,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=91').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=100').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
