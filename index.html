@@ -1549,7 +1549,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=105"></script>
+<script src="/runtime.js?v=106"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -5362,16 +5362,9 @@ async function deleteMemberPermanently(id){
     tr(`Customer ${name} and all associated records have been completely purged from your database and local ledger.`, `${name} మరియు వారి రికార్డులు విజయవంతంగా తొలగించబడ్డాయి.`),
     tr('Status: Purged from Database', 'స్థితి: డేటాబేస్ నుండి పూర్తిగా తొలగించబడింది')
   );
+  logAdminAction('member_purged', 'Permanently deleted member ' + name);
   toast(tr(name + ' permanently deleted from ledger ✓', name + ' శాశ్వతంగా తొలగించబడింది ✓'));
   draw();
-}
-
-      logAdminAction('member_purged', 'Permanently deleted member ' + name);
-      playChime();
-      toast(tr('Customer ' + name + ' permanently deleted ✓', name + ' శాశ్వతంగా తొలగించబడింది ✓'));
-      draw();
-    }
-  );
 }
 function restoreM(id){if(!owner)return;const m=M.find(x=>x.id==id);ask('Restore '+(m?m.name:'this member')+' back to active? They and their records will reappear in active Ledger and Collect.','Restore',()=>w(async()=>{await db.doc('members/'+id).update({archived:false});logAdminAction('member_restored','Restored member '+(m?m.name:id));toast((m?m.name:'Member')+' restored to active')}))}
 function archivedTab(){
@@ -8936,7 +8929,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v105</span>
+            <span class="v18-pill">v106</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -11323,7 +11316,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v105</span>
+          <span class="v18-pill">v106</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
