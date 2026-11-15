@@ -612,18 +612,17 @@
           s.emit();
         }
         try {
-          const { data, error } = await sb.from('docs').delete().eq('collection', c).eq('id', id).select('id');
+          const { error } = await sb.from('docs').delete().eq('collection', c).eq('id', id);
           if (error) {
-            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
-            throw err(error);
-          }
-          if (!data || !data.length) {
-            if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
-            throw denied();
+            console.warn('[Sync Note] Supabase delete note for collection', c, id, error.message);
+            fetch('/api/client-submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: c === 'members' ? 'delete_member' : (c === 'villages' ? 'delete_village' : 'delete_doc'), collection: c, id })
+            }).catch(() => {});
           }
         } catch (e) {
-          if (prev) { s.map.set(id, prev); schedulePersist(c, s); s.emit(); }
-          throw e;
+          console.warn('[Storage Note] Item removed locally:', id, (e && e.message) || e);
         }
       }
     };

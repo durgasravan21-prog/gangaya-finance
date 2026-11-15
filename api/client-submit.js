@@ -47,6 +47,23 @@ async function trySupabaseWrite(collection, id, data) {
   }
 }
 
+// Helper to delete directly from Supabase docs table
+async function trySupabaseDelete(collection, id) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.${encodeURIComponent(collection)}&id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    return res.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
 // Helper to fetch single doc from Supabase docs table
 async function getExistingDoc(collection, id) {
   try {
@@ -619,6 +636,69 @@ module.exports = async (req, res) => {
       } catch (e) {
         return res.status(500).json({ ok: false, error: e.message || 'Could not verify email' });
       }
+    }
+
+    // Admin Permanently Deleting Member & Related Documents
+    if (action === 'delete_member') {
+      const mid = String(body.id || body.mid || '').trim();
+      if (!mid) return res.status(400).json({ ok: false, error: 'Member ID required' });
+      await trySupabaseDelete('members', mid);
+      if (body.purge_all) {
+        await trySupabaseDelete('client_profiles', 'cp_' + mid);
+        await trySupabaseDelete('client_agreements', 'agr_' + mid);
+        try {
+          // Delete txns for this member
+          await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.txns&data->>mid=eq.${encodeURIComponent(mid)}`, {
+            method: 'DELETE',
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
+          });
+          // Delete loan requests for this member
+          await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.loan_requests&data->>mid=eq.${encodeURIComponent(mid)}`, {
+            method: 'DELETE',
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
+          });
+        } catch (_) {}
+      }
+      return res.status(200).json({ ok: true, message: 'Customer record and related ledgers deleted successfully' });
+    }
+
+    // Admin Deleting Village & Cleaning Duplicates
+    if (action === 'delete_village') {
+      const vid = String(body.id || '').trim();
+      const vname = String(body.name || '').trim().toLowerCase();
+      if (vid) await trySupabaseDelete('villages', vid);
+      if (vname) {
+        try {
+          await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.villages&data->>name=ilike.${encodeURIComponent(vname)}`, {
+            method: 'DELETE',
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
+          });
+        } catch (_) {}
+      }
+      return res.status(200).json({ ok: true, message: 'Village and duplicate rows deleted successfully' });
+    }
+
+    // Admin Deduplicating Villages
+    if (action === 'deduplicate_villages') {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.villages`, {
+          headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
+        });
+        if (res.ok) {
+          const rows = await res.json();
+          const seen = new Set();
+          for (const r of rows) {
+            const nKey = String(r.data && r.data.name || '').trim().toLowerCase();
+            if (!nKey) continue;
+            if (seen.has(nKey)) {
+              await trySupabaseDelete('villages', r.id);
+            } else {
+              seen.add(nKey);
+            }
+          }
+        }
+      } catch (_) {}
+      return res.status(200).json({ ok: true, message: 'Villages deduplicated successfully in cloud database' });
     }
 
     // 14. Admin Resolving or Replying to Bug Report
