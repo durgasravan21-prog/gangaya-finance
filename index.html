@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=98"></script>
+<script src="/runtime.js?v=99"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1934,7 +1934,7 @@ function msg(t, mem){
     ((typeof loanClosed === 'function' && m.id && loanClosed(m, t)) ? 'మీ అప్పు పూర్తిగా చెల్లించబడింది [పూర్తి]\nమమ్మల్ని ఎంచుకున్నందుకు ధన్యవాదాలు\n' : 'ధన్యవాదాలు\n') + BIZ;
 }
 async function w(fn){try{await fn();draw()}catch(e){const c=e&&e.code;toast(c=='not_granted'||c=='revoked'||c=='capability_disabled'?'You do not have permission to do this.':'Could not save: '+((e&&(e.message||e.code))||'error'))}}
-let mbSub='members', acSub='timeline', colQuery='';
+let mbSub='members', acSub='timeline', colQuery='', mbSearch='', mbVillageFilter='', newVilMode=false, newVilEditMode=false;
 function go(t, sub){
   if(t==='vl'){ tab='mb'; mbSub='villages'; }
   else if(t==='ar'){ tab='mb'; mbSub='archived'; }
@@ -4826,23 +4826,246 @@ async function dl(){
   await sv(d,'gangaya-finance-'+today()+'.xlsx',xlsx([{name:'Receipts',rows:tx},{name:'Members',rows:mm},{name:'Loans',rows:ll}]))}
 async function tl(a,b){const e=$('#'+a),t=$('#'+b),v=e.value.trim();if(!v||t.dataset.m)return;if(/[\u0C00-\u0C7F]/.test(v)){t.value=v;return}
 t.placeholder='…';try{const s=await claude.use('sample');if(!s)return;const r=await s.json('Write this Indian person or village name in Telugu script the way a Telugu speaker would spell it (phonetic transliteration, never a translation). Keep every word and the order. Examples: Ravi=రవి, Sravan=శ్రావణ్, Srinivas=శ్రీనివాస్, Lakshmi=లక్ష్మి, Venkata=వెంకట, Krishna=కృష్ణ, Sridevi=శ్రీదేవి, Challagolla=చల్లగొల్ల, Gudivada=గుడివాడ, Vijayawada=విజయవాడ, Pamarru=పామర్రు. Reply only with JSON {"te":"<telugu>"}. Name: '+v,{modelTier:'standard'});t.value=/[\u0C00-\u0C7F]/.test(r&&r.te)?str(r.te,60):''}catch(e){if(!tlw){tlw=true;toast('Telugu name could not be filled automatically. Type it in the Telugu box.')}}finally{t.placeholder='Telugu name'}}
-function members(){let f='';if(sel&&sel.k=='edit'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>Edit · ${esc(m.name)}</h2><div class="g"><input id="en" value="${esc(m.name)}" placeholder="Name (English)" onblur="if(this.value!==this.defaultValue)tl('en','et')"><input id="et" value="${esc(m.te||'')}" placeholder="Telugu name" oninput="this.dataset.m=1"><input id="ep" value="${esc(m.phone)}" inputmode="tel" placeholder="WhatsApp number"><select id="ev">${V.map(v=>`<option value="${esc(v.name)}" ${v.name==m.village?'selected':''}>${esc(nm(v))}</option>`).join('')}</select>
-<input id="ei" type="number" value="${m.inst||''}" placeholder="Installment ₹"><select id="ef"><option value="7" ${m.freq!=1?'selected':''}>Weekly</option><option value="1" ${m.freq==1?'selected':''}>Daily</option></select></div>
-<p class="acts"><button class="p" onclick="saveEdit()">Save changes</button><button onclick="sel=null;draw()">Cancel</button></p></div>`}else if(sel&&sel.k=='past'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>Past record · ${esc(nm(m))}</h2><p class="m" style="margin:0 0 8px">For old history. No receipt or reminder is sent. It cannot be deleted later, so check the date and amount.</p>
-<div class="g"><select id="pk" onchange="pkind=this.value;draw()"><option value="loan" ${pkind=='loan'?'selected':''}>Loan given</option><option value="pay" ${pkind=='pay'?'selected':''}>Payment received</option><option value="many" ${pkind=='many'?'selected':''}>Several payments (a list)</option></select>
-${pkind=='many'?'':`<input id="pd" type="date" min="1990-01-01" max="${today()}" value="${esc(pdate)}" title="Date of the record"><input id="pa" type="number" inputmode="numeric" placeholder="Amount ₹">`}
-${pkind=='many'?'':pkind=='loan'?'<input id="pr" type="number" placeholder="Total to return ₹"><input id="pi" type="number" placeholder="Installment ₹">':'<select id="pm"><option value="cash">Cash</option><option value="upi">UPI</option></select>'}</div>${pkind=='many'?histSection():''}
-<p class="acts"><button class="p" onclick="savePast()">Save record</button><button onclick="sel=null;draw()">Close</button></p></div>`}else if(sel&&sel.k=='loan'){const m=M.find(x=>x.id==sel.id);f=`<div class="card"><h2>New loan · ${esc(nm(m))}</h2><div class="g"><input id="xg" type="number" placeholder="Loan given ₹"><input id="xr" type="number" placeholder="Total to return ₹"><input id="xi" type="number" placeholder="Installment ₹"></div>
-<p><button class="p" onclick="saveLoan()">Save loan</button> <button onclick="sel=null;draw()">Cancel</button></p></div>`}
-return `${impBanner()}${f}${rvCard()}<div class="card"><h2>Add member</h2><div class="g"><input id="n" placeholder="Name (English)" onblur="tl('n','nt')"><input id="nt" placeholder="Telugu name" oninput="this.dataset.m=1"><input id="p" placeholder="WhatsApp number" inputmode="tel"><select id="v">${V.map(v=>`<option value="${esc(v.name)}">${esc(nm(v))}</option>`).join('')}</select>
-<input id="lg" type="number" placeholder="Loan given ₹"><input id="lr" type="number" placeholder="Total to return ₹"><label class="m">Loan date (blank = today)<input id="ld" type="date" min="1990-01-01" max="${today()}"></label><input id="i" type="number" placeholder="Installment ₹"><select id="f"><option value="7">Weekly</option><option value="1">Daily</option></select></div>
-<label class="opt" style="margin-top:10px"><input type="checkbox" ${exb?'checked':''} onchange="exb=this.checked;draw()"> Existing borrower: already has a running loan and has paid some instalments</label>${exb?histSection():''}
-<p><button class="p" onclick="addM()">${exb?'Save member with history':'Save member'}</button></p></div>
-<div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}<div class="m">${esc(m.te||'— no Telugu name —')}</div></td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="viewBorrowerFullProfile('${m.id}')" style="font-weight:700;color:var(--p)" title="${tr('View KYC Profile & Signed Agreement','KYC ప్రొఫైల్ & ఒప్పందం చూడు')}">KYC</button><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
+function members(){
+  let f='';
+  if(sel&&sel.k=='edit'){
+    const m=M.find(x=>x.id==sel.id);
+    f=`<div class="card" style="border:2px solid var(--p)">
+      <div class="row" style="margin-bottom:8px">
+        <h2 style="margin:0">${tr('Edit Member · ','సభ్యుడిని సవరించు · ')}${esc(m.name)}</h2>
+        <button class="sm" onclick="sel=null;newVilEditMode=false;draw()">✕</button>
+      </div>
+      <div class="g">
+        <input id="en" value="${esc(m.name)}" placeholder="${tr('Name (English)','పేరు (ఇంగ్లీష్)')}" onblur="if(this.value!==this.defaultValue)tl('en','et')">
+        <input id="et" value="${esc(m.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" oninput="this.dataset.m=1">
+        <input id="ep" value="${esc(m.phone)}" inputmode="tel" placeholder="${tr('WhatsApp number','WhatsApp నంబర్')}">
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="ev" style="flex:1" onchange="if(this.value==='__new__'){newVilEditMode=true;draw();}else if(newVilEditMode){newVilEditMode=false;draw();}">
+            ${V.map(v=>`<option value="${esc(v.name)}" ${v.name==m.village&&!newVilEditMode?'selected':''}>${esc(nm(v))} (${v.day!=null?(isTe()?DT[v.day]:DE[v.day]):'-'})</option>`).join('')}
+            <option value="__new__" ${newVilEditMode?'selected':''}>+ ${tr('Add New Village & Assign Day...','కొత్త ఊరు చేర్చి రోజు నిర్ణయించు...')}</option>
+          </select>
+          <button type="button" class="sm" onclick="newVilEditMode=!newVilEditMode;draw()">${newVilEditMode?tr('Cancel','రద్దు'):'+ '+tr('New Village','కొత్త ఊరు')}</button>
+        </div>
+        ${newVilEditMode?`
+        <div style="grid-column:1/-1;background:var(--s);border:1.5px dashed var(--p);border-radius:10px;padding:12px;margin:2px 0 6px">
+          <div style="font-weight:700;font-size:12.5px;color:var(--p);margin-bottom:6px">
+            ${tr('Create New Village with Weekly Collection Day:','కొత్త ఊరు వివరాలు & వసూలు రోజు:')}
+          </div>
+          <div class="g" style="grid-template-columns:1fr 1fr 1.2fr;gap:8px">
+            <input id="new_evn" placeholder="${tr('Village Name (English)','ఊరు పేరు (ఇంగ్లీష్)')}" onblur="tl('new_evn','new_evt')">
+            <input id="new_evt" placeholder="${tr('Telugu Name','తెలుగు పేరు')}">
+            <select id="new_evd" title="${tr('Assign Collection Day','వసూలు రోజు ఎంచుకోండి')}">
+              ${DE.map((d,i)=>`<option value="${i}" ${i===1?'selected':''}>${isTe()?DT[i]:DE[i]} (${DE[i]})</option>`).join('')}
+            </select>
+          </div>
+        </div>`:''}
+        <input id="ei" type="number" value="${m.inst||''}" placeholder="${tr('Installment ₹','వాయిదా ₹')}">
+        <select id="ef">
+          <option value="7" ${m.freq!=1?'selected':''}>${tr('Weekly','వారపు')}</option>
+          <option value="1" ${m.freq==1?'selected':''}>${tr('Daily','రోజువారీ')}</option>
+        </select>
+      </div>
+      <p class="acts" style="margin-top:12px">
+        <button class="p" onclick="saveEdit()">${tr('Save changes ✓','మార్పులు భద్రపరుచు ✓')}</button>
+        <button onclick="sel=null;newVilEditMode=false;draw()">${tr('Cancel','రద్దు')}</button>
+      </p>
+    </div>`;
+  } else if(sel&&sel.k=='past'){
+    const m=M.find(x=>x.id==sel.id);
+    f=`<div class="card"><h2>Past record · ${esc(nm(m))}</h2><p class="m" style="margin:0 0 8px">For old history. No receipt or reminder is sent. It cannot be deleted later, so check the date and amount.</p>
+    <div class="g"><select id="pk" onchange="pkind=this.value;draw()"><option value="loan" ${pkind=='loan'?'selected':''}>Loan given</option><option value="pay" ${pkind=='pay'?'selected':''}>Payment received</option><option value="many" ${pkind=='many'?'selected':''}>Several payments (a list)</option></select>
+    ${pkind=='many'?'':`<input id="pd" type="date" min="1990-01-01" max="${today()}" value="${esc(pdate)}" title="Date of the record"><input id="pa" type="number" inputmode="numeric" placeholder="Amount ₹">`}
+    ${pkind=='many'?'':pkind=='loan'?'<input id="pr" type="number" placeholder="Total to return ₹"><input id="pi" type="number" placeholder="Installment ₹">':'<select id="pm"><option value="cash">Cash</option><option value="upi">UPI</option></select>'}</div>${pkind=='many'?histSection():''}
+    <p class="acts"><button class="p" onclick="savePast()">Save record</button><button onclick="sel=null;draw()">Close</button></p></div>`;
+  } else if(sel&&sel.k=='loan'){
+    const m=M.find(x=>x.id==sel.id);
+    f=`<div class="card"><h2>New loan · ${esc(nm(m))}</h2><div class="g"><input id="xg" type="number" placeholder="Loan given ₹"><input id="xr" type="number" placeholder="Total to return ₹"><input id="xi" type="number" placeholder="Installment ₹"></div>
+    <p><button class="p" onclick="saveLoan()">Save loan</button> <button onclick="sel=null;draw()">Cancel</button></p></div>`;
+  }
+
+  const activeM = M.filter(m => !m.archived);
+  const q = mbSearch.trim().toLowerCase();
+  const filteredM = activeM.filter(m => {
+    if (mbVillageFilter && (m.village || '').toLowerCase() !== mbVillageFilter.toLowerCase()) return false;
+    if (!q) return true;
+    const s = ((m.name||'') + ' ' + (m.te||'') + ' ' + (m.phone||'') + ' ' + (m.village||'')).toLowerCase();
+    return s.includes(q);
+  }).sort((a,b) => nm(a).localeCompare(nm(b)));
+
+  const totDueFiltered = filteredM.reduce((sum, m) => sum + Math.max(0, st(m).due), 0);
+  const activeLoansFiltered = filteredM.reduce((sum, m) => sum + (st(m).due > 0 ? 1 : 0), 0);
+
+  return `${impBanner()}${f}${rvCard()}
+  <div class="card">
+    <div class="row" style="margin-bottom:8px">
+      <h2 style="margin:0">${tr('Add Member','కొత్త సభ్యుడిని చేర్చు')}</h2>
+      <button type="button" class="sm" onclick="newVilMode=!newVilMode;draw()" style="font-weight:700">
+        ${newVilMode ? tr('Use Existing Village', 'ఉన్న ఊరు ఎంచుకోండి') : '+ ' + tr('New Village & Day', 'కొత్త ఊరు & రోజు')}
+      </button>
+    </div>
+    <div class="g">
+      <input id="n" placeholder="${tr('Name (English)*','పేరు (ఇంగ్లీష్)*')}" onblur="tl('n','nt')">
+      <input id="nt" placeholder="${tr('Telugu name','తెలుగు పేరు')}" oninput="this.dataset.m=1">
+      <input id="p" placeholder="${tr('WhatsApp number*','WhatsApp నంబర్*')}" inputmode="tel">
+      <div style="display:flex;gap:6px;align-items:center">
+        <select id="v" style="flex:1" onchange="if(this.value==='__new__'){newVilMode=true;draw();}else if(newVilMode){newVilMode=false;draw();}">
+          <option value="">-- ${tr('Select Village*','ఊరు ఎంచుకోండి*')} --</option>
+          ${V.map(v => `<option value="${esc(v.name)}" ${v.name===mbVillageFilter&&!newVilMode?'selected':''}>${esc(nm(v))} (${v.day!=null?(isTe()?DT[v.day]:DE[v.day]):'-'})</option>`).join('')}
+          <option value="__new__" ${newVilMode?'selected':''}>+ ${tr('Add New Village & Assign Collection Day...','కొత్త ఊరు చేర్చి వసూలు రోజు నిర్ణయించు...')}</option>
+        </select>
+      </div>
+
+      ${newVilMode ? `
+      <div style="grid-column:1/-1;background:var(--s);border:1.5px dashed var(--p);border-radius:10px;padding:12px;margin:2px 0 6px">
+        <div style="font-weight:700;font-size:12.5px;color:var(--p);margin-bottom:6px">
+          ${tr('New Village Details & Weekly Collection Day:','కొత్త ఊరు వివరాలు & వారం వసూలు రోజు:')}
+        </div>
+        <div class="g" style="grid-template-columns:1fr 1fr 1.2fr;gap:8px">
+          <input id="new_vn" placeholder="${tr('Village Name (English)*','ఊరు పేరు (ఇంగ్లీష్)*')}" onblur="tl('new_vn','new_vt')">
+          <input id="new_vt" placeholder="${tr('Telugu Name','తెలుగు పేరు')}">
+          <select id="new_vd" title="${tr('Assign Collection Day','వసూలు రోజు ఎంచుకోండి')}">
+            <option value="">-- ${tr('Assign Collection Day*','వసూలు రోజు ఎంచుకోండి*')} --</option>
+            ${DE.map((d,i) => `<option value="${i}" ${i===(V.length%7)?'selected':''}>${isTe()?DT[i]:DE[i]} (${DE[i]})</option>`).join('')}
+          </select>
+        </div>
+      </div>` : ''}
+
+      <input id="lg" type="number" placeholder="${tr('Loan given ₹','అప్పు ఇచ్చినది ₹')}">
+      <input id="lr" type="number" placeholder="${tr('Total to return ₹','తిరిగి ఇవ్వాల్సినది ₹')}">
+      <label class="m" style="display:flex;flex-direction:column;gap:3px">
+        ${tr('Loan date (blank = today)','అప్పు ఇచ్చిన తేదీ')}
+        <input id="ld" type="date" min="1990-01-01" max="${today()}">
+      </label>
+      <input id="i" type="number" placeholder="${tr('Installment ₹','వాయిదా ₹')}">
+      <select id="f">
+        <option value="7">${tr('Weekly','వారపు')}</option>
+        <option value="1">${tr('Daily','రోజువారీ')}</option>
+      </select>
+    </div>
+    <label class="opt" style="margin-top:10px">
+      <input type="checkbox" ${exb?'checked':''} onchange="exb=this.checked;draw()">
+      ${tr('Existing borrower: already has a running loan and has paid some instalments','ఇప్పటికే నడుస్తున్న అప్పు ఉన్న పాత ఖాతాదారుడు')}
+    </label>
+    ${exb ? histSection() : ''}
+    <p style="margin-top:12px">
+      <button class="p" onclick="addM()">${exb ? tr('Save member with history','చరిత్రతో సభ్యుడిని భద్రపరుచు') : tr('Save member ✓','సభ్యుడిని భద్రపరుచు ✓')}</button>
+    </p>
+  </div>
+
+  <!-- Active Members List with Village Filtering and Search -->
+  <div class="card sc">
+    <div class="row" style="margin-bottom:10px;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h2 style="margin:0">${activeM.length} ${tr('Active Members','యాక్టివ్ సభ్యులు')}</h2>
+        <div class="m" style="font-size:12px">
+          ${filteredM.length !== activeM.length ? `${tr('Showing: ','కనిపిస్తున్నవి: ')}<b>${filteredM.length}</b> · ` : ''}
+          ${tr('Active Loans: ','నడుస్తున్న అప్పులు: ')}<b>${activeLoansFiltered}</b> · 
+          ${tr('Total Due: ','మొత్తం బాకీ: ')}<b style="color:var(--amber)">${inr(totDueFiltered)}</b>
+        </div>
+      </div>
+      <div class="acts">
+        <button class="sm" onclick="go('vl')">${tr('Manage Villages & Days','ఊర్లు & షెడ్యూల్స్')} (${V.length})</button>
+      </div>
+    </div>
+
+    <!-- Search & Village Filter Bar -->
+    <div style="background:var(--s);padding:10px 12px;border-radius:10px;border:1px solid var(--b);margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1.4;min-width:200px">
+        <input id="mbSearch" value="${esc(mbSearch)}" placeholder="${tr('Search by name, Telugu or phone…','పేరు లేదా ఫోన్ నంబర్‌తో వెతకండి…')}" oninput="mbSearch=this.value;draw()" style="width:100%;font-size:13.5px">
+      </div>
+      <div style="flex:1;min-width:180px">
+        <select id="mbVillageFilter" onchange="mbVillageFilter=this.value;draw()" style="width:100%;font-size:13.5px;font-weight:600">
+          <option value="">${tr('All Villages','అన్ని ఊర్లు')} (${activeM.length})</option>
+          ${V.map(v => {
+            const cnt = activeM.filter(x => (x.village||'').toLowerCase() === v.name.toLowerCase()).length;
+            const dStr = v.day != null ? (isTe() ? DT[v.day] : DE[v.day]) : '-';
+            return `<option value="${esc(v.name)}" ${v.name.toLowerCase() === (mbVillageFilter||'').toLowerCase() ? 'selected' : ''}>${esc(nm(v))} (${cnt}) · ${dStr}</option>`;
+          }).join('')}
+        </select>
+      </div>
+      ${(mbSearch || mbVillageFilter) ? `<button class="sm" onclick="mbSearch='';mbVillageFilter='';draw()" style="padding:7px 12px;font-size:12px">${tr('Clear Filters','ఫిల్టర్లు క్లియర్')}</button>` : ''}
+    </div>
+
+    <!-- Members Table -->
+    <table>
+      <thead>
+        <tr>
+          <th>${tr('Member / Phone','సభ్యుడు / ఫోన్')}</th>
+          <th>${tr('Village & Collection Day','ఊరు & వసూలు రోజు')}</th>
+          <th>${tr('Running Due','బాకీ')}</th>
+          <th style="text-align:right">${tr('Actions','చర్యలు')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filteredM.map(m => {
+          const vObj = V.find(x => x.name.toLowerCase() === (m.village||'').toLowerCase());
+          const dName = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : null;
+          const s = st(m);
+          return `<tr>
+            <td>
+              <div style="font-weight:700;font-size:14px;color:var(--t)">${esc(nm(m))}</div>
+              <div class="m" style="font-size:12px">${esc(m.te || '—')} ${m.phone ? '· <a href="tel:'+cleanPh(m.phone)+'" style="color:inherit;text-decoration:none">'+esc(m.phone)+'</a>' : ''}</div>
+            </td>
+            <td>
+              <div style="font-weight:700">${esc(vl(m.village || '—'))}</div>
+              ${dName ? `<span class="chip" style="font-size:10.5px;padding:2px 7px;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.25);font-weight:700;margin-top:2px">${dName}</span>` : `<span class="m" style="font-size:10.5px">${tr('No day assigned','రోజు లేదు')}</span>`}
+            </td>
+            <td>
+              ${s.g > 0 && s.due <= 0 ? `<span class="chip ok" style="font-weight:700;background:#dcfce7;color:#15803d;border-color:#86efac">Closed ✓</span>` : `<b style="font-size:14.5px;color:${s.due > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(Math.max(s.due, 0))}</b>`}
+              ${s.g > 0 ? `<div class="m" style="font-size:11px">${tr('Given: ','అప్పు: ')}${inr(s.g)} · ${m.freq===1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')} ${inr(m.inst||0)}</div>` : ''}
+            </td>
+            <td style="text-align:right">
+              <div class="acts" style="justify-content:flex-end">
+                <button onclick="viewBorrowerFullProfile('${m.id}')" style="font-weight:700;color:var(--p)" title="${tr('View KYC Profile & Signed Agreement','KYC ప్రొఫైల్ & ఒప్పందం చూడు')}">KYC</button>
+                <button onclick="rv='${m.id}';draw();scrollTo(0,0)">${tr('Records','రికార్డులు')}</button>
+                <button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button>
+                <button onclick="sel={id:'${m.id}',k:'edit'};draw()">${tr('Edit','సవరించు')}</button>
+                <button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button>
+                <button class="d" onclick="delM('${m.id}')">${tr('Delete','తొలగించు')}</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('') || `<tr><td colspan="4" class="m" style="text-align:center;padding:24px">${tr('No members found matching the selected filters','ఎంచుకున్న ఫిల్టర్‌కు సభ్యులు ఎవరూ లేరు')}</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+}
 const clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
-function saveEdit(){if(!owner||!sel)return;const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value),v=$('#ev').value,i=num($('#ei').value);
-if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');if(!amtOk(i))return toast('Check the installment');
-const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;sel=null;once(async()=>{await db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq});logAdminAction('member_updated','Updated member '+n+' in '+v);})}
+function saveEdit(){
+  if(!owner||!sel)return;
+  const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value);
+  let v=$('#ev').value;
+  let newVilObj = null;
+  if(v==='__new__'||newVilEditMode){
+    const newVName=($('#new_evn')?.value||'').trim().slice(0,60);
+    const newVTe=($('#new_evt')?.value||'').trim().slice(0,60);
+    const newVDayRaw=$('#new_evd')?.value;
+    if(!newVName)return toast(tr('Enter the new village name','కొత్త ఊరు పేరు నమోదు చేయండి'));
+    const newVDay=(newVDayRaw!==''&&!isNaN(newVDayRaw))?parseInt(newVDayRaw,10):(V.length%7);
+    v=newVName;
+    newVilObj={name:newVName,te:newVTe||newVName,day:newVDay};
+  }
+  const i=num($('#ei').value);
+  if(!n||!v)return toast('Name and village are required');
+  if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');
+  if(!amtOk(i))return toast('Check the installment');
+  const id=sel.id,te=$('#et').value.trim().slice(0,60),fq=+$('#ef').value==1?1:7;
+  sel=null;
+  newVilEditMode=false;
+  once(async()=>{
+    if(newVilObj&&!V.some(x=>x.name.toLowerCase()===newVilObj.name.toLowerCase())){
+      try{
+        const vRes=await db.collection('villages').add(newVilObj);
+        if(vRes&&vRes.id)newVilObj.id=vRes.id;
+        V.push(newVilObj);
+        logAdminAction('village_added',`Added village ${newVilObj.name} with collection day ${DE[newVilObj.day]}`);
+      }catch(_){}
+    }
+    await db.doc('members/'+id).update({name:n,te,phone:p,village:v,inst:i,freq:fq});
+    logAdminAction('member_updated','Updated member '+n+' in '+v);
+    toast(tr('Member updated successfully ✓','సభ్యుడి వివరాలు భద్రపరచబడ్డాయి ✓'));
+  });
+}
 function delM(id){if(!owner)return;const m=M.find(x=>x.id==id),n=T.filter(t=>t.mid==id).length;if(!m)return;
 if(!n)return ask('Delete '+m.name+'? This member has no records.','Delete',()=>w(async()=>{await db.doc('members/'+id).delete();logAdminAction('member_deleted','Deleted member '+m.name);}));
 ask(m.name+' has '+n+' record(s). Move '+m.name+' and all their records to the Archived section? (They will be completely isolated from active Collect, Ledger, and Reports).','Archive',()=>w(async()=>{await db.doc('members/'+id).update({archived:true});logAdminAction('member_archived','Archived member '+m.name);toast(m.name+' moved to Archived')}))}
@@ -4980,13 +5203,48 @@ if(I.ops[0].k=='m'){
 const n=I.ops.filter(o=>o.k=='t'&&o.data.type=='pay').length;imp=null;hp=[];exb=false;clr(['n','nt','p','lg','lr','i','ld','gc','ga','gd','pa','pr','pi']);toast('Saved '+I.name+(I.ops[0].k=='m'?': loan + ':': ')+n+' payment(s)')
 }catch(e){const c=e&&e.code;toast((c=='not_granted'||c=='revoked'?'You do not have permission to do this. ':'Stopped: '+((e&&(e.message||e.code))||'error')+'. ')+'Saved '+I.k+' of '+I.ops.length+'. Tap "Continue saving" to resume; nothing will be saved twice.')}
 finally{busy=false;draw()}}
-function addM(){if(!owner)return;const n=$('#n').value.trim().slice(0,60),p=cleanPh($('#p').value),v=$('#v').value,g=num($('#lg').value),r=num($('#lr').value),i=num($('#i').value),ld=$('#ld').value,pastL=g>0&&DRE.test(ld)&&ld<today()&&ld>='1990-01-01';
-if(!n||!v)return toast('Name and village are required (add a village first)');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');
-if(!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Check the amounts');if(g>0&&r<g)return toast('Total to return must be at least the loan given');if(ld&&(!DRE.test(ld)||ld>today()||ld<'1990-01-01'))return toast('Check the loan date (not in the future)');
-if(M.some(x=>x.phone==p&&x.name.toLowerCase()==n.toLowerCase()))return toast(n+' is already added with this number');
-const m={name:n,te:$('#nt').value.trim().slice(0,60),phone:p,village:v,inst:i,freq:+$('#f').value==1?1:7,created:pastL?ld:today()};
-if(exb)return saveExisting(m,g,r,i,ld);
-once(async()=>{const d=await db.collection('members').add(m);if(g>0)await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});logAdminAction('member_added','Added member '+n+' in '+v);clr(['n','nt','p','lg','lr','i','ld'])})}
+function addM(){
+  if(!owner)return;
+  const n=$('#n').value.trim().slice(0,60),p=cleanPh($('#p').value);
+  let v=($('#v')?$('#v').value:'').trim();
+  let newVilObj = null;
+  if(v==='__new__'||newVilMode){
+    const newVName=($('#new_vn')?.value||'').trim().slice(0,60);
+    const newVTe=($('#new_vt')?.value||'').trim().slice(0,60);
+    const newVDayRaw=$('#new_vd')?.value;
+    if(!newVName)return toast(tr('Enter the new village name','కొత్త ఊరు పేరు నమోదు చేయండి'));
+    const newVDay=(newVDayRaw!==''&&!isNaN(newVDayRaw))?parseInt(newVDayRaw,10):(V.length%7);
+    v=newVName;
+    newVilObj={name:newVName,te:newVTe||newVName,day:newVDay};
+  }
+  const g=num($('#lg').value),r=num($('#lr').value),i=num($('#i').value),ld=$('#ld').value,pastL=g>0&&DRE.test(ld)&&ld<today()&&ld>='1990-01-01';
+  if(!n||!v)return toast(tr('Name and village are required','పేరు మరియు ఊరు నమోదు చేయడం తప్పనిసరి'));
+  if(!okPh(p))return toast(tr('Enter a valid WhatsApp number (10 digits)','సరైన 10 అంకెల WhatsApp నంబర్ నమోదు చేయండి'));
+  if(!amtOk(g)||!amtOk(r)||!amtOk(i))return toast(tr('Check the amounts','మొత్తాలను తనిఖీ చేయండి'));
+  if(g>0&&r<g)return toast(tr('Total to return must be at least the loan given','తిరిగి ఇచ్చే మొత్తం అప్పు కంటే తక్కువ ఉండకూడదు'));
+  if(ld&&(!DRE.test(ld)||ld>today()||ld<'1990-01-01'))return toast(tr('Check the loan date (not in the future)','అప్పు తేదీని తనిఖీ చేయండి'));
+  if(M.some(x=>x.phone==p&&x.name.toLowerCase()==n.toLowerCase()))return toast(n+' is already added with this number');
+  const m={name:n,te:$('#nt').value.trim().slice(0,60),phone:p,village:v,inst:i,freq:+$('#f').value==1?1:7,created:pastL?ld:today()};
+  if(exb)return saveExisting(m,g,r,i,ld);
+  newVilMode=false;
+  once(async()=>{
+    if(newVilObj&&!V.some(x=>x.name.toLowerCase()===newVilObj.name.toLowerCase())){
+      try{
+        const vRes=await db.collection('villages').add(newVilObj);
+        if(vRes&&vRes.id)newVilObj.id=vRes.id;
+        V.push(newVilObj);
+        logAdminAction('village_added',`Added village ${newVilObj.name} with collection day ${DE[newVilObj.day]}`);
+      }catch(_){}
+    }
+    const d=await db.collection('members').add(m);
+    if(g>0){
+      await db.collection('txns').add(pastL?{mid:d.id,type:'loan',amt:g,repay:r,inst:i,d:ld,ts:pts(ld,'loan'),sent:true,past:true,by:who(),entered_at:Date.now()}:{mid:d.id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});
+    }
+    logAdminAction('member_added','Added member '+n+' in '+v);
+    toast(tr('Member added successfully ✓','సభ్యుడు విజయవంతంగా చేర్చబడ్డారు ✓'));
+    clr(['n','nt','p','lg','lr','i','ld','new_vn','new_vt']);
+  });
+}
 function saveLoan(){if(!owner||!sel)return;const g=num($('#xg').value),r=num($('#xr').value),i=num($('#xi').value);
 if(!(g>0&&r>=g)||!amtOk(g)||!amtOk(r)||!amtOk(i))return toast('Enter loan given and total to return (not less than the loan)');const id=sel.id;sel=null;
 once(async()=>{const res=await db.collection('txns').add({mid:id,type:'loan',amt:g,repay:r,inst:i,mode:'cash',d:today(),ts:Date.now(),sent:false,by:who()});if(i>0)await db.doc('members/'+id).update({inst:i});if(res&&res.id)openReceipt(res.id);})}
@@ -5439,45 +5697,170 @@ async function rejectLoanReq(id){
 }
 
 
+let _syncingVillages = false;
+async function ensureVillagesFromMembers() {
+  if (_syncingVillages || !owner || role !== 'a' || !db) return;
+  try {
+    _syncingVillages = true;
+    const existingMap = new Map();
+    V.forEach(v => {
+      if (v && v.name) existingMap.set(v.name.trim().toLowerCase(), v);
+    });
+    
+    const missing = new Map();
+    (M || []).forEach(m => {
+      const vn = (m.village || '').trim();
+      if (vn && !existingMap.has(vn.toLowerCase()) && !missing.has(vn.toLowerCase())) {
+        missing.set(vn.toLowerCase(), { name: vn, te: m.te_village || vn });
+      }
+    });
+
+    (CP || []).forEach(cp => {
+      const pl = (cp.place || cp.village || '').trim();
+      if (pl && !existingMap.has(pl.toLowerCase()) && !missing.has(pl.toLowerCase()) && !isTestRecord(cp)) {
+        missing.set(pl.toLowerCase(), { name: pl, te: pl });
+      }
+    });
+
+    (LR || []).forEach(lr => {
+      const lrv = (lr.village || '').trim();
+      if (lrv && !existingMap.has(lrv.toLowerCase()) && !missing.has(lrv.toLowerCase()) && !isTestRecord(lr)) {
+        missing.set(lrv.toLowerCase(), { name: lrv, te: lrv });
+      }
+    });
+
+    if (missing.size === 0) return;
+
+    for (const [key, item] of missing.entries()) {
+      if (existingMap.has(key)) continue;
+      const assignedDay = V.length % 7;
+      const newV = {
+        name: item.name,
+        te: item.te || item.name,
+        day: assignedDay
+      };
+      try {
+        const res = await db.collection('villages').add(newV);
+        if (res && res.id) newV.id = res.id;
+        V.push(newV);
+        existingMap.set(key, newV);
+        logAdminAction('village_auto_mapped', `Auto-mapped new village ${newV.name} with collection day ${DE[assignedDay]}`);
+      } catch (err) {
+        console.warn('Could not auto-provision village:', item.name, err);
+      }
+    }
+    draw();
+  } finally {
+    _syncingVillages = false;
+  }
+}
+
 function villages(){
+  const activeM = M.filter(m => !m.archived);
+  const totalVillages = V.length;
+  const totalMapped = activeM.filter(m => m.village).length;
+  const totalUnmapped = activeM.filter(m => !m.village).length;
+  const totDueAll = activeM.reduce((sum, m) => sum + Math.max(0, st(m).due), 0);
+
   return `<div class="card">
-    <h2>${tr('Add Village','కొత్త ఊరు చేర్చు')}</h2>
-    <div class="g">
-      <input id="nv" placeholder="${tr('Village (English)','ఊరు (ఇంగ్లీష్)')}" onblur="tl('nv','vt')">
-      <input id="vt" placeholder="${tr('Telugu name','తెలుగు పేరు')}" oninput="this.dataset.m=1">
-      <select id="vd">${DE.map((d,i)=>`<option value="${i}">${isTe()?DT[i]:DE[i]}</option>`).join('')}</select>
+    <div class="row" style="margin-bottom:8px">
+      <h2 style="margin:0">${tr('Add Village & Assign Weekly Collection Day','కొత్త ఊరు చేర్చి వసూలు రోజు నిర్ణయించు')}</h2>
+      <button class="sm" onclick="ensureVillagesFromMembers()" title="${tr('Scan members and auto-map any missing villages','సభ్యుల ఊర్లను స్కాన్ చేసి జోడించు')}">
+        ⟳ ${tr('Auto-Sync Missing Villages','మిస్సింగ్ ఊర్లను జోడించు')}
+      </button>
     </div>
-    <p><button class="p" onclick="addV()">${tr('Save Village','ఊరును భద్రపరుచు')}</button></p>
+    <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+      <input id="nv" placeholder="${tr('Village Name (English)*','ఊరు పేరు (ఇంగ్లీష్)*')}" onblur="tl('nv','vt')">
+      <input id="vt" placeholder="${tr('Telugu name','తెలుగు పేరు')}" oninput="this.dataset.m=1">
+      <select id="vd" title="${tr('Weekly Collection Day','వసూలు రోజు')}">
+        ${DE.map((d,i)=>`<option value="${i}" ${i===(V.length%7)?'selected':''}>${isTe()?DT[i]:DE[i]} (${DE[i]})</option>`).join('')}
+      </select>
+    </div>
+    <p style="margin-top:12px"><button class="p" onclick="addV()">${tr('Save Village & Assign Day ✓','ఊరు మరియు రోజును భద్రపరుచు ✓')}</button></p>
   </div>
+
   <div class="card sc">
-    <h2>${tr('Villages & Collection Days','ఊర్లు & వసూలు రోజులు')}</h2>
+    <div class="row" style="margin-bottom:12px;align-items:center;flex-wrap:wrap;gap:8px">
+      <div>
+        <h2 style="margin:0">${tr('Villages & Collection Schedules','ఊర్లు & వసూలు షెడ్యూల్స్')} (${totalVillages})</h2>
+        <div class="m" style="font-size:12px">
+          ${tr('Mapped Members: ','నమోదైన సభ్యులు: ')}<b>${totalMapped}</b> · 
+          ${tr('Total Collection Due: ','మొత్తం వసూలు బాకీ: ')}<b style="color:var(--amber)">${inr(totDueAll)}</b>
+          ${totalUnmapped > 0 ? ` · <span style="color:var(--r);font-weight:700">${totalUnmapped} ${tr('unassigned members','ఊరు లేని సభ్యులు')}</span>` : ''}
+        </div>
+      </div>
+      <div class="acts">
+        <button class="sm" onclick="mbSub='members';draw()">${tr('View All Active Members','సభ్యుల జాబితా చూడు')} (${activeM.length})</button>
+      </div>
+    </div>
+
     <table>
-      <tr>
-        <th>${tr('Village','ఊరు')}</th>
-        <th>${tr('Day','రోజు')}</th>
-        <th>${tr('Members','సభ్యులు')}</th>
-        <th>${tr('Action','చర్య')}</th>
-      </tr>
-      ${V.map((v,i)=>`
-      <tr>
-        <td>
-          <b>${esc(nm(v))}</b>
-          <input value="${esc(v.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" onchange="setVTe(${i},this.value)" style="width:100%;margin-top:4px">
-        </td>
-        <td>
-          <select onchange="setDay(${i},this.value)">
-            ${v.day==null?`<option>${tr('Set day','రోజు ఎంచుకోండి')}</option>`:''}
-            ${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${isTe()?DT[j]:DE[j]}</option>`).join('')}
-          </select>
-        </td>
-        <td>${M.filter(m=>m.village==v.name&&!m.archived).length}</td>
-        <td>
-          <button class="sm d" onclick="delV('${v.id}')" title="${tr('Delete Village','ఊరు తొలగించు')}">${tr('Delete','తొలగించు')}</button>
-        </td>
-      </tr>
-      `).join('')||'<tr><td colspan=4 class="m">'+tr('No villages yet','ఇంకా ఊర్లు లేవు')+'</td></tr>'}
+      <thead>
+        <tr>
+          <th>${tr('Village Name (English & Telugu)','ఊరు పేరు (ఇంగ్లీష్ & తెలుగు)')}</th>
+          <th>${tr('Collection Day','వసూలు రోజు')}</th>
+          <th style="text-align:center">${tr('Members','సభ్యులు')}</th>
+          <th style="text-align:center">${tr('Active Loans','నడుస్తున్న అప్పులు')}</th>
+          <th>${tr('Balance Due','బాకీ మొత్తం')}</th>
+          <th style="text-align:right">${tr('Actions','చర్యలు')}</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${V.map((v,i) => {
+          const vMems = activeM.filter(m => (m.village||'').toLowerCase() === v.name.toLowerCase());
+          const vDue = vMems.reduce((s, m) => s + Math.max(0, st(m).due), 0);
+          const vActiveLoans = vMems.reduce((s, m) => s + (st(m).due > 0 ? 1 : 0), 0);
+          const dayName = v.day != null ? (isTe() ? DT[v.day] : DE[v.day]) : '-';
+          return `<tr>
+            <td>
+              <div style="font-weight:800;font-size:14.5px;color:var(--t)">${esc(nm(v))}</div>
+              <div style="margin-top:4px;display:flex;gap:4px;align-items:center">
+                <input value="${esc(v.te||'')}" placeholder="${tr('Telugu name','తెలుగు పేరు')}" onchange="setVTe(${i},this.value)" style="font-size:12px;padding:3px 6px;max-width:140px">
+                <button type="button" class="sm" onclick="tlVIndex(${i})" title="${tr('Auto-transliterate to Telugu','తెలుగు లిప్యంతరీకరణ')}" style="padding:2px 6px;font-size:11px">Auto</button>
+              </div>
+            </td>
+            <td>
+              <select onchange="setDay(${i},this.value)" style="font-size:13px;font-weight:700;padding:5px 8px;border-radius:8px">
+                ${v.day==null?`<option value="">${tr('-- Set Day --','-- రోజు ఎంచుకోండి --')}</option>`:''}
+                ${DE.map((d,j)=>`<option value="${j}" ${j==v.day?'selected':''}>${isTe()?DT[j]:DE[j]} (${DE[j]})</option>`).join('')}
+              </select>
+            </td>
+            <td style="text-align:center">
+              <button class="sm" onclick="mbVillageFilter='${esc(v.name)}';mbSub='members';draw()" style="font-weight:800;font-size:13px;padding:3px 10px;border-radius:12px;background:rgba(99,102,241,0.1);color:var(--p)" title="${tr('Click to view members of this village','ఈ ఊరి సభ్యులను చూడండి')}">
+                ${vMems.length}
+              </button>
+            </td>
+            <td style="text-align:center;font-weight:700;color:var(--t)">
+              ${vActiveLoans}
+            </td>
+            <td>
+              <b style="font-size:14px;color:${vDue>0?'var(--amber)':'var(--ok)'}">${inr(vDue)}</b>
+            </td>
+            <td style="text-align:right">
+              <div class="acts" style="justify-content:flex-end">
+                <button class="sm" onclick="mbVillageFilter='${esc(v.name)}';mbSub='members';draw()" style="font-weight:700">${tr('Members','సభ్యులు')}</button>
+                <button class="sm" onclick="vil='${esc(v.name)}';tab='collect';draw()" style="font-weight:700;color:var(--ok)">${tr('Collect','వసూలు')}</button>
+                <button class="sm d" onclick="delV('${v.id}')" title="${tr('Delete Village','ఊరు తొలగించు')}">${tr('Delete','తొలగించు')}</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('') || `<tr><td colspan="6" class="m" style="text-align:center;padding:24px">${tr('No villages added yet. Add a village above.','ఇంకా ఊర్లు ఏవీ జోడించబడలేదు. పైన కొత్త ఊరును చేర్చండి.')}</td></tr>`}
+      </tbody>
     </table>
   </div>`;
+}
+
+async function tlVIndex(i){
+  if(!V[i] || !owner) return;
+  const v = V[i];
+  try {
+    const s = await claude.use('sample');
+    if(!s) return;
+    const r = await s.json('Write this Indian village or city name in Telugu script phonetically: ' + v.name + '. Reply ONLY JSON {"te":"<telugu>"}.');
+    if(r && r.te && /[\u0C00-\u0C7F]/.test(r.te)){
+      setVTe(i, r.te);
+    }
+  } catch(_) {}
 }
 
 function delV(id){
@@ -5512,8 +5895,23 @@ function delV(id){
     );
   }
 }
-function addV(){if(!owner)return;const n=$('#nv').value.trim().slice(0,60);if(!n)return toast('Enter the village name');if(V.some(v=>v.name.toLowerCase()==n.toLowerCase()))return toast('This village already exists');
-once(async()=>{await db.collection('villages').add({name:n,te:$('#vt').value.trim().slice(0,60),day:+$('#vd').value});logAdminAction('village_added','Added village '+n);clr(['nv','vt'])})}
+function addV(){
+  if(!owner) return;
+  const n = ($('#nv')?.value || '').trim().slice(0,60);
+  if(!n) return toast(tr('Enter the village name','ఊరు పేరు నమోదు చేయండి'));
+  if(V.some(v => v.name.toLowerCase() === n.toLowerCase())) return toast(tr('This village already exists','ఈ ఊరు ఇప్పటికే ఉంది'));
+  const teVal = ($('#vt')?.value || '').trim().slice(0,60);
+  const dayVal = +($('#vd')?.value || 0);
+  once(async () => {
+    const newV = { name: n, te: teVal, day: dayVal };
+    const res = await db.collection('villages').add(newV);
+    if(res && res.id) newV.id = res.id;
+    V.push(newV);
+    logAdminAction('village_added', `Added village ${n} with collection day ${DE[dayVal]}`);
+    toast(tr('Village added successfully ✓', 'ఊరు విజయవంతంగా జోడించబడింది ✓'));
+    clr(['nv','vt']);
+  });
+}
 function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
 function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function heroKpis(preRemList, prePndRc){
@@ -8012,7 +8410,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v98</span>
+            <span class="v18-pill">v99</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9726,7 +10124,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v98</span>
+          <span class="v18-pill">v99</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9799,8 +10197,8 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         sn=>{dbErr='';fn(cl(sn.docs.map(d=>({...(d.data()||{}),id:d.id}))));draw()},
         e=>{console.warn('Subscription warning for '+c,e);if(M.length===0){dbErr=(e&&(e.message||e.code))||'Cannot read data';draw()}}
       );
-      sub('members',a=>{M=a;syncRoleFromUser();draw();},cM);
-      sub('villages',a=>V=a,cV);
+      sub('members',a=>{M=a;syncRoleFromUser();ensureVillagesFromMembers();draw();},cM);
+      sub('villages',a=>{V=a;ensureVillagesFromMembers();draw();},cV);
       sub('txns',a=>onTxnsUpdate(a),cT);
       sub('rem',a=>RM=new Set(a.map(x=>x.id)),a=>a.filter(d=>OKID.test(d.id)));
       sub('notifs',a=>onNotifsUpdate(a),cNT);

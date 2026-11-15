@@ -310,6 +310,14 @@ module.exports = async (req, res) => {
       if (idx >= 0) serverStore.profiles[idx] = item; else serverStore.profiles.unshift(item);
 
       await trySupabaseWrite('client_profiles', item.id, item);
+      if (item.place) {
+        const vId = 'v_' + item.place.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        await trySupabaseWrite('villages', vId, {
+          name: item.place,
+          te: item.place,
+          day: 1
+        });
+      }
       return res.status(200).json({ ok: true, message: 'Personal profile & KYC saved successfully', item });
     }
 
@@ -607,6 +615,14 @@ module.exports = async (req, res) => {
         created_at: Date.now()
       };
       await trySupabaseWrite('members', memberObj.id, memberObj);
+      if (village) {
+        const vId = 'v_' + village.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+        await trySupabaseWrite('villages', vId, {
+          name: village,
+          te: village,
+          day: 1
+        });
+      }
       return res.status(200).json({ ok: true, message: 'Member created successfully', member: memberObj });
     }
 
