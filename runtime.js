@@ -490,19 +490,22 @@
             if (c === 'villages') {
               const vMap = new Map();
               list.forEach(r => {
-                const name = ((r.data && r.data.name) || '').trim().toLowerCase();
+                const itemData = (r && r.data) ? r.data : r;
+                const name = ((itemData && itemData.name) || '').trim().toLowerCase();
                 if (!name) return;
+                const id = r.id || ('v_' + name.replace(/[^a-z0-9]/g, '_'));
+                const cleanItem = { id, data: { name: itemData.name, te: itemData.te || '', day: itemData.day } };
                 if (!vMap.has(name)) {
-                  vMap.set(name, r);
+                  vMap.set(name, cleanItem);
                 } else {
                   const ex = vMap.get(name);
-                  if (ex.data && ex.data.day == null && r.data && r.data.day != null) ex.data.day = r.data.day;
-                  if (ex.data && !ex.data.te && r.data && r.data.te) ex.data.te = r.data.te;
+                  if (ex.data && ex.data.day == null && itemData.day != null) ex.data.day = itemData.day;
+                  if (ex.data && !ex.data.te && itemData.te) ex.data.te = itemData.te;
                 }
               });
               s.map = new Map(Array.from(vMap.values()).map(r => [r.id, r.data]));
             } else {
-              s.map = new Map(list.map(r => [r.id, r.data]));
+              s.map = new Map(list.map(r => [r.id, r.data || r]));
             }
             s.loaded = true;
           }
@@ -854,6 +857,12 @@
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
         global: { fetch: fetchWithTimeout }
       });
+      window.sb = sb;
+      window._sb = sb;
+      if (window.claude) window.claude._sb = sb;
+      try {
+        window.dispatchEvent(new CustomEvent('gf_sb_ready', { detail: sb }));
+      } catch (_) {}
     } catch (e) {
       overlay('<div class="card" style="max-width:340px;margin:0"><b>Client Error</b><p class="m">' + e.message + '</p><button class="p" onclick="location.reload()">Retry</button></div>');
       return;

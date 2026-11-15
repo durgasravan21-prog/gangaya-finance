@@ -148,6 +148,7 @@ module.exports = async (req, res) => {
     const role = (req.query.role || '').trim();
     const mid = (req.query.mid || '').trim();
     const qEmail = (req.query.email || '').toLowerCase().trim();
+    const qPhone = (req.query.phone || '').replace(/\D/g, '');
     const qName = (req.query.name || '').toLowerCase().trim();
 
     // Query live from Supabase docs table
@@ -186,15 +187,16 @@ module.exports = async (req, res) => {
       const xMid = String(x.mid || '').trim();
       const xEmail = String(x.email || '').toLowerCase().trim();
       const xPhone = String(x.phone || '').replace(/\D/g, '');
-      const clientPhone = String(mid || '').replace(/\D/g, '');
+      const clientPhone = String(qPhone || mid || '').replace(/\D/g, '');
 
       if (mid && xMid && xMid === mid) return true;
       if (qEmail && xEmail && xEmail === qEmail) return true;
       if (clientPhone.length === 10 && xPhone.length === 10 && clientPhone === xPhone) return true;
+      if (qPhone.length === 10 && xPhone.length === 10 && qPhone === xPhone) return true;
       return false;
     }
 
-    if (!mid && !qEmail) {
+    if (!mid && !qEmail && !qPhone) {
       return res.status(200).json({
         ok: true,
         support: [],
@@ -496,6 +498,20 @@ module.exports = async (req, res) => {
       const mid = String(body.mid || 'guest').trim();
       const borrower = String(body.borrower || body.mname || 'Customer').slice(0, 60);
       const reqId = body.id || ('lr_' + Date.now());
+      const cleanPhone = String(body.phone || '').replace(/\D/g, '');
+
+      // Double loan application prevention check
+      const existing = (serverStore.loan_requests || []).find(x => 
+        x.status === 'pending' && 
+        ((mid && mid !== 'guest' && x.mid === mid) || (cleanPhone.length === 10 && x.phone && x.phone.replace(/\D/g, '') === cleanPhone))
+      );
+      if (existing) {
+        return res.status(409).json({
+          ok: false,
+          error: 'An active loan application is already under review. Duplicate applications are blocked.',
+          existingId: existing.id
+        });
+      }
 
       const loanReq = {
         id: reqId,

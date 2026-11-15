@@ -1549,7 +1549,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=104"></script>
+<script src="/runtime.js?v=105"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -5256,11 +5256,14 @@ function saveEdit(){
   });
 }
 function delM(id){
-  if(!owner && role !== 'a') return;
+  if(!owner && role !== 'a' && !passkeyUnlocked) return;
   const m = M.find(x => x.id === id);
   if(!m) return;
   const n = T.filter(t => t.mid === id).length;
   const memDue = Math.max(0, st(m).due);
+
+  const existingModal = document.getElementById('del-m-modal');
+  if(existingModal) existingModal.remove();
 
   const modalHtml = `
     <div id="del-m-modal" class="modal-wrap" style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px">
@@ -5309,6 +5312,12 @@ async function archiveMemberRecord(id){
     try { await db.doc('members/' + id).update({ archived: true }); } catch(_) {}
   }
   logAdminAction('member_archived', 'Archived member ' + m.name);
+  playChime();
+  showActionAlert(
+    tr('Customer Archived ✓', 'ఖాతాదారుడు ఆర్కైవ్ చేయబడ్డాడు ✓'),
+    tr(m.name + ' has been moved to Archived Khatas. Active collections and ledger have been safely updated.', m.name + ' ఆర్కైవ్‌కి తరలించబడింది.'),
+    tr('Village: ', 'ఊరు: ') + (m.village || 'N/A')
+  );
   toast(tr(m.name + ' moved to Archived ✓', m.name + ' ఆర్కైవ్‌కి తరలించబడింది ✓'));
   draw();
 }
@@ -5316,37 +5325,46 @@ async function archiveMemberRecord(id){
 async function deleteMemberPermanently(id){
   const m = M.find(x => x.id === id);
   const name = m ? m.name : id;
-  ask(
-    tr('Are you sure you want to PERMANENTLY DELETE ' + name + '? All loans, transactions, and KYC documents will be completely erased from the ledger.', name + ' ని శాశ్వతంగా తొలగించాలా? అన్ని రికార్డులు మరియు అప్పులు పూర్తిగా డిలీట్ అవుతాయి.'),
-    tr('PERMANENTLY DELETE', 'శాశ్వతంగా తొలగించు'),
-    async () => {
-      // 1. Remove from local memory
-      M = M.filter(x => x.id !== id);
-      T = T.filter(x => x.mid !== id);
-      LR = LR.filter(x => x.mid !== id);
-      CP = CP.filter(x => x.mid !== id && x.id !== ('cp_' + id));
-      CA = CA.filter(x => x.mid !== id && x.id !== ('agr_' + id));
-      CR = CR.filter(x => x.mid !== id);
-      CS = CS.filter(x => x.mid !== id);
-      CB = CB.filter(x => x.mid !== id);
 
-      // 2. Persist to localStorage
-      try { localStorage.setItem('gf_c_members', JSON.stringify(M)); } catch(_) {}
-      try { localStorage.setItem('gf_c_txns', JSON.stringify(T)); } catch(_) {}
-      try { localStorage.setItem('gf_client_profiles', JSON.stringify(CP)); } catch(_) {}
-      try { localStorage.setItem('gf_client_agreements', JSON.stringify(CA)); } catch(_) {}
+  // 1. Remove from local memory
+  M = M.filter(x => x.id !== id);
+  T = T.filter(x => x.mid !== id);
+  LR = LR.filter(x => x.mid !== id);
+  CP = CP.filter(x => x.mid !== id && x.id !== ('cp_' + id));
+  CA = CA.filter(x => x.mid !== id && x.id !== ('agr_' + id));
+  CR = CR.filter(x => x.mid !== id);
+  CS = CS.filter(x => x.mid !== id);
+  CB = CB.filter(x => x.mid !== id);
 
-      // 3. Delete from Supabase via db.doc
-      if(db && db.doc){
-        try { await db.doc('members/' + id).delete(); } catch(_) {}
-      }
+  // 2. Persist to localStorage
+  try { localStorage.setItem('gf_c_members', JSON.stringify(M)); } catch(_) {}
+  try { localStorage.setItem('gf_c_txns', JSON.stringify(T)); } catch(_) {}
+  try { localStorage.setItem('gf_client_profiles', JSON.stringify(CP)); } catch(_) {}
+  try { localStorage.setItem('gf_client_agreements', JSON.stringify(CA)); } catch(_) {}
+  try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+  try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
 
-      // 4. Infallible Serverless API purge
-      fetch('/api/client-submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_member', id: id, purge_all: true })
-      }).catch(() => {});
+  // 3. Delete from Supabase via db.doc
+  if(db && db.doc){
+    try { await db.doc('members/' + id).delete(); } catch(_) {}
+  }
+
+  // 4. Infallible Serverless API purge
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete_member', id: id, purge_all: true })
+  }).catch(() => {});
+
+  playChime();
+  showActionAlert(
+    tr('Customer Removed Successfully ✓', 'ఖాతాదారుడు పూర్తిగా తొలగించబడ్డాడు ✓'),
+    tr(`Customer ${name} and all associated records have been completely purged from your database and local ledger.`, `${name} మరియు వారి రికార్డులు విజయవంతంగా తొలగించబడ్డాయి.`),
+    tr('Status: Purged from Database', 'స్థితి: డేటాబేస్ నుండి పూర్తిగా తొలగించబడింది')
+  );
+  toast(tr(name + ' permanently deleted from ledger ✓', name + ' శాశ్వతంగా తొలగించబడింది ✓'));
+  draw();
+}
 
       logAdminAction('member_purged', 'Permanently deleted member ' + name);
       playChime();
@@ -6030,12 +6048,15 @@ async function ensureVillagesFromMembers() {
         const res = await db.collection('villages').add(newV);
         if (res && res.id) newV.id = res.id;
         V.push(newV);
+        V = cV(V);
+        try { localStorage.setItem('gf_c_villages', JSON.stringify(V)); } catch(_) {}
         existingMap.set(key, newV);
         logAdminAction('village_auto_mapped', `Auto-mapped new village ${newV.name} with collection day ${DE[assignedDay]}`);
       } catch (err) {
         console.warn('Could not auto-provision village:', item.name, err);
       }
     }
+    V = cV(V);
     draw();
   } finally {
     _syncingVillages = false;
@@ -6140,7 +6161,7 @@ function villages(){
 }
 
 async function tlVIndex(i){
-  if(!V[i] || (!owner && role !== 'a')) return;
+  if(!V[i] || (!owner && role !== 'a' && !passkeyUnlocked)) return;
   const v = V[i];
   try {
     const s = await claude.use('sample');
@@ -6153,7 +6174,7 @@ async function tlVIndex(i){
 }
 
 function delV(id){
-  if(!owner && role !== 'a') return;
+  if(!owner && role !== 'a' && !passkeyUnlocked) return;
   const v = V.find(x => x.id == id || (x.name && x.name.toLowerCase() === String(id).toLowerCase()));
   if(!v) return;
   const vName = String(v.name).trim();
@@ -6192,6 +6213,11 @@ function delV(id){
 
       logAdminAction('village_deleted', 'Deleted village ' + vName + ' (' + mCount + ' members affected)');
       playChime();
+      showActionAlert(
+        tr('Village Removed ✓', 'ఊరు తొలగించబడింది ✓'),
+        tr('Village "' + vName + '" and duplicate schedules were removed. Affected members: ' + mCount, '"' + vName + '" ఊరు రికార్డులు క్లీన్ చేయబడ్డాయి.'),
+        tr('Village: ', 'ఊరు: ') + vName
+      );
       toast(tr('Village "' + vName + '" deleted successfully ✓', '"' + vName + '" ఊరు తొలగించబడింది ✓'));
       draw();
     }
@@ -6207,11 +6233,17 @@ function deduplicateVillagesNow(){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'deduplicate_villages' })
   }).catch(() => {});
+  playChime();
+  showActionAlert(
+    tr('Villages Deduplicated ✓', 'ఊర్లు క్లీన్ చేయబడ్డాయి ✓'),
+    tr('All duplicate villages and conflicting collection days have been merged into ' + V.length + ' distinct villages.', 'డూప్లికేట్లు తొలగించబడి ' + V.length + ' ఊర్లు మాత్రమే భద్రపరచబడ్డాయి.'),
+    tr('Distinct Villages: ', 'మొత్తం ఊర్లు: ') + V.length
+  );
   toast(tr('Villages deduplicated: ' + beforeCount + ' → ' + V.length + ' distinct ✓', 'డూప్లికేట్లు తొలగించబడ్డాయి: ' + V.length + ' ఊర్లు మాత్రమే ఉన్నాయి ✓'));
   draw();
 }
 function addV(){
-  if(!owner) return;
+  if(!owner && role !== 'a' && !passkeyUnlocked) return;
   const n = ($('#nv')?.value || '').trim().slice(0,60);
   if(!n) return toast(tr('Enter the village name','ఊరు పేరు నమోదు చేయండి'));
   if(V.some(v => v.name.toLowerCase() === n.toLowerCase())) return toast(tr('This village already exists','ఈ ఊరు ఇప్పటికే ఉంది'));
@@ -6224,12 +6256,19 @@ function addV(){
     V.push(newV);
     V = cV(V);
     logAdminAction('village_added', `Added village ${n} with collection day ${DE[dayVal]}`);
+    playChime();
+    showActionAlert(
+      tr('Village Added & Scheduled ✓', 'కొత్త ఊరు చేర్చబడింది ✓'),
+      tr(`Village ${n} has been assigned collection day ${DE[dayVal]} and mapped to ledger.`, `${n} ఊరు విజయవంతంగా ${isTe()?DT[dayVal]:DE[dayVal]} రోజుకు కేటాయించబడింది.`),
+      tr('Collection Day: ', 'వసూలు రోజు: ') + (isTe()?DT[dayVal]:DE[dayVal]) + ` (${DE[dayVal]})`
+    );
     toast(tr('Village added successfully ✓', 'ఊరు విజయవంతంగా జోడించబడింది ✓'));
     clr(['nv','vt']);
+    draw();
   });
 }
-function setVTe(i,t){if(!owner && role !== 'a')return;if(!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
-function setDay(i,d){d=+d;if(!owner && role !== 'a')return;if(!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
+function setVTe(i,t){if(!owner && role !== 'a' && !passkeyUnlocked)return;if(!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
+function setDay(i,d){d=+d;if(!owner && role !== 'a' && !passkeyUnlocked)return;if(!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function heroKpis(preRemList, prePndRc){
   const r=rep();
   const todayTot=r.t.c,todayUpi=r.t.u,todayCash=todayTot-todayUpi;
@@ -7498,6 +7537,7 @@ function submitClientSupportMsg(ev){
   if (typeof clientChatTicketId !== 'undefined') clientChatTicketId = newMsg.id;
 
   playChime();
+  broadcastLiveChatMessage('support', newMsg);
   showActionAlert(
     tr('Support Ticket ' + ticketId + ' Registered ✓', 'సపోర్ట్ టికెట్ ' + ticketId + ' నమోదు చేయబడింది ✓'),
     tr('Your inquiry has been registered with Ticket ID ' + ticketId + ' and delivered directly to Durga Sravan (Admin). You can track responses live in your chat thread.', 'మీ సమస్య టికెట్ ఐడి ' + ticketId + ' తో నమోదు చేయబడి దుర్గా శ్రావణ్ గారికి చేరింది. సమాధానాలను ఇక్కడే చూడవచ్చు.'),
@@ -7505,6 +7545,7 @@ function submitClientSupportMsg(ev){
   );
   toast(tr('Ticket ' + ticketId + ' saved and sent to Admin ✓', 'టికెట్ ' + ticketId + ' అడ్మిన్‌కి పంపబడింది ✓'));
   f.reset();
+  scrollChatToBottom();
   draw();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
 }
@@ -7562,6 +7603,8 @@ function sendClientFollowUpSupport(ticketRef, text){
   broadcastLiveChatMessage('support', item);
   toast(tr('Message sent to Durga Sravan ✓', 'సందేశం దుర్గా శ్రావణ్ గారికి పంపబడింది ✓'));
   draw();
+  scrollChatToBottom();
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
 }
 
 function buildAgreementDocumentHtml(mid, isAdminCopy) {
@@ -8154,6 +8197,7 @@ function submitClientBugReport(ev){
   if (typeof clientChatBugId !== 'undefined') clientChatBugId = bugId;
 
   playChime();
+  broadcastLiveChatMessage('bug', bugObj);
   showActionAlert(
     tr('Bug Report ' + bugTrackingId + ' Registered ✓', 'బగ్ రిపోర్ట్ ' + bugTrackingId + ' నమోదు చేయబడింది ✓'),
     tr('Your technical bug has been assigned ID ' + bugTrackingId + ' and sent to engineering with your auto-captured device diagnostics. Track progress live in your Bug Desk.', 'మీ సాంకేతిక సమస్య ' + bugTrackingId + ' మరియు పరికర వివరాలు ఇంజనీరింగ్ బృందానికి చేరాయి. పురోగతిని ఇక్కడే చూడవచ్చు.'),
@@ -8161,6 +8205,7 @@ function submitClientBugReport(ev){
   );
   toast(tr('Bug ' + bugTrackingId + ' logged & sent to engineering ✓', 'బగ్ ' + bugTrackingId + ' ఇంజనీరింగ్‌కి పంపబడింది ✓'));
   f.reset();
+  scrollChatToBottom();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
   draw();
 }
@@ -8218,6 +8263,8 @@ function sendClientFollowUpBug(bugRef, text){
   broadcastLiveChatMessage('bug', b);
   toast(tr('Diagnostics note sent to Engineering ✓', 'సమాచారం ఇంజనీరింగ్ బృందానికి పంపబడింది ✓'));
   draw();
+  scrollChatToBottom();
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
 }
 
 function resolveBugReport(bugId, status, notes){
@@ -8566,6 +8613,27 @@ async function submitClientLoanApplication(ev){
 
   const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
   const activeMid = (m && m.id) || clientMid || 'guest';
+
+  // Double loan application prevention check
+  const existingPending = (LR || []).find(r => 
+    r && r.status === 'pending' && 
+    ((activeMid !== 'guest' && r.mid === activeMid) || (m.phone && r.phone === m.phone) || (m.name && r.mname && r.mname.toLowerCase() === m.name.toLowerCase()))
+  );
+  if (existingPending) {
+    showActionAlert(
+      tr('Active Loan Application Under Review', 'దరఖాస్తు ఇప్పటికే పరిశీలనలో ఉంది'),
+      tr(`You already have a pending loan application of ${inr(existingPending.amt)} (Ref: ${existingPending.id || 'Active'}) currently under review by Durga Sravan. Duplicate applications are blocked until current request is reviewed.`, `మీ మునుపటి ${inr(existingPending.amt)} అప్పు దరఖాస్తు ఇప్పటికే అడ్మిన్ పరిశీలనలో ఉంది. అది పూర్తయ్యే వరకు కొత్త దరఖాస్తు చేయలేరు.`),
+      tr('Application Ref: ', 'దరఖాస్తు ఐడి: ') + (existingPending.id || 'LR-Pending')
+    );
+    return;
+  }
+
+  const submitBtn = f.querySelector('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = tr('Submitting Application...', 'సమర్పిస్తున్నాము...');
+  }
+
   const reqId = 'lr_' + Date.now();
   // Standard simple interest calculation (e.g. 10% tenure repayment)
   const repay = Math.round(amt * 1.10);
@@ -8868,7 +8936,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v104</span>
+            <span class="v18-pill">v105</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9515,22 +9583,103 @@ function renderClientDashboard(){
       (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
       (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
     );
-    clientBody = `
-    <!-- Send Message to Admin Form -->
-    <div class="card" style="margin-bottom:16px">
-      <h2>${tr('Direct Customer Support & Inquiries','కస్టమర్ కేర్ & అడ్మిన్ సంప్రదింపులు')}</h2>
-      <p class="m" style="margin:0 0 16px;font-size:13px">
-        ${tr('Send a direct message or grievance to Durga Sravan (Admin). Inquiries reach the Admin Dashboard immediately.', 'మీ సందేశం లేదా సమస్యను నేరుగా దుర్గా శ్రావణ్ గారికి పంపండి. అడ్మిన్ డాష్‌బోర్డ్‌లో వెంటనే చూడబడుతుంది.')}
-      </p>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-        <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, I am ' + (m.name||'') + ' (Phone: ' + (m.phone||'') + '), requesting assistance.')}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(16,185,129,0.15);color:var(--ok);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
-          <span>WhatsApp Durga Sravan →</span>
-        </a>
-        <a href="tel:9398011913" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--p);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
-          <span>Call: 9398011913</span>
-        </a>
+    if(!clientChatTicketId && myMsgs.length > 0) clientChatTicketId = myMsgs[0].id;
+    const activeItem = (clientChatTicketId && myMsgs.find(x => x.id === clientChatTicketId || (x.ticket_id && x.ticket_id.toUpperCase() === String(clientChatTicketId).toUpperCase()))) || myMsgs[0] || null;
+    const thread = activeItem ? ((typeof getTicketThread === 'function') ? getTicketThread(activeItem) : (activeItem.thread || [])) : [];
+    const showNewForm = (typeof clientShowNewSupportForm !== 'undefined' && clientShowNewSupportForm) || myMsgs.length === 0;
+
+    clientBody = `
+    <!-- Contact Direct Support Action Pills -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, I am ' + (m.name||'') + ' (Phone: ' + (m.phone||'') + '), requesting assistance.')}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(16,185,129,0.15);color:var(--ok);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+        <span>WhatsApp Durga Sravan →</span>
+      </a>
+      <a href="tel:9398011913" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--p);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+        <span>Call: 9398011913</span>
+      </a>
+    </div>
+
+    <!-- Active Tickets Selector Tabs -->
+    ${myMsgs.length > 0 ? `
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:12px;-webkit-overflow-scrolling:touch">
+      ${myMsgs.map(item => {
+        const tId = (typeof getTicketId === 'function') ? getTicketId(item) : (item.ticket_id || item.id);
+        const isActive = activeItem && (activeItem.id === item.id);
+        return `
+        <button type="button" class="sm" onclick="clientChatTicketId='${item.id}';clientShowNewSupportForm=false;draw();" style="border-radius:10px;padding:8px 14px;font-weight:700;font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;${isActive && !showNewForm ? 'background:var(--p);color:#fff;border-color:var(--p);box-shadow:0 2px 8px rgba(99,102,241,0.3)' : 'background:var(--s);color:var(--t)'}">
+          <span style="font-family:monospace">${tId}</span>
+          <span class="chip" style="font-size:10px;padding:1px 6px;${item.status==='resolved'||item.status==='replied' ? 'background:rgba(16,185,129,0.2);color:var(--ok)' : 'background:rgba(245,158,11,0.2);color:var(--amber)'}">
+            ${item.status==='resolved'||item.status==='replied' ? tr('Resolved ✓','పరిష్కారం ✓') : tr('Open ⟳','పరిశీలన ⟳')}
+          </span>
+        </button>
+        `;
+      }).join('')}
+      <button type="button" class="sm" onclick="clientShowNewSupportForm=true;draw();" style="border-radius:10px;padding:8px 14px;font-weight:800;font-size:12px;background:rgba(99,102,241,0.12);color:var(--p);border-color:var(--p);white-space:nowrap">
+        + ${tr('Raise New Query','కొత్త ప్రశ్న +')}
+      </button>
+    </div>
+    ` : ''}
+
+    <!-- Active Ticket Interactive Chat Panel -->
+    ${(activeItem && !showNewForm) ? `
+    <div class="card" style="padding:0;overflow:hidden;border:1.5px solid var(--p);margin-bottom:16px">
+      <div style="padding:12px 16px;background:var(--s);border-bottom:1px solid var(--b);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span onclick="copyTrackingId('${(typeof getTicketId==='function')?getTicketId(activeItem):(activeItem.ticket_id||activeItem.id)}')" class="chip" style="cursor:pointer;font-family:monospace;font-weight:800;background:rgba(99,102,241,0.12);color:var(--p);font-size:12.5px" title="Click to copy Ticket ID">
+            ${(typeof getTicketId==='function')?getTicketId(activeItem):(activeItem.ticket_id||activeItem.id)} ⧉
+          </span>
+          <span class="chip" style="font-size:11px;font-weight:700">${esc(activeItem.topic || 'Inquiry')}</span>
+        </div>
+        <div>
+          <span class="chip" style="background:${activeItem.status==='resolved'||activeItem.status==='replied' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'};color:${activeItem.status==='resolved'||activeItem.status==='replied' ? 'var(--ok)' : 'var(--amber)'};font-weight:800;font-size:11.5px">
+            ${activeItem.status==='resolved'||activeItem.status==='replied' ? tr('Resolved & Answered ✓','సమాధానం లభించింది ✓') : tr('Under Review by Durga Sravan ⟳','పరిశీలనలో ఉంది ⟳')}
+          </span>
+        </div>
       </div>
+
+      <!-- Support Thread Stream Box -->
+      <div id="client-support-chat-thread" class="chat-stream-box" style="min-height:180px;max-height:380px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
+        ${thread.length > 0 ? thread.map(msg => `
+          <div class="chat-bubble ${msg.sender==='client' ? 'chat-bubble-client' : 'chat-bubble-admin'}">
+            <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
+              <b>${esc(msg.by || (msg.sender==='client' ? (m.name||'Customer') : 'Durga Sravan (Admin)'))}</b>
+              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+            </div>
+            <div style="font-size:13.5px;line-height:1.5">${esc(msg.text)}</div>
+          </div>
+        `).join('') : `
+          <div class="chat-bubble chat-bubble-client">
+            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${esc(activeItem.borrower||m.name||'Customer')}</b></div>
+            <div>${esc(activeItem.msg)}</div>
+          </div>
+          ${activeItem.reply ? `
+          <div class="chat-bubble chat-bubble-admin">
+            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>Durga Sravan (Admin)</b></div>
+            <div>${esc(activeItem.reply)}</div>
+          </div>` : ''}
+        `}
+      </div>
+
+      <!-- Follow-up Support Toolbar -->
+      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-support-reply-inp');if(!inp||!inp.value.trim())return;sendClientFollowUpSupport('${activeItem.id}', inp.value);inp.value='';" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px">
+        <input id="client-support-reply-inp" name="support_reply" type="text" placeholder="${tr('Type reply to Durga Sravan...','దుర్గా శ్రావణ్ గారికి సమాధానం రాయండి...')}" required style="flex:1;padding:10px 14px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
+        <button type="submit" class="p sm" style="padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px">
+          ${tr('Send Reply →','పంపు →')}
+        </button>
+      </form>
+    </div>
+    ` : ''}
+
+    <!-- Send New Message to Admin Form -->
+    <div id="new-client-support-box" class="card" style="margin-bottom:16px;${(!showNewForm && myMsgs.length > 0) ? 'display:none;' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="margin:0">${tr('Raise New Customer Support Ticket','కొత్త సపోర్ట్ అభ్యర్థన నమోదు చేయండి')}</h2>
+        ${myMsgs.length > 0 ? `<button type="button" class="sm" onclick="clientShowNewSupportForm=false;draw();">✕ ${tr('Close Form','ముగించు')}</button>` : ''}
+      </div>
+      <p class="m" style="margin:0 0 16px;font-size:13px">
+        ${tr('Send a direct message or grievance to Durga Sravan (Admin). A tracking Ticket ID will be generated.', 'మీ సమస్య లేదా అభ్యర్థనను దుర్గా శ్రావణ్ గారికి పంపండి. ట్రాకింగ్ టికెట్ ఐడి కేటాయించబడుతుంది.')}
+      </p>
 
       <form onsubmit="submitClientSupportMsg(event)">
         <div style="margin-bottom:12px">
@@ -9538,6 +9687,7 @@ function renderClientDashboard(){
           <select id="cs-topic" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:14px">
             <option value="Payment Inquiry">${tr('Payment or Balance Query','చెల్లింపు లేదా బాకీ పరిశీలన')}</option>
             <option value="Receipt Request">${tr('Receipt or Verification Request','రసీదు లేదా ధృవీకరణ అభ్యర్థన')}</option>
+            <option value="Passbook Verification">${tr('Passbook Verification','పాస్‌బుక్ పరిశీలన')}</option>
             <option value="Top-up Loan">${tr('New / Top-up Loan Application','కొత్త అప్పు కోసం అభ్యర్థన')}</option>
             <option value="General">${tr('General Question or Feedback','సాధారణ ప్రశ్న లేదా ఫీడ్‌బ్యాక్')}</option>
           </select>
@@ -9549,38 +9699,9 @@ function renderClientDashboard(){
         </div>
 
         <button type="submit" class="p" style="padding:10px 20px;border-radius:10px;font-weight:800;font-size:13.5px">
-          ${tr('Send Message to Durga Sravan →','దుర్గా శ్రావణ్ కి మెసేజ్ పంపు →')}
+          ${tr('Register Ticket & Send to Admin →','టికెట్ నమోదు చేసి పంపు →')}
         </button>
       </form>
-    </div>
-
-    <!-- Live Conversation Thread -->
-    <div class="card">
-      <h2>${tr('Your Inquiries & Admin Responses','మీ సందేశాలు & అడ్మిన్ సమాధానాలు')}</h2>
-      ${myMsgs.length > 0 ? `
-      <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px">
-        ${myMsgs.map(item => `
-        <div style="background:var(--s);border:1px solid var(--b);border-radius:12px;padding:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span class="chip" style="font-size:11px;font-weight:700">${esc(item.topic || 'Inquiry')}</span>
-            <span class="m" style="font-size:11.5px">${fd(today())}</span>
-          </div>
-          <div style="font-size:13.5px;color:var(--t);margin-bottom:8px;line-height:1.5">
-            ${esc(item.msg)}
-          </div>
-          ${item.reply ? `
-          <div style="background:rgba(99,102,241,0.08);border-left:3px solid var(--p);padding:10px 12px;border-radius:0 8px 8px 0;margin-top:8px">
-            <div style="font-weight:800;font-size:12px;color:var(--p);margin-bottom:3px">
-              ${tr('Reply from Durga Sravan (Admin) ✓','దుర్గా శ్రావణ్ (అడ్మిన్) సమాధానం ✓')}
-            </div>
-            <div style="font-size:13px;color:var(--t)">${esc(item.reply)}</div>
-          </div>` : `
-          <div class="m" style="font-size:11.5px;font-style:italic">
-            ${tr('Pending reply from Durga Sravan...','అడ్మిన్ పరిశీలనలో ఉంది...')}
-          </div>`}
-        </div>
-        `).join('')}
-      </div>` : `<p class="m">${tr('No messages sent yet. Use the form above to contact Admin.','ఇంకా ఎలాంటి సందేశాలు పంపలేదు.')}</p>`}
     </div>`;
   }
 
@@ -10018,6 +10139,7 @@ let adminSupportSub = 'support';
 let activeChatTicketId = '';
 let activeChatBugId = '';
 let clientChatTicketId = '';
+let clientShowNewSupportForm = false;
 let clientChatBugId = '';
 let adminCsFilter = 'all';
 let adminBugFilter = 'all';
@@ -10186,6 +10308,8 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
   broadcastLiveChatMessage('support', item);
   toast(tr('Reply sent to borrower and synced ✓', 'సమాధానం పంపబడింది మరియు సింక్ చేయబడింది ✓'));
   draw();
+  scrollChatToBottom();
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
 }
 
 async function sendAdminBugReply(bugId, replyText, statusOverride){
@@ -10248,6 +10372,8 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
   broadcastLiveChatMessage('bug', bug);
   toast(tr('Bug update posted to borrower and ledger ✓', 'బగ్ అప్‌డేట్ రికార్డ్ చేయబడింది ✓'));
   draw();
+  scrollChatToBottom();
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
 }
 
 // Backward compatibility wrappers
@@ -11012,32 +11138,55 @@ function adminLockoutsTab(){
 let liveChatDeskChannel = null;
 let liveChatDeskPollTimer = null;
 
+function scrollChatToBottom(){
+  setTimeout(() => {
+    const boxes = document.querySelectorAll('.chat-stream-box, #admin-support-chat-thread, #admin-bug-chat-thread, #client-support-chat-thread, #client-bug-chat-thread');
+    boxes.forEach(b => { if (b) b.scrollTop = b.scrollHeight; });
+  }, 40);
+}
+
 function initLiveChatDeskChannel(){
   if(liveChatDeskChannel) return;
   try {
-    const client = (typeof sb !== 'undefined' && sb) ? sb : ((window.claude && window.claude._sb) || null);
+    const client = (typeof window !== 'undefined' && (window.sb || window._sb)) ? (window.sb || window._sb) : ((typeof sb !== 'undefined' && sb) ? sb : ((window.claude && window.claude._sb) || null));
     if(!client || !client.channel) return;
     liveChatDeskChannel = client.channel('gf_live_chat_desk', {
-      config: { broadcast: { self: false } }
+      config: { broadcast: { self: true } }
     });
-    liveChatDeskChannel.on('broadcast', { event: 'chat_message' }, payload => {
+    liveChatDeskChannel.on('broadcast', { event: 'chat_message' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
       if(!payload) return;
       const { chatType, item } = payload;
       if(chatType === 'support' && item){
-        const idx = CS.findIndex(x => x.id === item.id || (item.ticket_id && x.ticket_id === item.ticket_id));
+        const idx = CS.findIndex(x => x.id === item.id || (item.ticket_id && x.ticket_id && x.ticket_id.toUpperCase() === String(item.ticket_id).toUpperCase()));
         if(idx !== -1) CS[idx] = item;
         else CS.unshift(item);
         try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
+        if (tab === 'su' && adminSupportSub === 'support') {
+          if (!activeChatTicketId) activeChatTicketId = item.id;
+        }
+        if (role === 'c' && clientTab === 'my_support') {
+          if (!clientChatTicketId) clientChatTicketId = item.id;
+        }
       } else if(chatType === 'bug' && item){
-        const idx = CB.findIndex(x => x.id === item.id || (item.bug_id && x.bug_id === item.bug_id));
+        const idx = CB.findIndex(x => x.id === item.id || (item.bug_id && x.bug_id && x.bug_id.toUpperCase() === String(item.bug_id).toUpperCase()));
         if(idx !== -1) CB[idx] = item;
         else CB.unshift(item);
         try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
+        if (tab === 'su' && adminSupportSub === 'bugs') {
+          if (!activeChatBugId) activeChatBugId = item.id;
+        }
+        if (role === 'c' && clientTab === 'report_bug') {
+          if (!clientChatBugId) clientChatBugId = item.id;
+        }
       }
       playChime();
       draw();
+      scrollChatToBottom();
     });
-    liveChatDeskChannel.subscribe();
+    liveChatDeskChannel.subscribe((status) => {
+      console.log('Realtime chat channel status:', status);
+    });
   } catch(e) {
     console.warn('Realtime chat channel note:', e);
   }
@@ -11051,7 +11200,7 @@ function broadcastLiveChatMessage(chatType, item){
         type: 'broadcast',
         event: 'chat_message',
         payload: { chatType, item, ts: Date.now() }
-      }).catch(() => {});
+      }).catch(e => console.warn('Broadcast send notice:', e));
     } catch(_) {}
   }
 }
@@ -11066,7 +11215,10 @@ function ensureLiveChatDeskPolling(){
   }, 1200);
 }
 ensureLiveChatDeskPolling();
-setTimeout(initLiveChatDeskChannel, 1000);
+setTimeout(initLiveChatDeskChannel, 400);
+if (typeof window !== 'undefined') {
+  window.addEventListener('gf_sb_ready', () => initLiveChatDeskChannel());
+}
 
 
 function _drawInner(){
@@ -11171,7 +11323,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v104</span>
+          <span class="v18-pill">v105</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -11287,9 +11439,11 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             });
           } catch(_) {}
           draw();
+          scrollChatToBottom();
         }).catch(() => {
           bootComplete = true;
           draw();
+          scrollChatToBottom();
         });
       } else {
         bootComplete = true;
@@ -11311,7 +11465,8 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
         const mid = isAdm ? '' : (activeMid || (me && me.mid) || '');
         const qEmail = (typeof me !== 'undefined' && me && me.email) ? encodeURIComponent(me.email) : '';
         const qName = (actM && actM.name) ? encodeURIComponent(actM.name) : '';
-        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid) + (qEmail ? '&email=' + qEmail : '') + (qName ? '&name=' + qName : ''));
+        const clientPh = (actM && actM.phone) ? cleanPh(actM.phone) : (clientMid && cleanPh(clientMid).length === 10 ? cleanPh(clientMid) : '');
+        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid) + (qEmail ? '&email=' + qEmail : '') + (clientPh ? '&phone=' + encodeURIComponent(clientPh) : '') + (qName ? '&name=' + qName : ''));
         const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
         if (!res.ok) return;
         const d = await res.json();
@@ -11498,6 +11653,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             localStorage.setItem('gf_client_profiles', JSON.stringify(CP));
           } catch(_) {}
           draw();
+          scrollChatToBottom();
         }
       } catch (_) {}
     }
