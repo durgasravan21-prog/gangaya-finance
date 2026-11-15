@@ -1424,14 +1424,14 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=88"></script>
+<script src="/runtime.js?v=89"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
 window.addEventListener('online',()=>{isNetOffline=false;isSlowNet=false;if(offlineMode){toast(tr('Internet restored ✓ Reconnecting…','ఇంటర్నెట్ తిరిగి వచ్చింది ✓ రీకనెక్ట్ అవుతోంది…'));location.reload()}else{draw()}});
 const _urlP=new URLSearchParams(window.location.search);
 let isPublicScan=!!(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')),publicReceiptData=null,publicReceiptError='',_publicFetchStarted=false;
-let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='verify',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=null,tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,upiScannedDlg=false,upiScannedData=null,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
+let thm='auto',lang='te',pmode='cash',db,user,M=[],V=[],T=[],RM=new Set(),Q=[],tab=(_urlP.get('tab')||''),owner=false,role='f',vil='',sel=null,hist=false,fp='7',fv='',rv='',lq='',lv='',lgv='',vr=(_urlP.get('vr')||_urlP.get('r')||_urlP.get('receipt')||''),scannerTab='verify',qi=0,tmsg='',tt=0,dlg=null,busy=false,dbErr='',me=((()=>{try{const p=localStorage.getItem('gf_prof');return p?JSON.parse(p):null;}catch(_){return null;}}))(),tlw=false,pkind='loan',pdate='',exb=false,hp=[],imp=null,arq='',arv='',arv_id='',NT=[],notifOpen=false,notifFilter='all',lastReadNotif=+(localStorage.getItem('gf_notif_read')||0),dismissedNotifIds=(()=>{try{const s=localStorage.getItem('gf_dismissed_notifs');return s?new Set(JSON.parse(s)):new Set();}catch(_){return new Set();}})(),sessionStartTs=Date.now(),bootComplete=false,knownTxnIds=new Set(),knownNotifIds=new Set(),fnDlg=false,fnVil='',fnMid='',fnTxt='',audioCtx=null,rmf='all',rmv='',rmq='',rmi=0,rmLang='te',mremDlg=false,mremMid='',mremLang='te',mremTpl='std',mremTxt='',scannerDlg=false,upiScannedDlg=false,upiScannedData=null,customQr=localStorage.getItem('gf_custom_qr')||'',fnlDlg=false,LR=[],fnlMid='',fnlAmt='',fnlRepay='',fnlInst='',fnlD='',fnlT='',actFilter='all',actVillage='',actQuery='',UC=[],skippedRemIds=new Set();
 let CR=[],CS=[],CA=[],LK=[],CB=[],CP=[];
 let clientMid=localStorage.getItem('gf_client_mid')||'';
 let clientTab=(_urlP.get('ctab')||'my_loans');
@@ -1970,50 +1970,58 @@ cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=
 function syncRoleFromUser(){
   const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
   const uRole = String((me && me.role) || (user && user.role) || '').toLowerCase().trim();
-  const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan') || uRole === 'admin');
+  const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan21') || uRole === 'admin');
   const isCollectorUser = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || uRole === 'collector');
 
   if (isAdminUser) {
     owner = true;
-    if (!role || (role !== 'a' && role !== 'f' && role !== 'c')) role = 'a';
-  } else if (isCollectorUser) {
+    // Strict Admin Override: durgasravan21 MUST have role 'a' (unless explicitly viewing as collector 'f')
+    if (role !== 'f') role = 'a';
+    clientMid = '';
+    try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
+    return;
+  }
+  if (isCollectorUser) {
     owner = false;
-    if (role !== 'c') role = 'f';
-  } else {
-    // STRICT RBAC FOR CLIENTS: ANY OTHER USER (e.g. mohanadeep64@gmail.com)
-    owner = false;
-    role = 'c';
-    let found = null;
-    if (em.includes('mohanadeep') || em.includes('suda')) {
-      found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-    }
-    if (!found && em) {
-      found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
-    }
-    if (!found) {
-      const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
-      if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
-    }
-    if (found) {
-      clientMid = found.id;
+    role = 'f';
+    clientMid = '';
+    try { localStorage.removeItem('gf_client_mid'); } catch(_) {}
+    return;
+  }
+
+  // STRICT RBAC FOR CLIENTS / BORROWERS (ANY OTHER USER)
+  owner = false;
+  role = 'c';
+  let found = null;
+  if (em.includes('mohanadeep') || em.includes('suda')) {
+    found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+  }
+  if (!found && em) {
+    found = M.find(x => (x.email && x.email.toLowerCase() === em) || (x.name && em.toLowerCase().startsWith(x.name.toLowerCase().replace(/\s+/g,''))));
+  }
+  if (!found) {
+    const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
+    if (cp && cp.mid) found = M.find(x => x.id === cp.mid);
+  }
+  if (found) {
+    clientMid = found.id;
+    try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+  } else if (clientMid) {
+    const realM = M.find(x => x.id === clientMid || x.phone === clientMid || (clientMid === 'm_mohanadeep' && (x.name && (x.name.toLowerCase().includes('mohanadeep') || (x.phone && x.phone.includes('9494201305'))))));
+    if (realM) {
+      clientMid = realM.id;
       try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-    } else if (clientMid) {
-      const realM = M.find(x => x.id === clientMid || x.phone === clientMid || (clientMid === 'm_mohanadeep' && (x.name.toLowerCase().includes('mohanadeep') || x.phone.includes('9494201305'))));
-      if (realM) {
-        clientMid = realM.id;
-        try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
-      }
-    } else if (me && me.mid) {
-      clientMid = me.mid;
-      try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
     }
-    // Clean up any stray fake loan or fake member from local memory
-    if (T.some(t => t.id === 't_mohana_loan1')) {
-      T = T.filter(t => t.id !== 't_mohana_loan1');
-    }
-    if (M.some(x => x.id === 'm_mohanadeep')) {
-      M = M.filter(x => x.id !== 'm_mohanadeep');
-    }
+  } else if (me && me.mid) {
+    clientMid = me.mid;
+    try { localStorage.setItem('gf_client_mid', clientMid); } catch(_) {}
+  }
+  // Clean up any stray fake loan or fake member from local memory
+  if (T.some(t => t.id === 't_mohana_loan1')) {
+    T = T.filter(t => t.id !== 't_mohana_loan1');
+  }
+  if (M.some(x => x.id === 'm_mohanadeep')) {
+    M = M.filter(x => x.id !== 'm_mohanadeep');
   }
 }
 window.__onProfileUpdate = function(newProf){
@@ -3055,6 +3063,21 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);ba
         <div class="gf-receipt-stamp gf-anim-stamp">
           ${isPay?'PAID ✓':'SANCTIONED ✓'}
         </div>
+
+        ${(t.utr || t.photo) ? `
+        <!-- Prominent Payment Verification & Proof Screenshot -->
+        <div style="margin:12px 0;padding:12px;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.3);border-radius:12px;text-align:left">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:800;color:var(--ok);text-transform:uppercase;letter-spacing:0.04em">${tr('Verified Bank Transfer / UTR','ధృవీకరించిన బ్యాంక్ బదిలీ / UTR')}</span>
+            <span class="chip" style="font-size:10px;font-weight:800;background:rgba(16,185,129,0.15);color:var(--ok)">VERIFIED ✓</span>
+          </div>
+          ${t.utr ? `<div style="font-size:13px;color:var(--t);margin-bottom:6px"><b>UTR:</b> <span style="font-family:monospace;font-weight:800;color:var(--p)">${esc(t.utr)}</span></div>` : ''}
+          ${t.photo ? `
+          <div style="margin-top:8px">
+            <div class="m" style="font-size:11px;margin-bottom:4px">${tr('Uploaded Payment Screenshot:','సమర్పించిన పేమెంట్ స్క్రీన్‌షాట్:')}</div>
+            <img src="${t.photo}" style="max-height:180px;width:100%;object-fit:contain;border-radius:8px;border:1px solid var(--b);background:#fff" alt="Payment Proof Screenshot">
+          </div>` : ''}
+        </div>` : ''}
 
         ${(!isPay) ? `
         <!-- Dynamic UPI Payment Scanner (Only for Sanctioned Loans or Due Slips) -->
@@ -6611,7 +6634,49 @@ function submitClientSupportMsg(ev){
 
   toast(tr('Message sent to Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ కి మెసేజ్ పంపబడింది ✓'));
   f.reset();
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
   draw();
+}
+
+function downloadAgreementPdf(){
+  const m = M.find(x => x.id === clientMid) || {};
+  const myAgr = CA.find(x => x.mid === clientMid || (m && x.mid === m.id)) || {};
+  const selfieHtml = myAgr.selfie_photo ? '<img src="'+myAgr.selfie_photo+'" style="height:120px;border-radius:8px;border:1px solid #ccc;margin-bottom:12px" alt="Borrower Selfie">' : '';
+  const name = esc(m.name||'Borrower');
+  const village = (typeof vl==='function') ? esc(vl(m.village||'')) : esc(m.village||'N/A');
+  const phone = esc(m.phone||'N/A');
+  const instText = (typeof inr==='function') ? inr(m.inst) : ('Rs.'+m.inst);
+  const freqText = m.freq===1 ? 'Daily' : 'Weekly';
+  const signedOn = myAgr.signed_at ? new Date(myAgr.signed_at).toLocaleString() : new Date().toLocaleString();
+  const hashText = esc(myAgr.hash||'SHA256-AUTHENTIC');
+  const signedName = esc(myAgr.signed_name||m.name||'N/A');
+  const printWin = window.open('', '_blank');
+  if (!printWin) { toast(tr('Allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn'); return; }
+  var html2 = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loan Agreement - '+name+'</title>';
+  html2 += '<style>body{font-family:Arial,sans-serif;padding:32px;color:#222;max-width:700px;margin:0 auto}';
+  html2 += 'h1{font-size:20px;text-align:center;color:#059669}h2{font-size:16px;border-bottom:1px solid #ccc;padding-bottom:4px}';
+  html2 += 'p{font-size:13px;line-height:1.7}.sig-block{border-top:2px solid #059669;padding-top:12px;margin-top:24px}';
+  html2 += '.meta{font-size:11px;color:#666;font-family:monospace}@media print{button{display:none}}</style></head><body>';
+  html2 += '<h1>GANGAYA FINANCE &bull; LOAN SANCTION AGREEMENT</h1>';
+  html2 += '<p class="meta">Sanctioned by: Durga Sravan &bull; Guntur, Andhra Pradesh &bull; '+new Date().toLocaleString()+'</p>';
+  html2 += selfieHtml;
+  html2 += '<h2>Borrower Details</h2>';
+  html2 += '<p><b>Name:</b> '+name+' &nbsp;&nbsp; <b>Village:</b> '+village+'<br>';
+  html2 += '<b>Phone:</b> '+phone+' &nbsp;&nbsp; <b>Instalment:</b> '+instText+' ('+freqText+')</p>';
+  html2 += '<h2>Loan Terms</h2>';
+  html2 += '<p><b>1. Parties:</b> This Agreement is between <b>Gangaya Finance</b> (Financier) and <b>'+name+'</b> (Borrower), resident of <b>'+village+'</b>.</p>';
+  html2 += '<p><b>2. Repayment:</b> Agreed instalments of <b>'+instText+'</b> on a <b>'+freqText+'</b> basis.</p>';
+  html2 += '<p><b>3. Mode:</b> UPI to <code>challagolla.sravan@superyes</code> or cash to Collector Gangaya against digital receipts.</p>';
+  html2 += '<p><b>4. Digital Verification:</b> Every payment generates a cryptographic receipt verifiable via QR code.</p>';
+  html2 += '<div class="sig-block"><p><b>Digital Signature:</b> '+signedName+'<br>';
+  html2 += '<b>Signed On:</b> '+signedOn+'<br>';
+  html2 += '<b>Document Hash:</b> <span class="meta">'+hashText+'</span></p>';
+  html2 += '<p style="font-style:italic;color:#666;">తెలుగు సంక్షిప్తం: ఈ ఒప్పందం ద్వారా రుణగ్రహీత నిర్ణీత వాయిదాలను క్రమం తప్పకుండా చెల్లించడానికి అంగీకరిస్తున్నారు.</p>';
+  html2 += '</div>';
+  html2 += '<scr'+'ipt>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/scr'+'ipt>';
+  html2 += '</body></html>';
+  printWin.document.write(html2);
+  printWin.document.close();
 }
 
 function signClientAgreement(ev){
@@ -6638,6 +6703,8 @@ function signClientAgreement(ev){
   }
   const activeMid = (m && m.id) || clientMid || 'm_mohanadeep';
   const agrId = 'agr_' + activeMid;
+  var agrSelfie = '';
+  try { var _si = document.getElementById('ca-popup-selfie-img') || document.getElementById('ca-selfie-img'); if (_si && _si.src && _si.src.startsWith('data:image')) { agrSelfie = _si.src; } } catch(_) {}
   const agrObj = {
     id: agrId,
     mid: activeMid,
@@ -6647,7 +6714,8 @@ function signClientAgreement(ev){
     needs_resignature: false,
     ts: Date.now(),
     signed_at: new Date().toISOString(),
-    hash: 'SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase()
+    hash: 'SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase(),
+    selfie_photo: agrSelfie
   };
 
   // Immediate resilient local & session persistence across all key formats
@@ -6952,6 +7020,7 @@ function submitClientBugReport(ev){
 
   toast(tr('Bug report submitted to Durga Sravan (Admin) ✓', 'సమస్య నివేదించబడింది ✓'));
   f.reset();
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
   draw();
 }
 
@@ -7073,11 +7142,14 @@ async function adminVerifyClientPayment(proofId){
     ts: Date.now(),
     by: 'Durga Sravan (Verified Ledger)',
     utr: p.utr || '',
+    photo: p.photo || '',
+    proof_id: p.id,
     sent: true
   };
 
   p.status = 'verified';
   p.verified_by = 'Durga Sravan';
+  p.verified_at = new Date().toISOString();
   p.verified_at = new Date().toISOString();
   p.txn_id = newTxn.id;
 
@@ -7114,7 +7186,8 @@ async function adminVerifyClientPayment(proofId){
 
   T.unshift(newTxn);
   toast(tr(`Payment of ₹${p.amt} verified & official receipt generated ✓`, `₹${p.amt} చెల్లింపు ధృవీకరించబడింది & రసీదు జారీ చేయబడింది ✓`));
-  draw();
+  // Immediately open the verified receipt showing photo and UTR for clarity
+  openReceipt(newTxn.id);
 }
 
 async function adminRejectClientPayment(proofId, reason){
@@ -7342,7 +7415,137 @@ async function submitClientLoanApplication(ev){
 /* -------------------------------------------------------------
    ADMIN RE-SIGNATURE REQUEST FOR DIGITAL AGREEMENT
    ------------------------------------------------------------- */
-async function adminRequestReSignature(mid, reason){
+async 
+let activeBorrowerProfileMid = '';
+function viewBorrowerFullProfile(mid){
+  activeBorrowerProfileMid = mid;
+  draw();
+}
+function closeBorrowerProfileModal(){
+  activeBorrowerProfileMid = '';
+  draw();
+}
+function renderBorrowerProfileModal(){
+  if (!activeBorrowerProfileMid) return '';
+  const m = M.find(x => x.id === activeBorrowerProfileMid) || {};
+  const p = CP.find(x => x.mid === activeBorrowerProfileMid || (m.phone && cleanPh(x.phone1) === cleanPh(m.phone))) || {};
+  const agr = CA.find(x => x.mid === activeBorrowerProfileMid || (m.phone && x.mid === m.phone)) || {};
+  const myReceipts = CR.filter(x => x.mid === activeBorrowerProfileMid || (m.phone && x.phone && x.phone.includes(m.phone)));
+  const mySupport = CS.filter(x => x.mid === activeBorrowerProfileMid);
+  const memStatus = m.id ? st(m) : { due: 0, tot: 0, paid: 0 };
+  const displayName = p.name || m.name || tr('Borrower','రుణగ్రహీత');
+  const photoUrl = p.photo || agr.selfie_photo || '';
+
+  return `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box" onclick="if(event.target===this)closeBorrowerProfileModal()">
+    <div class="card" role="dialog" aria-modal="true" style="position:relative;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;padding:24px 20px;border:2px solid var(--p);box-shadow:0 20px 50px rgba(0,0,0,0.35);margin:auto">
+      <button type="button" onclick="closeBorrowerProfileModal()" title="Close" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;font-weight:700;color:var(--m);cursor:pointer;padding:4px 8px;line-height:1">✕</button>
+      
+      <!-- Profile Header -->
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--b)">
+        <div style="width:72px;height:72px;border-radius:14px;background:var(--c);border:2px solid var(--p);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          ${photoUrl ? `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover" alt="${esc(displayName)}">` : `<span style="font-size:28px;color:var(--p);font-weight:900">${esc(displayName.charAt(0))}</span>`}
+        </div>
+        <div style="flex:1;min-width:0">
+          <h2 style="margin:0 0 2px;font-size:18px;color:var(--t)">${esc(displayName)} ${m.te ? '<span class="m">(' + esc(m.te) + ')</span>' : ''}</h2>
+          <div class="m" style="font-size:12.5px">${esc(p.place || vl(m.village) || 'Guntur')} ${p.age ? '· ' + p.age + ' yrs' : ''}</div>
+          <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+            <span class="chip" style="font-weight:800;background:rgba(5,150,105,0.12);color:var(--ok);font-size:11px">
+              ${tr('Due: ','బాకీ: ')}${inr(Math.max(0, memStatus.due))}
+            </span>
+            <span class="chip" style="font-size:11px">${m.freq===1 ? 'Daily' : 'Weekly'} · ${inr(m.inst)}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Details -->
+      <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b);margin-bottom:14px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span><b>${tr('Primary Phone:','ఫోన్:')}</b> ${ph(p.phone1 || m.phone || '')}</span>
+          ${(p.phone1 || m.phone) ? `<div style="display:flex;gap:6px"><a href="tel:${cleanPh(p.phone1 || m.phone)}" class="sm" style="text-decoration:none;padding:2px 8px;font-size:11px;font-weight:700">Call</a><a href="https://wa.me/91${cleanPh(p.phone1 || m.phone)}" target="_blank" class="sm" style="text-decoration:none;padding:2px 8px;font-size:11px;font-weight:700;color:var(--ok)">WhatsApp</a></div>` : ''}
+        </div>
+        ${p.phone2 ? `<div style="margin-top:4px"><b>${tr('Secondary Phone:','రెండవ ఫోన్:')}</b> ${ph(p.phone2)}</div>` : ''}
+        ${p.email ? `<div style="margin-top:4px"><b>${tr('Email:','ఈమెయిల్:')}</b> ${esc(p.email)}</div>` : ''}
+      </div>
+
+      <!-- Digital Loan Agreement Status -->
+      <div style="background:var(--s);padding:12px;border-radius:10px;border:1px solid var(--b);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <b style="font-size:13.5px">${tr('Digital Loan Agreement','డిజిటల్ అప్పు ఒప్పందం')}</b>
+          <span class="chip" style="background:${agr.signed ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};color:${agr.signed ? 'var(--ok)' : 'var(--r)'};font-weight:800;font-size:11px">
+            ${agr.signed ? 'SIGNED & VALIDATED ✓' : 'PENDING SIGNATURE'}
+          </span>
+        </div>
+        ${agr.signed ? `
+        <div class="m" style="font-size:12px;margin-bottom:8px">
+          ${tr('Signed Name: ','సంతకం: ')}<b>${esc(agr.signed_name || displayName)}</b> · ${fd(agr.signed_at ? agr.signed_at.slice(0,10) : today())}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="sm" onclick="adminDownloadAgreementPdf('${activeBorrowerProfileMid}')" style="border-radius:8px;font-weight:700;background:rgba(99,102,241,0.12);color:var(--p);border-color:var(--p)">
+            ${tr('Download Agreement PDF','ఒప్పందం PDF డౌన్లోడ్')}
+          </button>
+          <button class="sm" onclick="const r=prompt('${tr('Reason for re-signature request:','తిరిగి సంతకం కోరడానికి కారణం:')}');if(r!==null)adminRequestReSignature('${activeBorrowerProfileMid}', r);" style="border-radius:8px;font-size:11.5px">
+            ${tr('Request Re-Signature ⟳','మళ్ళీ సంతకం కోరు ⟳')}
+          </button>
+        </div>` : `
+        <div class="m" style="font-size:12px">${tr('Borrower has not executed the digital agreement yet.','ఈ రుణగ్రహీత ఇంకా ఒప్పందంపై సంతకం చేయలేదు.')}</div>
+        `}
+      </div>
+
+      <!-- Recent Payments & Inquiries Quick Counts -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div style="background:var(--s);padding:10px;border-radius:8px;border:1px solid var(--b);text-align:center">
+          <div style="font-size:16px;font-weight:800;color:var(--ok)">${myReceipts.length}</div>
+          <div class="m" style="font-size:11px">${tr('Submitted Payments','చెల్లింపులు')}</div>
+        </div>
+        <div style="background:var(--s);padding:10px;border-radius:8px;border:1px solid var(--b);text-align:center">
+          <div style="font-size:16px;font-weight:800;color:var(--p)">${mySupport.length}</div>
+          <div class="m" style="font-size:11px">${tr('Support Inquiries','సందేహాలు')}</div>
+        </div>
+      </div>
+
+      <div style="text-align:right">
+        <button class="p sm" onclick="closeBorrowerProfileModal()" style="border-radius:8px;padding:8px 18px;font-weight:700">${tr('Close','మూసివేయి')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function adminDownloadAgreementPdf(mid){
+  const m = M.find(x => x.id === mid) || {};
+  const agr = CA.find(x => x.mid === mid) || {};
+  const selfieHtml = agr.selfie_photo ? '<img src="'+agr.selfie_photo+'" style="height:120px;border-radius:8px;border:1px solid #ccc;margin-bottom:12px" alt="Borrower Selfie at Signing">' : '';
+  const name = esc(m.name||'N/A');
+  const village = (typeof vl==='function') ? esc(vl(m.village||'')) : esc(m.village||'N/A');
+  const phone = esc(m.phone||'N/A');
+  const instText = (typeof inr==='function') ? inr(m.inst) : ('Rs.'+m.inst);
+  const freqText = m.freq===1 ? 'Daily' : 'Weekly';
+  const signedOn = agr.signed_at ? new Date(agr.signed_at).toLocaleString() : 'N/A';
+  const hashText = esc(agr.hash||'SHA256-AUTHENTIC');
+  const signedName = esc(agr.signed_name||m.name||'N/A');
+  const printWin = window.open('', '_blank');
+  if (!printWin) { toast(tr('Allow pop-ups to download PDF','PDF డౌన్లోడ్‌కు పాప్-అప్ అనుమతి ఇవ్వండి'), 'warn'); return; }
+  var html2 = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Admin Agreement Copy - '+name+'</title>';
+  html2 += '<style>body{font-family:Arial,sans-serif;padding:32px;color:#222;max-width:700px;margin:0 auto}';
+  html2 += 'h1{font-size:20px;text-align:center;color:#059669}h2{font-size:16px;border-bottom:1px solid #ccc;padding-bottom:4px}';
+  html2 += 'p{font-size:13px;line-height:1.7}.sig{border-top:2px solid #059669;padding-top:12px;margin-top:24px}';
+  html2 += '.meta{font-size:11px;color:#666;font-family:monospace}@media print{button{display:none}}</style></head><body>';
+  html2 += '<h1>GANGAYA FINANCE &bull; ADMIN AGREEMENT COPY</h1>';
+  html2 += '<p class="meta">Durga Sravan (Admin) &bull; Guntur &bull; '+new Date().toLocaleString()+'</p>';
+  html2 += selfieHtml;
+  html2 += '<h2>Borrower: '+name+'</h2>';
+  html2 += '<p><b>Village:</b> '+village+' &nbsp; <b>Phone:</b> '+phone+'<br>';
+  html2 += '<b>Instalment:</b> '+instText+' ('+freqText+')</p>';
+  html2 += '<div class="sig"><p><b>Signed Name:</b> '+signedName+'<br>';
+  html2 += '<b>Signed On:</b> '+signedOn+'<br>';
+  html2 += '<b>Hash:</b> <span class="meta">'+hashText+'</span></p>';
+  html2 += '<p style="font-style:italic;color:#666;">తెలుగు: ఈ ఒప్పందం రుణగ్రహీత చేత డిజిటల్‌గా ఆమోదించబడింది.</p></div>';
+  html2 += '<scr'+'ipt>window.onload=function(){window.print();window.onafterprint=function(){window.close();};};<\/scr'+'ipt>';
+  html2 += '</body></html>';
+  printWin.document.write(html2);
+  printWin.document.close();
+}
+
+function adminRequestReSignature(mid, reason){
   if(!owner) return;
   let agr = CA.find(x => x.mid === mid);
   if(!agr) return;
@@ -7407,7 +7610,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v88</span>
+            <span class="v18-pill">v89</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -8073,7 +8276,11 @@ function renderClientDashboard(){
         <div class="m" style="font-size:12.5px;margin-bottom:10px">
           ${tr('Signed by: ','సంతకం చేసినవారు: ')}<b>${esc(myAgreement.signed_name)}</b> · ${fd(today())} · Hash: ${esc(myAgreement.hash || 'SHA256-AUTHENTIC')}
         </div>
-        <button class="sm" onclick="window.print()" style="border-radius:8px;font-weight:700">${tr('Print Agreement Copy','ఒప్పందం ప్రింట్ చేయి')}</button>
+        ${myAgreement && myAgreement.selfie_photo ? `<div style="margin:10px 0"><img src="${myAgreement.selfie_photo}" style="height:80px;border-radius:8px;border:1.5px solid var(--ok)" alt="Selfie at Signing"></div>` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px">
+          <button class="sm" onclick="window.print()" style="border-radius:8px;font-weight:700">${tr('Print Agreement Copy','ఒప్పందం ప్రింట్ చేయి')}</button>
+          <button class="sm" onclick="downloadAgreementPdf()" style="border-radius:8px;font-weight:700;background:rgba(99,102,241,0.12);color:var(--p);border-color:var(--p)">${tr('Download PDF','PDF డౌన్లోడ్ చేయండి')}</button>
+        </div>
       </div>` : `
       <form onsubmit="signClientAgreement(event)" style="background:var(--s);border:1.5px dashed var(--p);border-radius:12px;padding:18px">
         <h3 style="margin:0 0 8px;font-size:14.5px">${tr('Apply Digital E-Signature','డిజిటల్ ఇ-సంతకం వర్తింపజేయండి')}</h3>
@@ -8081,6 +8288,15 @@ function renderClientDashboard(){
           ${tr('Type your full legal name below to execute this loan agreement electronically.', 'ఈ అప్పు ఒప్పందాన్ని ధృవీకరించడానికి మీ పూర్తి పేరును నమోదు చేయండి.')}
         </p>
 
+<div style="margin-bottom:14px">
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">${tr('Step 1: Take a Selfie Photo (Required for Document)','దశ 1: సెల్ఫీ తీయండి (పత్రానికి అవసరం)')}</label>
+          <div id="ca-selfie-preview" style="display:none;margin-bottom:8px"><img id="ca-selfie-img" style="max-height:120px;border-radius:8px;border:1.5px solid var(--ok)" alt="Selfie"></div>
+          <input id="ca-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var pre=document.getElementById('ca-selfie-preview');var img=document.getElementById('ca-selfie-img');if(pre&&img){img.src=e.target.result;pre.style.display='block';}};r.readAsDataURL(f);})(this)">
+          <button type="button" class="sm" onclick="document.getElementById('ca-selfie').click()" style="border-radius:8px;font-weight:700;font-size:12.5px;border:1.5px dashed var(--p);background:rgba(99,102,241,0.08);color:var(--p)">
+            ${tr('Open Camera & Take Selfie','కెమెరా తెరవండి & సెల్ఫీ తీయండి')}
+          </button>
+          <span class="m" style="font-size:11px;display:block;margin-top:4px">${tr('Your photo will be embedded in the loan agreement document.','మీ ఫోటో అప్పు ఒప్పంద పత్రంలో చేర్చబడుతుంది.')}</span>
+        </div>
         <div style="margin-bottom:12px">
           <input id="ca-name" type="text" placeholder="${tr('Type your full legal name','మీ పూర్తి పేరును నమోదు చేయండి')}" value="${esc(m.name)}" required style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:14px;font-weight:700">
         </div>
@@ -8494,8 +8710,21 @@ function renderClientDashboard(){
       </div>
 
       <form onsubmit="signClientAgreement(event)">
+        <!-- Selfie Photo Capture for Agreement Document -->
+        <div style="margin-bottom:14px;background:var(--c);padding:12px;border-radius:10px;border:1.5px dashed var(--p)">
+          <label style="font-size:12px;font-weight:700;color:var(--p);display:block;margin-bottom:6px">${tr('Step 1: Take Photo for Identity Verification (Embedded in Agreement)','దశ 1: గుర్తింపు ధృవీకరణ కొరకు ఫోటో తీయండి (ఒప్పంద పత్రంలో చేరుతుంది)')}</label>
+          <div id="ca-popup-selfie-preview" style="display:none;margin-bottom:8px">
+            <img id="ca-popup-selfie-img" style="max-height:120px;border-radius:8px;border:1.5px solid var(--ok)" alt="Selfie">
+          </div>
+          <input id="ca-popup-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var p=document.getElementById('ca-popup-selfie-preview');var i=document.getElementById('ca-popup-selfie-img');if(p&&i){i.src=e.target.result;p.style.display='block';}};r.readAsDataURL(f);})(this)">
+          <button type="button" class="sm" onclick="document.getElementById('ca-popup-selfie').click()" style="border-radius:8px;font-weight:700;font-size:12.5px;background:rgba(99,102,241,0.12);color:var(--p);border:1px solid var(--p)">
+            ${tr('Open Camera & Take Selfie','కెమెరా తెరవండి & సెల్ఫీ తీయండి')}
+          </button>
+          <span class="m" style="font-size:11px;display:block;margin-top:4px">${tr('Only this captured photo will be embedded in the official agreement document for security.','భద్రత కోసం ఈ ఫోటో మాత్రమే అధికారిక అప్పు ఒప్పంద పత్రంలో చేర్చబడుతుంది.')}</span>
+        </div>
+
         <div style="margin-bottom:12px">
-          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Type Full Legal Name for Digital Signature*','మీ పూర్తి పేరును నమోదు చేయండి*')}</label>
+          <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Step 2: Type Full Legal Name for Digital Signature*','దశ 2: మీ పూర్తి పేరును నమోదు చేయండి*')}</label>
           <input id="ca-popup-name" type="text" value="${esc(m.name)}" required style="width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t)">
         </div>
         <div style="margin-bottom:14px;display:flex;align-items:flex-start;gap:8px">
@@ -8773,7 +9002,9 @@ function adminSupportTab(){
             ${agr.needs_resignature ? ' · <span style="color:var(--r);font-weight:700">Re-signature requested</span>' : ''}
           </div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          ${agr.selfie_photo ? '<img src="'+agr.selfie_photo+'" style="height:44px;width:44px;border-radius:7px;border:1.5px solid var(--ok);object-fit:cover" alt="Selfie" title="Borrower selfie at signing">' : ''}
+          <button class="sm" onclick="adminDownloadAgreementPdf('${agr.mid}')" style="border-radius:8px;font-weight:700;font-size:12px;background:rgba(99,102,241,0.1);color:var(--p);border-color:var(--p)">${tr('Download PDF','PDF డౌన్లోడ్')}</button>
           <button class="sm" onclick="const r=prompt('${tr('Reason for re-signature request (e.g. Revised principal):','తిరిగి సంతకం కోరడానికి కారణం:')}');if(r!==null)adminRequestReSignature('${agr.mid}', r);" style="border-radius:8px;font-weight:700;font-size:12px">
             ${tr('Request Re-Signature ⟳','మళ్ళీ సంతకం కోరు ⟳')}
           </button>
@@ -8848,7 +9079,7 @@ function adminSupportTab(){
         const mem = M.find(x => x.id === p.mid || (p.phone1 && cleanPh(x.phone) === cleanPh(p.phone1)) || (p.name && x.name.toLowerCase() === p.name.toLowerCase()));
         const memStatus = mem ? st(mem) : null;
         return `
-        <div style="background:var(--s);padding:14px;border-radius:12px;border:1px solid var(--b);display:flex;gap:12px;align-items:flex-start">
+        <div onclick="viewBorrowerFullProfile('${p.mid || (mem ? mem.id : '')}')" style="background:var(--s);padding:14px;border-radius:12px;border:1px solid var(--b);display:flex;gap:12px;align-items:flex-start;cursor:pointer" title="Click to view full borrower profile & documents">
           <div style="width:58px;height:58px;border-radius:10px;background:var(--c);border:1px solid var(--b);overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
             ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover" alt="${esc(p.name)}">` : `<span style="font-size:24px;color:var(--m);font-weight:800">${esc(p.name ? p.name.charAt(0) : 'U')}</span>`}
           </div>
@@ -8934,6 +9165,13 @@ function adminLockoutsTab(){
 
 function _drawInner(){
   _drawPending = false;
+  if (me && me.email) {
+    const _em = String(me.email).toLowerCase().trim();
+    if (_em === 'durgasravan21@gmail.com' || _em.includes('durgasravan') || _em.includes('sravan21')) {
+      owner = true;
+      if (role !== 'a' && role !== 'f') role = 'a';
+    }
+  }
   const app=$('#app');
   if (isPublicScan && vr) {
     return app.innerHTML = renderStandaloneReceiptPage(vr);
@@ -9001,7 +9239,7 @@ if (tab === 'mb' && !adm) {
   }[tab]();
 }
 
-app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
+app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="Navigation">
   <div class="v18-dock-brand" onclick="go('${tabs[0][0]}')" title="Gangaya Finance">GF</div>
   <nav class="v18-dock-nav" style="grid-template-columns: repeat(${tabs.length}, 1fr)">
     ${tabs.map(([k, label, cnt, shortLabel]) => `
@@ -9025,7 +9263,7 @@ app.innerHTML=`<aside class="v18-dock" aria-label="Navigation">
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v88</span>
+          <span class="v18-pill">v89</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9106,12 +9344,21 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('settings',a=>{const s=a.find(x=>x.id=='qr_scanner');if(s&&s.image){customQr=s.image;try{localStorage.setItem('gf_custom_qr',customQr)}catch(_){}draw()}},a=>a);
       sub('loan_requests',a=>{LR=mergeLoanRequests(a,NT);draw()},cLR);
       sub('upi_credits',a=>{UC=a;draw()},cUC);
-      sub('client_receipts',a=>{CR=a||[];draw();},a=>a);
-      sub('client_support',a=>{CS=a||[];draw();},a=>a);
-      sub('client_agreements',a=>{CA=a||[];draw();},a=>a);
-      sub('lockouts',a=>{LK=a||[];draw();},a=>a);
-      sub('client_bugs',a=>{CB=a||[];draw();},a=>a);
-      sub('client_profiles',a=>{CP=a||[];draw();},a=>a);
+      // Resilient merged subscriptions: never wipe out locally submitted items on partial snapshot
+      function mergeSnapList(incoming, existing, storageKey) {
+        const map = new Map();
+        (incoming || []).forEach(x => { if (x && x.id) map.set(x.id, x); });
+        (existing || []).forEach(x => { if (x && x.id && !map.has(x.id)) map.set(x.id, x); });
+        const res = Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
+        if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(res)); } catch(_) {} }
+        return res;
+      }
+      sub('client_receipts', a => { CR = mergeSnapList(a, CR, 'gf_client_receipts'); draw(); }, a=>a);
+      sub('client_support', a => { CS = mergeSnapList(a, CS, 'gf_client_support'); draw(); }, a=>a);
+      sub('client_agreements', a => { CA = mergeSnapList(a, CA, 'gf_client_agreements'); draw(); }, a=>a);
+      sub('lockouts', a => { LK = a || []; draw(); }, a=>a);
+      sub('client_bugs', a => { CB = mergeSnapList(a, CB, 'gf_client_bugs'); draw(); }, a=>a);
+      sub('client_profiles', a => { CP = mergeSnapList(a, CP, 'gf_client_profiles'); draw(); }, a=>a);
 
       if(db.loadAll){
         db.loadAll().then(()=>{bootComplete=true;syncServerSubmissions();draw();}).catch(()=>{bootComplete=true;});
@@ -9212,7 +9459,16 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
           }
         }
 
-        if (changed) draw();
+        if (changed) {
+          try {
+            localStorage.setItem('gf_client_support', JSON.stringify(CS));
+            localStorage.setItem('gf_client_bugs', JSON.stringify(CB));
+            localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50)));
+            localStorage.setItem('gf_client_agreements', JSON.stringify(CA));
+            localStorage.setItem('gf_client_profiles', JSON.stringify(CP));
+          } catch(_) {}
+          draw();
+        }
       } catch (_) {}
     }
     window.syncServerSubmissions = syncServerSubmissions;
@@ -9239,5 +9495,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=88').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=89').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

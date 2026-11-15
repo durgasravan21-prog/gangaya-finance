@@ -40,20 +40,32 @@ drop policy if exists docs_insert_collector  on public.docs;
 drop policy if exists docs_update_admin      on public.docs;
 drop policy if exists docs_delete_admin      on public.docs;
 
+-- Policies:
 create policy profiles_self on public.profiles for select to authenticated using (id = auth.uid());
-create policy docs_read on public.docs for select to authenticated
-  using (public.my_role() in ('admin','collector'));
-create policy docs_insert_admin on public.docs for insert to authenticated
-  with check (public.my_role() = 'admin');
-create policy docs_insert_collector on public.docs for insert to authenticated
-  with check (public.my_role() = 'collector' and collection in ('txns','notifs','rem','loan_requests'));
-create policy docs_update_collector on public.docs for update to authenticated
-  using (public.my_role() = 'collector' and collection = 'rem')
-  with check (public.my_role() = 'collector' and collection = 'rem');
-create policy docs_update_admin on public.docs for update to authenticated
+
+create policy docs_all_admin on public.docs for all to authenticated
   using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
-create policy docs_delete_admin on public.docs for delete to authenticated
-  using (public.my_role() = 'admin' and collection <> 'txns');
+
+create policy docs_collector_read on public.docs for select to authenticated
+  using (public.my_role() = 'collector');
+
+create policy docs_collector_insert on public.docs for insert to authenticated
+  with check (public.my_role() = 'collector' and collection in ('txns','notifs','rem','loan_requests'));
+
+create policy docs_collector_update on public.docs for update to authenticated
+  using (public.my_role() = 'collector' and collection in ('rem','txns'))
+  with check (public.my_role() = 'collector' and collection in ('rem','txns'));
+
+-- Client & Anonymous self-service policies for support, bugs, KYC, agreements, and payment proofs:
+create policy docs_client_select on public.docs for select to public
+  using (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits','client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts'));
+
+create policy docs_client_insert on public.docs for insert to public
+  with check (collection in ('client_support','client_bugs','client_profiles','client_agreements','client_receipts','loan_requests','notifs'));
+
+create policy docs_client_update on public.docs for update to public
+  using (collection in ('client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts'))
+  with check (collection in ('client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts'));
 
 -- Server-side checks: validation, trusted time and author on every payment/loan,
 -- and payment/loan records can never be edited (only the receipt "sent" flag may change).

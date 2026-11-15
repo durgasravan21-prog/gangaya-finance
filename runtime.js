@@ -907,6 +907,15 @@
         break;
       }
 
+      // If user is authenticated in Supabase, but not a staff member in profiles table, they are a client/borrower!
+      if (s && s.user && res && !res.error && !data) {
+        prof = sanitizeProfile(s.user, { userId: s.user.id, email: s.user.email, role: 'client' });
+        uid = s.user.id;
+        email = s.user.email || '';
+        try { localStorage.setItem('gf_prof', JSON.stringify(prof)); } catch (_) {}
+        break;
+      }
+
       // If we have cached profile and encountered network timeout, proceed with cached profile
       if (prof && prof.role && (!res || error)) {
         console.warn('Network issue reaching profiles; proceeding with cached profile');
