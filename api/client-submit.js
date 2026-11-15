@@ -47,6 +47,24 @@ async function trySupabaseWrite(collection, id, data) {
   }
 }
 
+// Helper to fetch single doc from Supabase docs table
+async function getExistingDoc(collection, id) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/docs?select=data&collection=eq.${collection}&id=eq.${encodeURIComponent(id)}`, {
+      headers: {
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`
+      },
+      signal: AbortSignal.timeout(3000)
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows && rows[0] && rows[0].data) return rows[0].data;
+    }
+  } catch (_) {}
+  return null;
+}
+
 // Helper to fetch live from Supabase docs table
 async function fetchSupabaseCollections() {
   try {
@@ -112,6 +130,8 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     const role = (req.query.role || '').trim();
     const mid = (req.query.mid || '').trim();
+    const qEmail = (req.query.email || '').toLowerCase().trim();
+    const qName = (req.query.name || '').toLowerCase().trim();
 
     // Query live from Supabase docs table
     const remote = await fetchSupabaseCollections();
@@ -142,15 +162,23 @@ module.exports = async (req, res) => {
       });
     }
 
-    // If Client: return items matching borrower's mid or phone
+    // If Client: return items matching borrower's mid, phone, email, or name
+    function matchBorrower(x) {
+      if (!x) return false;
+      if (mid && (x.mid === mid || (x.phone && x.phone.includes(mid)) || (x.id && x.id.includes(mid)))) return true;
+      if (qEmail && (x.email === qEmail || (x.mid && qEmail.includes(x.mid)))) return true;
+      if (qName && x.borrower && x.borrower.toLowerCase() === qName) return true;
+      return false;
+    }
+
     return res.status(200).json({
       ok: true,
-      support: mid ? merged.support.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
-      bugs: mid ? merged.bugs.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
-      profiles: mid ? merged.profiles.filter(x => x.mid === mid || (x.phone1 && x.phone1.includes(mid)) || (x.phone2 && x.phone2.includes(mid))) : [],
-      receipts: mid ? merged.receipts.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
-      agreements: mid ? merged.agreements.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid)) || (mid.length > 5 && x.id && x.id.includes(mid))) : [],
-      loan_requests: mid ? merged.loan_requests.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
+      support: merged.support.filter(matchBorrower),
+      bugs: merged.bugs.filter(matchBorrower),
+      profiles: merged.profiles.filter(matchBorrower),
+      receipts: merged.receipts.filter(matchBorrower),
+      agreements: merged.agreements.filter(matchBorrower),
+      loan_requests: merged.loan_requests.filter(matchBorrower),
       timestamp: Date.now()
     });
   }
@@ -460,12 +488,23 @@ module.exports = async (req, res) => {
     if (action === 'resolve_support') {
       const itemId = String(body.id || '').trim();
       const replyText = String(body.reply || '').slice(0, 500).trim();
-      const item = serverStore.support.find(x => x.id === itemId) || { id: itemId };
+      let item = serverStore.support.find(x => x.id === itemId);
+      if (!item) {
+        const existing = await getExistingDoc('client_support', itemId);
+        item = existing || { id: itemId };
+        serverStore.support.unshift(item);
+      }
       item.reply = replyText;
       item.status = 'resolved';
       item.resolved_at = new Date().toISOString();
+      if (body.borrower && !item.borrower) item.borrower = body.borrower;
+      if (body.msg && !item.msg) item.msg = body.msg;
+      if (body.topic && !item.topic) item.topic = body.topic;
+      if (body.village && !item.village) item.village = body.village;
+      if (body.phone && !item.phone) item.phone = body.phone;
+      if (body.mid && !item.mid) item.mid = body.mid;
       await trySupabaseWrite('client_support', item.id, item);
-      return res.status(200).json({ ok: true, message: 'Inquiry resolved successfully' });
+      return res.status(200).json({ ok: true, message: 'Inquiry resolved successfully', item });
     }
 
     // 11. Admin Verifying Client Payment Proof
@@ -525,10 +564,22 @@ module.exports = async (req, res) => {
       const bugId = String(body.id || '').trim();
       const status = String(body.status || 'resolved').slice(0, 30);
       const notes = String(body.notes || 'Resolved by Durga Sravan').slice(0, 500);
-      const bug = serverStore.bugs.find(x => x.id === bugId) || { id: bugId };
+      let bug = serverStore.bugs.find(x => x.id === bugId);
+      if (!bug) {
+        const existing = await getExistingDoc('client_bugs', bugId);
+        bug = existing || { id: bugId };
+        serverStore.bugs.unshift(bug);
+      }
       bug.status = status;
       bug.resolution_notes = notes;
       bug.resolved_at = new Date().toISOString();
+      if (body.description && !bug.description) bug.description = body.description;
+      if (body.borrower && !bug.borrower) bug.borrower = body.borrower;
+      if (body.category && !bug.category) bug.category = body.category;
+      if (body.village && !bug.village) bug.village = body.village;
+      if (body.phone && !bug.phone) bug.phone = body.phone;
+      if (body.diagnostics && !bug.diagnostics) bug.diagnostics = body.diagnostics;
+      if (body.photo && !bug.photo) bug.photo = body.photo;
       await trySupabaseWrite('client_bugs', bug.id, bug);
       return res.status(200).json({ ok: true, message: 'Bug report status updated successfully', item: bug });
     }

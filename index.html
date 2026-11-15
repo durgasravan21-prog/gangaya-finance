@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=97"></script>
+<script src="/runtime.js?v=98"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1863,7 +1863,9 @@ const V18_ICONS = {
   vl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>',
   rp: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',
   ar: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>',
-  nl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>'
+  nl: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><circle cx="12" cy="12" r="9"/></svg>',
+  su: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+  bg: '<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="5"/></svg>'
 };
 function setScheduleDay(d){ const tv = V.filter(v => v.day == d); if(tv.length){ vil = tv[0].name; sel = null; rv = ''; } go('fa'); }
 function openAddMemberDlg(){
@@ -1941,6 +1943,9 @@ function go(t, sub){
   else if(t==='rc'){ tab='ac'; acSub='receipts'; }
   else if(t==='ac'){ tab='ac'; acSub=sub||'timeline'; }
   else { tab=t; }
+  if (t === 'su' || t === 'bg') {
+    try { if (typeof syncServerSubmissions === 'function') syncServerSubmissions(); } catch(_) {}
+  }
   try{
     const u = new URL(window.location);
     u.searchParams.set('tab', tab);
@@ -6518,6 +6523,7 @@ async function verifyPasskeySubmit(ev){
       localStorage.removeItem('gf_locked_status');
     }catch(_){}
     passkeyAttempts = 0;
+    if (typeof syncServerSubmissions === 'function') syncServerSubmissions();
     toast(tr('2-Factor Passkey Verified ✓ Welcome Durga Sravan', '2-లెవెల్ సెక్యూరిటీ పాస్‌కీ ధృవీకరించబడింది ✓'));
     draw();
   } else {
@@ -6741,7 +6747,7 @@ function submitClientSupportMsg(ev){
   const adminNotif = {
     id: 'n_cs_' + Date.now(),
     type: 'client_support',
-    mid: clientMid,
+    mid: activeMid,
     mname: m.name || 'Customer',
     village: m.village || '',
     phone: m.phone || '',
@@ -6765,7 +6771,7 @@ function submitClientSupportMsg(ev){
     body: JSON.stringify({
       action: 'submit_support',
       id: newMsg.id,
-      mid: clientMid,
+      mid: activeMid,
       borrower: m.name || 'Customer',
       village: m.village || '',
       phone: m.phone || '',
@@ -6787,7 +6793,8 @@ function submitClientSupportMsg(ev){
     tr('Topic: ', 'విషయం: ') + topic + ' • ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   );
   f.reset();
-  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 600); }
+  draw();
+  if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
 }
 
 function buildAgreementDocumentHtml(mid, isAdminCopy) {
@@ -7384,7 +7391,20 @@ function resolveBugReport(bugId, status, notes){
   fetch('/api/client-submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'resolve_bug', id: bugId, status: status, notes: b.resolution_notes })
+    body: JSON.stringify({
+      action: 'resolve_bug',
+      id: bugId,
+      status: status,
+      notes: b.resolution_notes,
+      borrower: b.borrower,
+      village: b.village,
+      phone: b.phone,
+      category: b.category,
+      description: b.description,
+      diagnostics: b.diagnostics,
+      photo: b.photo,
+      resolved_at: b.resolved_at
+    })
   }).catch(() => {});
   toast(tr('Bug status updated to: ' + status + ' ✓', 'సమస్య స్థితి అప్‌డేట్ చేయబడింది ✓'));
   draw();
@@ -7992,7 +8012,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v97</span>
+            <span class="v18-pill">v98</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -8635,7 +8655,12 @@ function renderClientDashboard(){
 
   /* TAB 4: CUSTOMER SUPPORT & MESSAGES */
   else if(clientTab === 'my_support'){
-    const myMsgs = CS.filter(c => c.mid === m.id);
+    const myMsgs = CS.filter(c => 
+      (m.id && c.mid === m.id) || 
+      c.mid === clientMid || 
+      (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
+      (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
+    );
     clientBody = `
     <!-- Send Message to Admin Form -->
     <div class="card" style="margin-bottom:16px">
@@ -8872,7 +8897,12 @@ function renderClientDashboard(){
 
   /* TAB: REPORT A BUG & ISSUE RESOLUTION */
   else if(clientTab === 'report_bug'){
-    const myBugs = CB.filter(c => c.mid === m.id || (m.phone && c.phone === m.phone));
+    const myBugs = CB.filter(c => 
+      (m.id && c.mid === m.id) || 
+      c.mid === clientMid || 
+      (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
+      (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
+    );
     clientBody = `
     <!-- Bug Report Form -->
     <div class="card" style="margin-bottom:16px;border:1.5px solid var(--r);background:linear-gradient(180deg,rgba(239,68,68,0.03) 0%,rgba(255,255,255,0) 100%)">
@@ -9103,7 +9133,14 @@ async function adminResolveCustomerInquiry(itemId, replyText){
     body: JSON.stringify({
       action: 'resolve_support',
       id: item.id,
-      reply: item.reply
+      reply: item.reply,
+      borrower: item.borrower,
+      village: item.village,
+      phone: item.phone,
+      topic: item.topic,
+      msg: item.msg,
+      status: item.status,
+      resolved_at: item.resolved_at
     })
   }).catch(() => {});
 
@@ -9135,6 +9172,23 @@ function adminSupportTab(){
   const filteredCr = adminCrFilter === 'pending' ? CR.filter(x => x.status === 'pending') : (adminCrFilter === 'auto_verified' ? CR.filter(x => x.status === 'auto_verified' || x.status === 'verified') : CR);
 
   return `
+  <!-- Top Live Sync Status Bar -->
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;background:var(--s);padding:10px 14px;border-radius:10px;border:1px solid var(--b)">
+    <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+      <span class="pulse-dot" style="background:#10b981"></span>
+      <span style="font-weight:700">${tr('Live Cloud Sync Active','లైవ్ క్లౌడ్ సింక్ ఆన్‌లో ఉంది')}</span>
+      <span class="m">· ${CS.length} ${tr('Inquiries','సందేశాలు')}, ${CB.length} ${tr('Bugs','బగ్స్')}</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" class="sm" onclick="syncServerSubmissions();toast(tr('Syncing with Mumbai Edge Cloud...','క్లౌడ్ నుండి సింక్ అవుతోంది...'));" style="border-radius:8px;font-weight:700;font-size:11.5px">
+        ${tr('Sync Live ⟳','లైవ్ సింక్ ⟳')}
+      </button>
+      <button type="button" class="sm" onclick="go('bg')" style="border-radius:8px;font-weight:700;font-size:11.5px;color:var(--r);border-color:var(--r)">
+        ${tr('Open Bugs Tab →','బగ్స్ ట్యాబ్ →')}
+      </button>
+    </div>
+  </div>
+
   <!-- 1. DEDICATED CUSTOMER SUPPORT SOLVING PANEL -->
   <div class="card" style="margin-bottom:16px;border:1.5px solid var(--p)">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
@@ -9412,6 +9466,114 @@ function adminSupportTab(){
 `;
 }
 
+let adminBugFilter = 'all';
+function adminBugsTab(){
+  const activeCount = CB.filter(x => x.status !== 'resolved').length;
+  const resolvedCount = CB.filter(x => x.status === 'resolved').length;
+  const filteredBugs = adminBugFilter === 'active' ? CB.filter(x => x.status !== 'resolved') : 
+                       (adminBugFilter === 'resolved' ? CB.filter(x => x.status === 'resolved') : CB);
+
+  return `
+  <!-- Live Sync Bar -->
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;background:var(--s);padding:10px 14px;border-radius:10px;border:1px solid var(--b)">
+    <div style="display:flex;align-items:center;gap:8px;font-size:12.5px">
+      <span class="pulse-dot" style="background:${activeCount > 0 ? '#ef4444' : '#10b981'}"></span>
+      <span style="font-weight:700">${tr('Bug Reports & Device Diagnostics Desk','సాంకేతిక సమస్యలు & పరికర వివరాలు')}</span>
+      <span class="m">· ${activeCount} ${tr('active','పరిష్కరించాల్సినవి')}, ${resolvedCount} ${tr('resolved','పరిష్కరించినవి')}</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button type="button" class="sm" onclick="syncServerSubmissions();toast(tr('Syncing latest bug reports...','సమస్యల నివేదికలు సింక్ అవుతున్నాయి...'));" style="border-radius:8px;font-weight:700;font-size:11.5px">
+        ${tr('Sync Live ⟳','లైవ్ సింక్ ⟳')}
+      </button>
+      <button type="button" class="sm" onclick="go('su')" style="border-radius:8px;font-weight:700;font-size:11.5px;color:var(--p);border-color:var(--p)">
+        ${tr('Customer Inquiries →','కస్టమర్ కేర్ →')}
+      </button>
+    </div>
+  </div>
+
+  <div class="card" style="border:1.5px solid var(--r)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div>
+        <h2 style="margin:0;color:var(--r)">${tr('Technical Bug Reports & System Diagnostics','సాంకేతిక సమస్యల నివేదికలు & పరికర వివరాలు')}</h2>
+        <p class="m" style="margin:2px 0 0;font-size:13px">
+          ${tr('Real-time bug reports and device telemetry logged by clients. Review and resolve technical issues below.', 'ఖాతాదారుల నుండి అందిన సాంకేతిక సమస్యలు మరియు పరికర వివరాలు.')}
+        </p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="chip" style="background:${activeCount > 0 ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${activeCount > 0 ? 'var(--r)' : 'var(--ok)'};font-weight:800">
+          ${activeCount} ${tr('Active Bug(s)','పరిష్కరించాల్సినవి')}
+        </span>
+      </div>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--b);padding-bottom:10px">
+      <button type="button" class="sm" onclick="adminBugFilter='all';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminBugFilter==='all' ? 'background:var(--p);color:#fff;border-color:var(--p)' : ''}">
+        ${tr('All Bug Reports','అన్నీ')} (${CB.length})
+      </button>
+      <button type="button" class="sm" onclick="adminBugFilter='active';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminBugFilter==='active' ? 'background:var(--r);color:#fff;border-color:var(--r)' : ''}">
+        ${tr('Active / Investigating','పరిశీలనలో ఉన్నవి')} (${activeCount})
+      </button>
+      <button type="button" class="sm" onclick="adminBugFilter='resolved';draw();" style="border-radius:8px;padding:6px 12px;font-weight:700;${adminBugFilter==='resolved' ? 'background:var(--ok);color:#fff;border-color:var(--ok)' : ''}">
+        ${tr('Resolved & Fixed','పరిష్కరించినవి')} (${resolvedCount})
+      </button>
+    </div>
+
+    ${filteredBugs.length > 0 ? `
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${filteredBugs.map(bug => `
+      <div style="background:var(--s);padding:16px;border-radius:12px;border:1.5px solid ${bug.status === 'resolved' ? 'var(--ok)' : 'var(--r)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <div>
+            <b style="font-size:15px">${esc(bug.borrower || 'Borrower')}</b> ${bug.village ? '<span class="m">(' + esc(vl(bug.village)) + ')</span>' : ''}
+            ${bug.phone ? '<span class="m" style="font-size:12px"> · ' + esc(bug.phone) + '</span>' : ''}
+            <span class="m" style="font-size:11.5px;margin-left:8px">· ${fd(bug.d || today())}</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="chip" style="font-weight:700;font-size:11px">${esc(bug.category || 'General')}</span>
+            <span class="chip" style="background:${bug.status === 'resolved' ? 'rgba(16,185,129,0.12)' : (bug.status === 'investigating' ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)')};color:${bug.status === 'resolved' ? 'var(--ok)' : (bug.status === 'investigating' ? '#d97706' : 'var(--r)')};font-weight:800;font-size:11px">
+              ${bug.status === 'resolved' ? tr('RESOLVED ✓','పరిష్కరించబడింది ✓') : (bug.status === 'investigating' ? tr('INVESTIGATING ⟳','పరిశీలిస్తున్నారు ⟳') : tr('NEW BUG','కొత్త సమస్య'))}
+            </span>
+          </div>
+        </div>
+
+        <div style="font-size:14px;color:var(--t);margin-bottom:10px;line-height:1.5;background:var(--c);padding:12px 14px;border-radius:8px;border:1px solid var(--b)">
+          ${esc(bug.description || 'No description provided')}
+        </div>
+
+        ${bug.diagnostics ? `
+        <div style="margin-bottom:10px;background:rgba(0,0,0,0.25);padding:10px 14px;border-radius:8px;font-family:monospace;font-size:11.5px;color:var(--t);overflow-x:auto">
+          <div style="font-weight:700;color:var(--m);margin-bottom:4px">Device Diagnostics:</div>
+          ${typeof bug.diagnostics === 'object' ? Object.entries(bug.diagnostics).map(([k,v]) => `<div><b>${esc(k)}:</b> ${esc(typeof v === 'object' ? JSON.stringify(v) : String(v))}</div>`).join('') : esc(String(bug.diagnostics))}
+        </div>` : ''}
+
+        ${bug.photo ? `<div style="margin-bottom:10px"><a href="${bug.photo}" target="_blank"><img src="${bug.photo}" style="max-height:160px;border-radius:8px;border:1.5px solid var(--b)" alt="Screenshot attachment"></a></div>` : ''}
+
+        ${bug.resolution_notes ? `
+        <div style="background:rgba(16,185,129,0.08);border-left:4px solid var(--ok);padding:10px 14px;border-radius:0 10px 10px 0;font-size:13px;margin-bottom:10px">
+          <div style="font-weight:800;color:var(--ok);margin-bottom:3px">${tr('Resolution Notes by Durga Sravan: ','పరిష్కార వివరాలు: ')}</div>
+          <div>${esc(bug.resolution_notes)}</div>
+        </div>` : ''}
+
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <button class="sm" onclick="viewBorrowerFullProfile('${bug.mid}')" style="border-radius:8px;font-weight:700;font-size:12px;color:var(--p)">${tr('Borrower Profile / KYC','ప్రొఫైల్')}</button>
+          ${bug.status !== 'resolved' ? `
+          <button class="p sm" onclick="const r=prompt('${tr('Resolution notes (optional):','పరిష్కార వివరాలు:')}', 'Fixed & verified by Durga Sravan ✓');if(r!==null)resolveBugReport('${bug.id}', 'resolved', r);" style="border-radius:8px;font-weight:700;font-size:12px;background:var(--ok);border-color:var(--ok)">
+            ${tr('Mark as Fixed & Resolved ✓','పరిష్కరించబడింది అని గుర్తించు ✓')}
+          </button>
+          <button class="sm" onclick="resolveBugReport('${bug.id}', 'investigating', 'Durga Sravan is investigating this issue')" style="border-radius:8px;font-size:12px">
+            ${tr('Mark Investigating ⟳','పరిశీలిస్తున్నట్లు గుర్తించు ⟳')}
+          </button>` : `
+          <button class="sm" onclick="resolveBugReport('${bug.id}', 'investigating', 'Re-opened for further investigation')" style="border-radius:8px;font-size:12px">
+            ${tr('Re-open Bug ⟳','మళ్ళీ తెరువు ⟳')}
+          </button>`}
+        </div>
+      </div>
+      `).join('')}
+    </div>` : `<p class="m">${tr('No bug reports matching filter. Technical services healthy!','ఎలాంటి సమస్యలు నివేదించబడలేదు.')}</p>`}
+  </div>`;
+}
+
 function adminLockoutsTab(){
   const activeLockouts = LK.filter(x => x.status === 'locked');
   return `
@@ -9506,6 +9668,7 @@ const tabs=adm?[
   ['rm',tr('Reminders','రిమైండర్లు'),remCount,tr('Remind','రిమైండర్')],
   ['ac',tr('Activity & Reports','లావాదేవీలు & నివేదికలు'),null,tr('Activity','లావాదేవీలు')],
   ['su',tr('Customer Support','ఖాతాదారుల సహాయం'),CS.filter(x=>x.status==='open').length,tr('Support','సహాయం')],
+  ['bg',tr('Bug Reports','సాంకేతిక సమస్యలు'),CB.filter(x=>x.status!=='resolved').length,tr('Bugs','సమస్యలు')],
   ['mb',tr('Members & Villages','సభ్యులు & ఊర్లు'),null,tr('Members','సభ్యులు')]
 ]:[
   ['fa',tr('Collect','వసూలు'),null,tr('Collect','వసూలు')],
@@ -9530,6 +9693,7 @@ if (tab === 'mb' && !adm) {
     ac: activityReportsTab,
     mb: membersMasterTab,
     su: () => adminSupportTab() + '<div style="margin-top:16px">' + adminLockoutsTab() + '</div>',
+    bg: adminBugsTab,
     lk: adminLockoutsTab,
     vl: () => { mbSub = 'villages'; return membersMasterTab(); },
     ar: () => { mbSub = 'archived'; return membersMasterTab(); },
@@ -9562,7 +9726,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v97</span>
+          <span class="v18-pill">v98</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9691,15 +9855,16 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     async function syncServerSubmissions(){
       try {
         const userEmail = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
-        const isAdm = (owner && role === 'a') || (role === 'a' && passkeyUnlocked) || userEmail === 'durgasravan21@gmail.com' || userEmail.includes('durgasravan') || ((me && me.role) === 'admin');
+        const isAdm = (role === 'a' || role === 'all' || owner || passkeyUnlocked || userEmail === 'durgasravan21@gmail.com' || userEmail.includes('durgasravan') || ((me && me.role) === 'admin'));
         let activeMid = clientMid;
         if (!activeMid && typeof resolveActiveClientMember === 'function') {
           const actM = resolveActiveClientMember();
           if (actM) activeMid = actM.id;
         }
         const mid = isAdm ? '' : (activeMid || (me && me.mid) || '');
-        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid));
-        const res = await fetch(url);
+        const qEmail = (typeof me !== 'undefined' && me && me.email) ? encodeURIComponent(me.email) : '';
+        const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid) + (qEmail ? '&email=' + qEmail : ''));
+        const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
         if (!res.ok) return;
         const d = await res.json();
         if (!d || !d.ok) return;
@@ -9815,7 +9980,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       } catch (_) {}
     }
     window.syncServerSubmissions = syncServerSubmissions;
-    setInterval(syncServerSubmissions, 15000);
+    setInterval(syncServerSubmissions, 8000);
 
     user = await claude.use('user');
     if(user){
