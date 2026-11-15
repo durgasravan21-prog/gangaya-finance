@@ -115,7 +115,13 @@ async function fetchSupabaseCollections() {
       else if (r.collection === 'client_agreements') result.agreements.push(d);
       else if (r.collection === 'loan_requests') result.loan_requests.push(d);
       else if (r.collection === 'notifs') result.notifs.push(d);
-      else if (r.collection === 'members') result.members.push(d);
+      else if (r.collection === 'members') {
+        const mName = String(d.name || '').toLowerCase().trim();
+        const mEmail = String(d.email || '').toLowerCase().trim();
+        if (!mName.includes('durga sravan') && !mEmail.includes('durgasravan')) {
+          result.members.push(d);
+        }
+      }
     }
     return result;
   } catch (_) {
@@ -872,6 +878,18 @@ module.exports = async (req, res) => {
       const name = String(body.name || '').slice(0, 60).trim();
       const village = String(body.village || 'Guntur').slice(0, 60).trim();
       const phone = String(body.phone || '').slice(0, 20).trim();
+
+      // STRICT ADMIN EXCLUSION: Durga Sravan is system administrator, NEVER a borrower member
+      if (
+        email === 'durgasravan21@gmail.com' ||
+        email.includes('durgasravan') ||
+        name.toLowerCase().includes('durga sravan') ||
+        name.toLowerCase().includes('durgasravan') ||
+        mid.toLowerCase().includes('durgasravan')
+      ) {
+        return res.status(200).json({ ok: false, message: 'Admin Durga Sravan cannot be registered as a borrower member' });
+      }
+
       if (!mid || !name) {
         return res.status(400).json({ ok: false, error: 'Member ID and name required' });
       }

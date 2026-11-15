@@ -2280,8 +2280,13 @@ function isTestRecord(x){
   const s = ((x.id || '') + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '')).toLowerCase();
   return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
 }
+function isMemberAdmin(x){
+  if(!x) return false;
+  const s = ((x.id || '') + ' ' + (x.name || '') + ' ' + (x.email || '') + ' ' + (x.mname || '') + ' ' + (x.borrower || '')).toLowerCase();
+  return s.includes('durga sravan') || s.includes('durgasravan') || s.includes('durgasravan21@gmail.com');
+}
 const who=()=>str(getLoggedInUser().name, 40);
-const cM=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true,email:str(d.email||'',80).toLowerCase().trim(),photo:str(d.photo||'',2000000),aadhaar:str(d.aadhaar||'',20)})).filter(m=>m.name),
+const cM=a=>a.filter(d=>OKID.test(d.id)&&!isTestRecord(d)&&!isMemberAdmin(d)).map(d=>({id:d.id,name:str(d.name,60),te:str(d.te,60),phone:cleanPh(str(d.phone,20)).slice(0,13),village:str(d.village,60),inst:Math.max(num(d.inst),0),freq:d.freq==1?1:7,created:DRE.test(d.created)?d.created:today(),archived:d.archived===true,email:str(d.email||'',80).toLowerCase().trim(),photo:str(d.photo||'',2000000),aadhaar:str(d.aadhaar||'',20)})).filter(m=>m.name),
 cV=a=>{
   const map = new Map();
   (a || []).forEach(d => {
@@ -2320,6 +2325,7 @@ function seedFromCache(){
     const _cm=_pl('members');
     if(_cm.length>0){
       M=cM(_cm);
+      try { localStorage.setItem('gf_c_members', JSON.stringify(M)); } catch(_) {}
       T=cT(_pl('txns'));
       NT=cNT(_pl('notifs'));
       LR=cLR(_pl('loan_requests'));
@@ -2337,8 +2343,30 @@ seedFromCache();
 syncRoleFromUser();
 
 function resolveActiveClientMember(){
-  let m = null;
   const em = String((typeof me !== 'undefined' && me && me.email) || (typeof user !== 'undefined' && user && user.email) || '').toLowerCase().trim();
+  const uRole = String((typeof me !== 'undefined' && me && me.role) || (typeof user !== 'undefined' && user && user.role) || '').toLowerCase().trim();
+  const uName = String((typeof me !== 'undefined' && me && me.name) || (typeof user !== 'undefined' && user && user.name) || '').toLowerCase().trim();
+  const isAdminUser = (
+    owner ||
+    role === 'a' ||
+    role === 'all' ||
+    passkeyUnlocked ||
+    em === 'durgasravan21@gmail.com' ||
+    em.includes('durgasravan') ||
+    em.includes('sravan21') ||
+    uRole === 'admin' ||
+    uName.includes('durga') ||
+    uName.includes('sravan')
+  );
+  if (isAdminUser) {
+    clientMid = '';
+    try {
+      localStorage.removeItem('gf_client_mid');
+      if (em) localStorage.removeItem('gf_client_mid_' + em);
+    } catch(_) {}
+    return null;
+  }
+  let m = null;
 
   // If authenticated user is present, strictly match their specific member record by email or ID
   if (em) {
@@ -2355,7 +2383,7 @@ function resolveActiveClientMember(){
       if (cp && cp.mid) m = M.find(x => x.id === cp.mid);
     }
     // Auto-create borrower member if not found for authenticated client
-    if (!m) {
+    if (!m && !isAdminUser && !em.includes('durgasravan')) {
       const rawName = em.split('@')[0];
       const cleanName = rawName.replace(/[0-9_.-]+/g, ' ').trim().replace(/\b\w/g, l => l.toUpperCase()) || 'Customer';
       const newMid = (typeof me !== 'undefined' && me && me.id) || ('m_' + rawName.replace(/[^a-zA-Z0-9]/g, ''));
