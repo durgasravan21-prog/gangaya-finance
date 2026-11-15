@@ -2194,7 +2194,7 @@ addD=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.t
 fd=d=>{const x=new Date(d+'T00:00:00');return isTe()?x.getDate()+' '+TM[x.getMonth()]:x.toLocaleDateString('en-IN',{day:'numeric',month:'short'})},
 ph=p=>{p=String(p).replace(/\D/g,'');return p.length==10?'91'+p:p},
 nm=o=>isTe()&&o.te?o.te:o.name,sb=o=>isTe()&&o.te&&o.te!==o.name?o.name:(o.te&&o.te!==o.name?o.te:''),tr=(e,t)=>isTe()?t:e,
-vl=n=>{const v=V.find(x=>x.name==n);return v?nm(v):n};
+vl=n=>{if(!n)return '';const s=String(n).trim().toLowerCase();const v=V.find(x=>x&&(x.name||'').trim().toLowerCase()===s);return v?nm(v):n};
 let _stCache = new Map(), _stTxnLen = -1;
 function st(m,u,d0){
   if(!u && !d0){
@@ -3503,7 +3503,11 @@ function openImageInNewTab(src){
       return;
     }
   } catch(_) {}
-  window.open(src, '_blank');
+  if (!src.startsWith('data:')) {
+    window.open(src, '_blank');
+  } else {
+    toast(tr('Pop-up blocked. Please use the Download button to save photo.', 'పాప్-అప్ నిరోధించబడింది. ఫోటో డౌన్‌లోడ్ చేయడానికి డౌన్‌లోడ్ బటన్ వాడండి.'), 'warn');
+  }
 }
 function downloadActivePreviewImage(){
   if(!activePreviewImage || !activePreviewImage.src) return;
@@ -3806,8 +3810,10 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);ba
           ${t.utr ? `<div style="font-size:13px;color:var(--t);margin-bottom:6px"><b>UTR:</b> <span style="font-family:monospace;font-weight:800;color:var(--p)">${esc(t.utr)}</span></div>` : ''}
           ${t.photo ? `
           <div style="margin-top:8px">
-            <div class="m" style="font-size:11px;margin-bottom:4px">${tr('Uploaded Payment Screenshot:','సమర్పించిన పేమెంట్ స్క్రీన్‌షాట్:')}</div>
-            <img src="${t.photo}" style="max-height:180px;width:100%;object-fit:contain;border-radius:8px;border:1px solid var(--b);background:#fff" alt="Payment Proof Screenshot">
+            <div class="m" style="font-size:11px;margin-bottom:4px">${tr('Uploaded Payment Screenshot (tap to enlarge):','సమర్పించిన పేమెంట్ స్క్రీన్‌షాట్ (పెద్దగా చూడటానికి క్లిక్ చేయండి):')}</div>
+            <div style="cursor:pointer" onclick="viewImagePreview('${t.photo}', '${tr('Payment Proof Screenshot', 'పేమెంట్ స్క్రీన్‌షాట్')}')" title="${tr('Click to enlarge full screenshot', 'పూర్తి స్క్రీన్‌షాట్ చూడండి')}">
+              <img src="${t.photo}" style="max-height:180px;width:100%;object-fit:contain;border-radius:8px;border:1px solid var(--b);background:#fff" alt="Payment Proof Screenshot">
+            </div>
           </div>` : ''}
         </div>` : ''}
 
@@ -5235,6 +5241,9 @@ function remindersTab(){
   const all=getRemList(rmf=='any');
   const withDues=all.filter(r=>r.s.due>0);
   const allDueCount=withDues.length;
+  if(rmf==='all' && allDueCount===0 && M.filter(m=>!m.archived).length > 0){
+    rmf='any';
+  }
   const odCount=withDues.filter(r=>r.isOd).length,tdCount=withDues.filter(r=>r.isTd).length,upCount=withDues.filter(r=>r.isUp).length;
   const pendingCount=withDues.filter(r=>!RM.has(r.m.id+'_'+today())).length;
   const sentCount=all.filter(r=>RM.has(r.m.id+'_'+today())).length;
@@ -5265,6 +5274,16 @@ function remindersTab(){
     ...V.map(v => (v.name || '').trim()),
     ...M.map(m => (m.village || '').trim())
   ])).filter(Boolean).sort((a,b) => a.localeCompare(b));
+
+  // Group filtered results by village:
+  const vGroups = {};
+  filtered.forEach(r => {
+    const vKey = (r.m.village || '').trim() || tr('Unassigned Village', 'ఊరు నమోదు కాలేదు');
+    if (!vGroups[vKey]) vGroups[vKey] = [];
+    vGroups[vKey].push(r);
+  });
+  const sortedVKeys = Object.keys(vGroups).sort((a,b) => a.localeCompare(b));
+
   return `
     <div class="g" style="margin-bottom:12px">
       <div class="card stat" style="border-left:4px solid var(--r);cursor:pointer" onclick="rmf='od';draw()">
@@ -5311,57 +5330,106 @@ function remindersTab(){
         <button class="${rmf=='up'?'p':''}" onclick="rmf='up';draw()">${tr('Next 2 Days','రాబోయే 2 రోజులు')} (${upCount})</button>
         <button class="${rmf=='any'?'p':''}" onclick="rmf='any';draw()">${tr('All Clients','అందరు క్లయింట్లు')} (${M.filter(m=>!m.archived).length})</button>
       </div>
+
       <div class="g">
         <input id="rmq-search" type="search" placeholder="${tr('Search client name / phone / village...','క్లయింట్ పేరు లేదా ఫోన్ నంబర్...')}" value="${esc(rmq)}" oninput="debounceSearch('rmq', this.value)">
         <select id="rmv-select" onchange="rmv=this.value;draw()">
-          <option value="">${tr('All villages','అన్ని ఊర్లు')}</option>
-          ${uniqueVillages.map(vName=>`<option value="${esc(vName)}" ${vName.toLowerCase()===(rmv||'').toLowerCase()?'selected':''}>${esc(vName)}</option>`).join('')}
+          <option value="">${tr('All villages','అన్ని ఊర్లు')} (${all.length})</option>
+          ${uniqueVillages.map(vName=>{
+            const cnt = all.filter(r => String(r.m.village||'').trim().toLowerCase() === vName.toLowerCase()).length;
+            const vObj = V.find(x => String(x.name||'').trim().toLowerCase() === vName.toLowerCase());
+            const dStr = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : '';
+            const vDisp = vObj ? nm(vObj) : vName;
+            return `<option value="${esc(vName)}" ${vName.toLowerCase()===(rmv||'').toLowerCase()?'selected':''}>${esc(vDisp)} (${cnt})${dStr ? ' · ' + dStr : ''}</option>`;
+          }).join('')}
         </select>
       </div>
+
+      <!-- Quick Village Filter Buttons -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center">
+        <span class="m" style="font-size:12px;font-weight:700">${tr('Village:','ఊరు:')}</span>
+        <button type="button" class="sm ${!rmv?'p':''}" onclick="rmv='';draw()" style="border-radius:8px;font-weight:700;font-size:11.5px">
+          ${tr('All Villages','అన్ని ఊర్లు')} (${all.length})
+        </button>
+        ${uniqueVillages.map(vName => {
+          const vItems = all.filter(r => String(r.m.village||'').trim().toLowerCase() === vName.toLowerCase());
+          const vObj = V.find(x => String(x.name||'').trim().toLowerCase() === vName.toLowerCase());
+          const dStr = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : '';
+          const vDisp = vObj ? nm(vObj) : vName;
+          return `<button type="button" class="sm ${rmv.toLowerCase() === vName.toLowerCase() ? 'p' : ''}" onclick="rmv='${esc(vName)}';draw()" style="border-radius:8px;font-weight:700;font-size:11.5px">
+            ${esc(vDisp)} (${vItems.length})${dStr ? ' · ' + dStr : ''}
+          </button>`;
+        }).join('')}
+      </div>
     </div>
-    ${filtered.map(r=>{
-      const isRemToday=RM.has(r.m.id+'_'+today());
-      const statusBadge=r.isOd
-        ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
-        :(r.isTd
-          ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">${tr('Due Today','ఈ రోజే గడువు')}</span>`
-          :(r.isUp
-            ?`<span class="chip" style="font-size:12px">${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
-            :(r.s.due>0?`<span class="chip" style="font-size:12px">${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
+
+    ${sortedVKeys.map(vName => {
+      const vItems = vGroups[vName];
+      const vObj = V.find(x => String(x.name||'').trim().toLowerCase() === vName.toLowerCase());
+      const dStr = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : '';
+      const vDue = vItems.reduce((sum, r) => sum + r.s.due, 0);
+      const vReminded = vItems.filter(r => RM.has(r.m.id + '_' + today())).length;
+      const vDispName = vObj ? nm(vObj) : vName;
+
       return `
-        <div class="card">
-          <div class="row">
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <b>${esc(nm(r.m))}</b>
-                <span class="m">${esc(vl(r.m.village))}</span>
-                ${statusBadge}
-                ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:700;background:rgba(16,185,129,0.1);padding:2px 8px;border-radius:6px">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
-              </div>
-              <div class="m" style="margin-top:4px">
-                ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}<b>${inr(r.s.due)}</b>${r.s.next?` · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}`:''}
-              </div>
-            </div>
-            <div class="acts" style="flex-shrink:0;flex-wrap:wrap;gap:6px">
-              <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
-              <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'తెలుగు':'EN'}</button>
-              <button class="sm ${isRemToday?'ok':''}" onclick="toggleRemSent('${r.m.id}')" title="${isRemToday?tr('Marked as reminded today. Tap to unmark','ఈ రోజు పంపబడింది. తీసివేయడానికి క్లిక్ చేయండి'):tr('Mark as sent today without opening WhatsApp','వాట్సాప్ తెరవకుండా పంపినట్లుగా గుర్తించండి')}">${isRemToday ? `✓ ${tr('Sent','పంపబడింది')}` : tr('Mark Sent','పంపినట్లు గుర్తించు')}</button>
-              <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">QR</button>
-              <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">${tr('Edit','ఎడిట్')}</button>
-              <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
-              <button class="sm ${rv===r.m.id?'p':''}" onclick="rv=(rv==='${r.m.id}'?'':'${r.m.id}');draw()" title="${tr('View full loan and payment history for this member','ఈ ఖాతాదారుని పూర్తి అప్పులు మరియు చెల్లింపుల వివరాలు')}">${tr('Account','ఖాతా')}</button>
-            </div>
+        <div style="margin:16px 0 8px;padding:9px 14px;background:var(--s);border-left:4px solid var(--p);border-radius:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:14.5px;font-weight:800;color:var(--t)">${esc(vDispName)}</span>
+            ${vObj && vObj.te && vObj.te !== vDispName ? `<span class="m" style="font-size:12px">(${esc(vObj.te)})</span>` : ''}
+            ${dStr ? `<span class="chip" style="font-size:10.5px;font-weight:700;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.25)">${dStr}</span>` : ''}
           </div>
-          ${rv === r.m.id ? `
-            <div style="margin-top:10px;padding:12px;background:var(--s);border-radius:12px;border:1px solid var(--b)">
-              <div class="row" style="margin-bottom:8px">
-                <b style="font-size:13.5px">${esc(nm(r.m))} · ${tr('Account History & Records','ఖాతా వివరాలు & రికార్డులు')}</b>
-                <button class="sm" onclick="rv='';draw()">✕ ${tr('Close','మూసివేయి')}</button>
-              </div>
-              ${memRecs(r.m)}
-            </div>
-          ` : ''}
+          <div style="font-size:12px;display:flex;gap:8px;align-items:center" class="m">
+            <span><b>${vItems.length}</b> ${tr('client(s)','సభ్యులు')}</span>
+            <span>·</span>
+            <span>${tr('Due: ','బాకీ: ')}<b style="color:${vDue > 0 ? 'var(--amber)' : 'var(--ok)'}">${inr(vDue)}</b></span>
+            ${vReminded > 0 ? `<span class="chip ok" style="font-size:10px;padding:2px 6px">✓ ${vReminded} ${tr('reminded','పంపినవి')}</span>` : ''}
+          </div>
         </div>
+        ${vItems.map(r => {
+          const isRemToday=RM.has(r.m.id+'_'+today());
+          const statusBadge=r.isOd
+            ?`<span class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;font-weight:700">${Math.abs(r.dl)} ${tr('days overdue','రోజులు ఆలస్యం')}</span>`
+            :(r.isTd
+              ?`<span class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d;font-weight:700">${tr('Due Today','ఈ రోజే గడువు')}</span>`
+              :(r.isUp
+                ?`<span class="chip" style="font-size:12px">${tr('Due in ','గడువు: ')}${r.dl} ${tr('days','రోజులు')}</span>`
+                :(r.s.due>0?`<span class="chip" style="font-size:12px">${tr('Active Due','బాకీ ఉంది')}</span>`:`<span class="chip ok" style="font-size:12px">✓ ${tr('Cleared','పూర్తయింది')}</span>`)));
+          return `
+            <div class="card" style="margin-bottom:8px">
+              <div class="row">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                    <b style="font-size:15px">${esc(nm(r.m))}</b>
+                    <span class="chip" style="background:rgba(99,102,241,0.12);color:var(--p);font-weight:700;font-size:11px;border-color:rgba(99,102,241,0.25)">${esc(vl(r.m.village))}</span>
+                    ${statusBadge}
+                    ${isRemToday?`<span style="color:var(--ok);font-size:12px;font-weight:700;background:rgba(16,185,129,0.1);padding:2px 8px;border-radius:6px">✓ ${tr('Reminded today','ఈ రోజు పంపబడింది')}</span>`:''}
+                  </div>
+                  <div class="m" style="margin-top:4px">
+                    ${tr('Instalment: ','వాయిదా: ')}<b>${inr(r.m.inst||0)}</b> · ${tr('Total Due: ','మొత్తం బాకీ: ')}<b>${inr(r.s.due)}</b>${r.s.next?` · ${tr('Due Date: ','తేదీ: ')}${fd(r.s.next)}`:''}
+                  </div>
+                </div>
+                <div class="acts" style="flex-shrink:0;flex-wrap:wrap;gap:6px">
+                  <button class="p sm" onclick="sendRemind('${r.m.id}')" title="${rmLang=='en'?'Send WhatsApp + Scanner in English':'వాట్సాప్‌లో స్కానర్‌తో తెలుగులో పంపు'}">${tr('WhatsApp ('+(rmLang=='en'?'EN':'తె')+')','వాట్సాప్ ('+(rmLang=='en'?'EN':'తె')+')')}</button>
+                  <button class="sm" onclick="sendRemind('${r.m.id}','${rmLang=='en'?'te':'en'}')" title="${rmLang=='en'?'Send WhatsApp in Telugu':'Send WhatsApp in English'}">${rmLang=='en'?'తెలుగు':'EN'}</button>
+                  <button class="sm ${isRemToday?'ok':''}" onclick="toggleRemSent('${r.m.id}')" title="${isRemToday?tr('Marked as reminded today. Tap to unmark','ఈ రోజు పంపబడింది. తీసివేయడానికి క్లిక్ చేయండి'):tr('Mark as sent today without opening WhatsApp','వాట్సాప్ తెరవకుండా పంపినట్లుగా గుర్తించండి')}">${isRemToday ? `✓ ${tr('Sent','పంపబడింది')}` : tr('Mark Sent','పంపినట్లు గుర్తించు')}</button>
+                  <button class="sm" onclick="openScannerDlg()" title="${tr('View QR Scanner','QR స్కానర్ చూడండి')}">QR</button>
+                  <button class="sm" onclick="openManualRem('${r.m.id}')" title="${tr('Customize message','సందేశాన్ని సవరించండి')}">${tr('Edit','ఎడిట్')}</button>
+                  <button class="sm" onclick="copyRemMsg('${r.m.id}')">${tr('Copy','కాపీ')}</button>
+                  <button class="sm ${rv===r.m.id?'p':''}" onclick="rv=(rv==='${r.m.id}'?'':'${r.m.id}');draw()" title="${tr('View full loan and payment history for this member','ఈ ఖాతాదారుని పూర్తి అప్పులు మరియు చెల్లింపుల వివరాలు')}">${tr('Account','ఖాతా')}</button>
+                </div>
+              </div>
+              ${rv === r.m.id ? `
+                <div style="margin-top:10px;padding:12px;background:var(--s);border-radius:12px;border:1px solid var(--b)">
+                  <div class="row" style="margin-bottom:8px">
+                    <b style="font-size:13.5px">${esc(nm(r.m))} · ${tr('Account History & Records','ఖాతా వివరాలు & రికార్డులు')}</b>
+                    <button class="sm" onclick="rv='';draw()">✕ ${tr('Close','మూసివేయి')}</button>
+                  </div>
+                  ${memRecs(r.m)}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
       `;
     }).join('')||`
       <div class="card empty" style="padding:24px;text-align:center">
@@ -5683,6 +5751,44 @@ function members(){
   const totDueFiltered = filteredM.reduce((sum, m) => sum + Math.max(0, st(m).due), 0);
   const activeLoansFiltered = filteredM.reduce((sum, m) => sum + (st(m).due > 0 ? 1 : 0), 0);
 
+  const mbGroups = {};
+  filteredM.forEach(m => {
+    const vKey = (m.village || '').trim() || tr('Unassigned Village', 'ఊరు నమోదు కాలేదు');
+    if (!mbGroups[vKey]) mbGroups[vKey] = [];
+    mbGroups[vKey].push(m);
+  });
+  const sortedMbVKeys = Object.keys(mbGroups).sort((a,b) => a.localeCompare(b));
+
+  const renderMemberRow = m => {
+    const vObj = V.find(x => x.name.toLowerCase() === (m.village||'').toLowerCase());
+    const dName = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : null;
+    const s = st(m);
+    return `<tr>
+      <td>
+        <div style="font-weight:700;font-size:14px;color:var(--t)">${esc(nm(m))}</div>
+        <div class="m" style="font-size:12px">${esc(m.te || '—')} ${m.phone ? '· <a href="tel:'+cleanPh(m.phone)+'" style="color:inherit;text-decoration:none">'+esc(m.phone)+'</a>' : ''}</div>
+      </td>
+      <td>
+        <div style="font-weight:700">${esc(vl(m.village || '—'))}</div>
+        ${dName ? `<span class="chip" style="font-size:10.5px;padding:2px 7px;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.25);font-weight:700;margin-top:2px">${dName}</span>` : `<span class="m" style="font-size:10.5px">${tr('No day assigned','రోజు లేదు')}</span>`}
+      </td>
+      <td>
+        ${s.g > 0 && s.due <= 0 ? `<span class="chip ok" style="font-weight:700;background:#dcfce7;color:#15803d;border-color:#86efac">Closed ✓</span>` : `<b style="font-size:14.5px;color:${s.due > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(Math.max(s.due, 0))}</b>`}
+        ${s.g > 0 ? `<div class="m" style="font-size:11px">${tr('Given: ','అప్పు: ')}${inr(s.g)} · ${m.freq===1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')} ${inr(m.inst||0)}</div>` : ''}
+      </td>
+      <td style="text-align:right">
+        <div class="acts" style="justify-content:flex-end">
+          <button onclick="viewBorrowerFullProfile('${m.id}')" style="font-weight:700;color:var(--p)" title="${tr('View KYC Profile & Signed Agreement','KYC ప్రొఫైల్ & ఒప్పందం చూడు')}">KYC</button>
+          <button onclick="rv='${m.id}';draw();scrollTo(0,0)">${tr('Records','రికార్డులు')}</button>
+          <button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button>
+          <button onclick="sel={id:'${m.id}',k:'edit'};draw()">${tr('Edit','సవరించు')}</button>
+          <button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button>
+          <button class="d" onclick="delM('${m.id}')">${tr('Delete','తొలగించు')}</button>
+        </div>
+      </td>
+    </tr>`;
+  };
+
   return `${impBanner()}${f}${rvCard()}
   <div class="card">
     <div class="row" style="margin-bottom:8px">
@@ -5774,6 +5880,21 @@ function members(){
       ${(mbSearch || mbVillageFilter) ? `<button class="sm" onclick="mbSearch='';mbVillageFilter='';draw()" style="padding:7px 12px;font-size:12px">${tr('Clear Filters','ఫిల్టర్లు క్లియర్')}</button>` : ''}
     </div>
 
+    <!-- Quick Village Filter Buttons -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;align-items:center">
+      <span class="m" style="font-size:12px;font-weight:700">${tr('Village:','ఊరు:')}</span>
+      <button type="button" class="sm ${!mbVillageFilter?'p':''}" onclick="mbVillageFilter='';draw()" style="border-radius:8px;font-weight:700;font-size:11.5px">
+        ${tr('All Villages','అన్ని ఊర్లు')} (${activeM.length})
+      </button>
+      ${V.map(v => {
+        const vCnt = activeM.filter(x => (x.village||'').trim().toLowerCase() === v.name.trim().toLowerCase()).length;
+        const dStr = v.day != null ? (isTe() ? DT[v.day] : DE[v.day]) : '';
+        return `<button type="button" class="sm ${(mbVillageFilter||'').trim().toLowerCase() === v.name.trim().toLowerCase() ? 'p' : ''}" onclick="mbVillageFilter='${esc(v.name)}';draw()" style="border-radius:8px;font-weight:700;font-size:11.5px">
+          ${esc(nm(v))} (${vCnt})${dStr ? ' · ' + dStr : ''}
+        </button>`;
+      }).join('')}
+    </div>
+
     <!-- Members Table -->
     <table>
       <thead>
@@ -5785,35 +5906,31 @@ function members(){
         </tr>
       </thead>
       <tbody>
-        ${filteredM.map(m => {
-          const vObj = V.find(x => x.name.toLowerCase() === (m.village||'').toLowerCase());
+        ${!mbVillageFilter && sortedMbVKeys.length > 0 ? sortedMbVKeys.map(vName => {
+          const vItems = mbGroups[vName];
+          const vObj = V.find(x => x.name.toLowerCase() === vName.toLowerCase());
           const dName = vObj && vObj.day != null ? (isTe() ? DT[vObj.day] : DE[vObj.day]) : null;
-          const s = st(m);
-          return `<tr>
-            <td>
-              <div style="font-weight:700;font-size:14px;color:var(--t)">${esc(nm(m))}</div>
-              <div class="m" style="font-size:12px">${esc(m.te || '—')} ${m.phone ? '· <a href="tel:'+cleanPh(m.phone)+'" style="color:inherit;text-decoration:none">'+esc(m.phone)+'</a>' : ''}</div>
-            </td>
-            <td>
-              <div style="font-weight:700">${esc(vl(m.village || '—'))}</div>
-              ${dName ? `<span class="chip" style="font-size:10.5px;padding:2px 7px;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.25);font-weight:700;margin-top:2px">${dName}</span>` : `<span class="m" style="font-size:10.5px">${tr('No day assigned','రోజు లేదు')}</span>`}
-            </td>
-            <td>
-              ${s.g > 0 && s.due <= 0 ? `<span class="chip ok" style="font-weight:700;background:#dcfce7;color:#15803d;border-color:#86efac">Closed ✓</span>` : `<b style="font-size:14.5px;color:${s.due > 0 ? 'var(--t)' : 'var(--ok)'}">${inr(Math.max(s.due, 0))}</b>`}
-              ${s.g > 0 ? `<div class="m" style="font-size:11px">${tr('Given: ','అప్పు: ')}${inr(s.g)} · ${m.freq===1 ? tr('Daily','రోజుకు') : tr('Weekly','వారానికి')} ${inr(m.inst||0)}</div>` : ''}
-            </td>
-            <td style="text-align:right">
-              <div class="acts" style="justify-content:flex-end">
-                <button onclick="viewBorrowerFullProfile('${m.id}')" style="font-weight:700;color:var(--p)" title="${tr('View KYC Profile & Signed Agreement','KYC ప్రొఫైల్ & ఒప్పందం చూడు')}">KYC</button>
-                <button onclick="rv='${m.id}';draw();scrollTo(0,0)">${tr('Records','రికార్డులు')}</button>
-                <button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button>
-                <button onclick="sel={id:'${m.id}',k:'edit'};draw()">${tr('Edit','సవరించు')}</button>
-                <button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button>
-                <button class="d" onclick="delM('${m.id}')">${tr('Delete','తొలగించు')}</button>
-              </div>
-            </td>
-          </tr>`;
-        }).join('') || `<tr><td colspan="4" class="m" style="text-align:center;padding:24px">${tr('No members found matching the selected filters','ఎంచుకున్న ఫిల్టర్‌కు సభ్యులు ఎవరూ లేరు')}</td></tr>`}
+          const vDue = vItems.reduce((sum, m) => sum + Math.max(0, st(m).due), 0);
+          const vDispName = vObj ? nm(vObj) : vName;
+          return `
+            <tr style="background:var(--s)">
+              <td colspan="4" style="padding:9px 12px;border-left:4px solid var(--p);border-top:1.5px solid var(--b);border-bottom:1px solid var(--b)">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <b style="font-size:14px;color:var(--t)">${esc(vDispName)}</b>
+                    ${vObj && vObj.te && vObj.te !== vDispName ? `<span class="m" style="font-size:12px">(${esc(vObj.te)})</span>` : ''}
+                    ${dName ? `<span class="chip" style="font-size:10.5px;font-weight:700;background:rgba(99,102,241,0.12);color:var(--p);border-color:rgba(99,102,241,0.25)">${dName}</span>` : ''}
+                  </div>
+                  <div style="font-size:12px" class="m">
+                    <span><b>${vItems.length}</b> ${tr('member(s)','సభ్యులు')}</span> · 
+                    <span>${tr('Total Due: ','మొత్తం బాకీ: ')}<b style="color:${vDue > 0 ? 'var(--amber)' : 'var(--ok)'}">${inr(vDue)}</b></span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            ${vItems.map(m => renderMemberRow(m)).join('')}
+          `;
+        }).join('') : (filteredM.length > 0 ? filteredM.map(m => renderMemberRow(m)).join('') : `<tr><td colspan="4" class="m" style="text-align:center;padding:24px">${tr('No members found matching the selected filters','ఎంచుకున్న ఫిల్టర్‌కు సభ్యులు ఎవరూ లేరు')}</td></tr>`)}
       </tbody>
     </table>
   </div>`;
@@ -10118,7 +10235,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v114</span>
+            <span class="v18-pill">v115</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -13100,7 +13217,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v114</span>
+          <span class="v18-pill">v115</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
