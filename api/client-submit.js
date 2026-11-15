@@ -85,7 +85,7 @@ async function getExistingDoc(collection, id) {
 // Helper to fetch live from Supabase docs table
 async function fetchSupabaseCollections() {
   try {
-    const cols = 'client_support,client_bugs,client_profiles,client_agreements,client_receipts,loan_requests,notifs';
+    const cols = 'client_support,client_bugs,client_profiles,client_agreements,client_receipts,loan_requests,notifs,members';
     const res = await fetch(`${SUPABASE_URL}/rest/v1/docs?select=collection,id,data&collection=in.(${cols})&order=created_at.desc&limit=1000`, {
       headers: {
         'apikey': authKey,
@@ -102,7 +102,8 @@ async function fetchSupabaseCollections() {
       receipts: [],
       agreements: [],
       loan_requests: [],
-      notifs: []
+      notifs: [],
+      members: []
     };
     for (const r of rows) {
       const d = r.data || {};
@@ -114,6 +115,7 @@ async function fetchSupabaseCollections() {
       else if (r.collection === 'client_agreements') result.agreements.push(d);
       else if (r.collection === 'loan_requests') result.loan_requests.push(d);
       else if (r.collection === 'notifs') result.notifs.push(d);
+      else if (r.collection === 'members') result.members.push(d);
     }
     return result;
   } catch (_) {
@@ -180,23 +182,47 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Helper to extract 10-digit clean phone
+    function clean10(p) {
+      const digits = String(p || '').replace(/\D/g, '');
+      return digits.length >= 10 ? digits.slice(-10) : digits;
+    }
+
+    // Resolve authenticated member details from database if email or phone is present
+    const authMember = (remote?.members || []).find(m => 
+      (qEmail && m.email && m.email.toLowerCase() === qEmail) ||
+      (mid && m.id === mid) ||
+      (qPhone && m.phone && clean10(m.phone) === clean10(qPhone))
+    ) || null;
+    const authMid = authMember?.id || '';
+    const authEmail = (authMember?.email || '').toLowerCase().trim();
+    const authPhone10 = clean10(authMember?.phone);
+
     // STRICT CLIENT DATA ISOLATION: A client can ONLY see their own records.
-    // Must match their exact member ID, exact authenticated email, or exact 10-digit phone.
+    // Matches by member ID, authenticated email, or normalized 10-digit phone.
     function matchBorrower(x) {
       if (!x) return false;
       const xMid = String(x.mid || '').trim();
       const xEmail = String(x.email || '').toLowerCase().trim();
-      const xPhone = String(x.phone || '').replace(/\D/g, '');
-      const clientPhone = String(qPhone || mid || '').replace(/\D/g, '');
+      const xPhone10 = clean10(x.phone);
 
+      // Match by member ID
       if (mid && xMid && xMid === mid) return true;
+      if (authMid && xMid && xMid === authMid) return true;
+
+      // Match by email
       if (qEmail && xEmail && xEmail === qEmail) return true;
-      if (clientPhone.length === 10 && xPhone.length === 10 && clientPhone === xPhone) return true;
-      if (qPhone.length === 10 && xPhone.length === 10 && qPhone === xPhone) return true;
+      if (authEmail && xEmail && xEmail === authEmail) return true;
+
+      // Match by normalized 10-digit phone
+      const targetPhone10 = clean10(qPhone) || clean10(mid) || authPhone10;
+      if (targetPhone10 && targetPhone10.length === 10 && xPhone10 && xPhone10.length === 10 && xPhone10 === targetPhone10) return true;
+      if (authPhone10 && authPhone10.length === 10 && xPhone10 && xPhone10.length === 10 && xPhone10 === authPhone10) return true;
+
       return false;
     }
 
-    if (!mid && !qEmail && !qPhone) {
+    if (!mid && !qEmail && !qPhone && !authMid) {
       return res.status(200).json({
         ok: true,
         support: [],
@@ -256,6 +282,7 @@ module.exports = async (req, res) => {
         ticket_id: ticketId,
         mid: String(body.mid || 'guest').trim(),
         borrower: String(body.borrower || 'Customer').slice(0, 60),
+        email: String(body.email || '').toLowerCase().trim(),
         village: String(body.village || '').slice(0, 60),
         phone: String(body.phone || '').slice(0, 20),
         topic: String(body.topic || 'General').slice(0, 40),
@@ -303,6 +330,7 @@ module.exports = async (req, res) => {
         bug_id: bugId,
         mid: String(body.mid || 'guest').trim(),
         borrower: String(body.borrower || 'Customer').slice(0, 60),
+        email: String(body.email || '').toLowerCase().trim(),
         village: String(body.village || '').slice(0, 60),
         phone: String(body.phone || '').slice(0, 20),
         category: String(body.category || 'Other').slice(0, 40),
@@ -584,7 +612,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Loan application rejected' });
     }
 
-    // 10. Admin Resolving or Replying to Support Inquiry
+    // 10. Live Chat Messenger Support Reply / Resolution
     if (action === 'resolve_support' || action === 'reply_support') {
       const itemId = String(body.id || '').trim();
       const replyText = String(body.reply || body.msg || '').slice(0, 500).trim();
@@ -595,13 +623,18 @@ module.exports = async (req, res) => {
         serverStore.support.unshift(item);
       }
       if (replyText) item.reply = replyText;
-      item.status = body.status || 'resolved';
-      if (item.status === 'resolved') item.resolved_at = new Date().toISOString();
+      item.status = body.status || (body.sender === 'client' ? 'open' : (item.status || 'open'));
+      if (item.status === 'resolved') {
+        item.resolved_at = new Date().toISOString();
+        item.resolved_by = 'Durga Sravan (Admin)';
+      }
       if (!Array.isArray(item.thread)) {
         item.thread = [];
         if (item.msg) item.thread.push({ sender: 'client', text: item.msg, ts: item.ts || Date.now(), by: item.borrower || 'Customer' });
       }
-      if (replyText) {
+      if (Array.isArray(body.thread) && body.thread.length > 0) {
+        item.thread = body.thread;
+      } else if (replyText) {
         item.thread.push({
           sender: body.sender || 'admin',
           text: replyText,
@@ -609,16 +642,35 @@ module.exports = async (req, res) => {
           by: body.by || (body.sender === 'client' ? (item.borrower || 'Customer') : 'Durga Sravan (Admin)')
         });
       }
-      if (Array.isArray(body.thread)) item.thread = body.thread;
       if (body.borrower && !item.borrower) item.borrower = body.borrower;
+      if (body.email && !item.email) item.email = body.email;
       if (body.msg && !item.msg) item.msg = body.msg;
       if (body.topic && !item.topic) item.topic = body.topic;
       if (body.village && !item.village) item.village = body.village;
       if (body.phone && !item.phone) item.phone = body.phone;
       if (body.mid && !item.mid) item.mid = body.mid;
       if (!item.ticket_id) item.ticket_id = body.ticket_id || ('TKT-' + Math.floor(10000 + Math.random() * 90000));
-      await trySupabaseWrite('client_support', item.id, item);
-      return res.status(200).json({ ok: true, message: 'Support ticket updated successfully', item });
+      item.ts = Date.now();
+
+      // Create notification
+      const notif = {
+        id: 'n_cs_' + Date.now(),
+        type: body.sender === 'client' ? 'client_support' : 'support_reply',
+        mid: item.mid,
+        mname: item.borrower,
+        text: body.sender === 'client'
+          ? `Support Reply [${item.ticket_id}] from ${item.borrower}: ${replyText}`
+          : `Durga Sravan (Admin) replied to [${item.ticket_id}]: ${replyText}`,
+        ts: Date.now(),
+        read: false
+      };
+      serverStore.notifs.unshift(notif);
+
+      await Promise.all([
+        trySupabaseWrite('client_support', item.id, item),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
+      return res.status(200).json({ ok: true, message: 'Support message delivered and synchronized', item });
     }
 
     // 11. Admin Verifying Client Payment Proof
@@ -751,25 +803,29 @@ module.exports = async (req, res) => {
       return res.status(200).json({ ok: true, message: 'Villages deduplicated successfully in cloud database' });
     }
 
-    // 14. Admin Resolving or Replying to Bug Report
+    // 14. Live Chat Messenger Bug Reply / Resolution
     if (action === 'resolve_bug' || action === 'reply_bug') {
       const bugId = String(body.id || '').trim();
-      const status = String(body.status || 'resolved').slice(0, 30);
-      const notes = String(body.notes || body.msg || 'Resolved by Durga Sravan').slice(0, 500);
+      const notes = String(body.notes || body.msg || '').slice(0, 500).trim();
       let bug = serverStore.bugs.find(x => x.id === bugId);
       if (!bug) {
         const existing = await getExistingDoc('client_bugs', bugId);
         bug = existing || { id: bugId };
         serverStore.bugs.unshift(bug);
       }
-      bug.status = status;
-      bug.resolution_notes = notes;
-      if (status === 'resolved') bug.resolved_at = new Date().toISOString();
+      bug.status = body.status || (body.sender === 'client' ? 'investigating' : (bug.status || 'investigating'));
+      if (notes) bug.resolution_notes = notes;
+      if (bug.status === 'resolved') {
+        bug.resolved_at = new Date().toISOString();
+        bug.resolved_by = 'Durga Sravan (Engineering)';
+      }
       if (!Array.isArray(bug.thread)) {
         bug.thread = [];
         if (bug.description) bug.thread.push({ sender: 'client', text: bug.description, ts: bug.ts || Date.now(), by: bug.borrower || 'Customer' });
       }
-      if (notes) {
+      if (Array.isArray(body.thread) && body.thread.length > 0) {
+        bug.thread = body.thread;
+      } else if (notes) {
         bug.thread.push({
           sender: body.sender || 'admin',
           text: notes,
@@ -777,17 +833,36 @@ module.exports = async (req, res) => {
           by: body.by || (body.sender === 'client' ? (bug.borrower || 'Customer') : 'Durga Sravan (Engineering)')
         });
       }
-      if (Array.isArray(body.thread)) bug.thread = body.thread;
       if (body.description && !bug.description) bug.description = body.description;
       if (body.borrower && !bug.borrower) bug.borrower = body.borrower;
+      if (body.email && !bug.email) bug.email = body.email;
       if (body.category && !bug.category) bug.category = body.category;
       if (body.village && !bug.village) bug.village = body.village;
       if (body.phone && !bug.phone) bug.phone = body.phone;
       if (body.diagnostics && !bug.diagnostics) bug.diagnostics = body.diagnostics;
       if (body.photo && !bug.photo) bug.photo = body.photo;
       if (!bug.bug_id) bug.bug_id = body.bug_id || ('BUG-' + Math.floor(10000 + Math.random() * 90000));
-      await trySupabaseWrite('client_bugs', bug.id, bug);
-      return res.status(200).json({ ok: true, message: 'Bug report status updated successfully', item: bug });
+      bug.ts = Date.now();
+
+      // Create notification
+      const notif = {
+        id: 'n_cb_' + Date.now(),
+        type: body.sender === 'client' ? 'client_bug' : 'bug_update',
+        mid: bug.mid,
+        mname: bug.borrower,
+        text: body.sender === 'client'
+          ? `Bug Note [${bug.bug_id}] from ${bug.borrower}: ${notes}`
+          : `Engineering replied to Bug [${bug.bug_id}]: ${notes}`,
+        ts: Date.now(),
+        read: false
+      };
+      serverStore.notifs.unshift(notif);
+
+      await Promise.all([
+        trySupabaseWrite('client_bugs', bug.id, bug),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
+      return res.status(200).json({ ok: true, message: 'Bug report message delivered and synchronized', item: bug });
     }
 
     // 15. Auto-Create / Provision New Borrower Member

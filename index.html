@@ -73,6 +73,29 @@
     }
   }catch(e){}
 })();
+// Bootstrap Guardian: If an older corrupted cached script causes an uncaught error on initial load, purge stale service worker and caches.
+window.addEventListener('error', function(e) {
+  try {
+    var app = document.getElementById('app');
+    if (app && (app.innerHTML.indexOf('Connecting to Cloud Ledger') !== -1 || app.innerHTML.indexOf('v18-loading-card') !== -1)) {
+      console.warn('Bootstrap guardian clearing stale cache due to error:', e.message);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function(keys) {
+          keys.forEach(function(k) { caches.delete(k); });
+        });
+      }
+      if (!sessionStorage.getItem('gf_auto_recovered_v107')) {
+        sessionStorage.setItem('gf_auto_recovered_v107', '1');
+        setTimeout(function() { window.location.reload(true); }, 800);
+      }
+    }
+  } catch(_) {}
+});
 </script>
 <style>
 /* ========================================================
@@ -1495,31 +1518,43 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
   gap: 12px;
   background: var(--bg);
 }
+@keyframes chatBubbleSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .chat-bubble {
   max-width: 82%;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: 16px;
   font-size: 13.5px;
   line-height: 1.5;
   word-break: break-word;
   position: relative;
+  box-sizing: border-box;
+  animation: chatBubbleSlideIn 0.18s ease-out;
 }
-.chat-bubble-client {
-  align-self: flex-start;
-  background: var(--c);
-  border: 1px solid var(--b);
-  border-bottom-left-radius: 3px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-}
-.chat-bubble-admin {
+.chat-bubble-outgoing, .chat-bubble-admin {
   align-self: flex-end;
   background: #065f46;
   color: #ffffff;
-  border-bottom-right-radius: 3px;
-  box-shadow: 0 2px 8px rgba(6,95,70,0.25);
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(6,95,70,0.22);
+  margin-left: auto;
 }
-.chat-bubble-admin .chat-time {
-  color: rgba(255,255,255,0.7);
+.chat-bubble-outgoing .chat-time, .chat-bubble-admin .chat-time {
+  color: rgba(255,255,255,0.75);
+}
+.chat-bubble-incoming, .chat-bubble-client {
+  align-self: flex-start;
+  background: var(--c);
+  color: var(--t);
+  border: 1px solid var(--b);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  margin-right: auto;
+}
+.chat-bubble-incoming .chat-time, .chat-bubble-client .chat-time {
+  color: var(--m);
 }
 .chat-input-toolbar {
   padding: 12px 14px;
@@ -1549,7 +1584,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=106"></script>
+<script src="/runtime.js?v=107"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -7458,6 +7493,7 @@ function submitClientSupportMsg(ev){
   }
   const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
   const activeMid = (m && m.id) || clientMid || 'guest';
+  const clientUserEmail = (typeof me !== 'undefined' && me && me.email) || m.email || '';
   const ticketId = 'TKT-' + Math.floor(10000 + Math.random() * 90000);
   const initialThread = [
     { sender: 'client', text: msgText, ts: Date.now(), by: m.name || tr('Customer','ఖాతాదారుడు') }
@@ -7467,6 +7503,7 @@ function submitClientSupportMsg(ev){
     ticket_id: ticketId,
     mid: activeMid,
     borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    email: clientUserEmail,
     village: m.village || '',
     phone: m.phone || '',
     topic: topic,
@@ -7511,6 +7548,7 @@ function submitClientSupportMsg(ev){
       ticket_id: ticketId,
       mid: activeMid,
       borrower: m.name || 'Customer',
+      email: clientUserEmail,
       village: m.village || '',
       phone: m.phone || '',
       topic: topic,
@@ -7538,6 +7576,7 @@ function submitClientSupportMsg(ev){
   );
   toast(tr('Ticket ' + ticketId + ' saved and sent to Admin ✓', 'టికెట్ ' + ticketId + ' అడ్మిన్‌కి పంపబడింది ✓'));
   f.reset();
+  clientShowNewSupportForm = false;
   scrollChatToBottom();
   draw();
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
@@ -7558,23 +7597,20 @@ function sendClientFollowUpSupport(ticketRef, text){
   };
   item.thread.push(entry);
   item.status = 'open';
+  item.ts = Date.now();
+  if (m.email && !item.email) item.email = m.email;
+  if (m.phone && !item.phone) item.phone = m.phone;
+
   try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
 
-  const notif = {
-    id: 'n_cs_fup_' + Date.now(),
-    type: 'client_support',
-    mid: item.mid,
-    mname: senderName,
-    text: 'Follow-up [' + (item.ticket_id || item.id) + '] from ' + senderName + ': ' + text.trim(),
-    ts: Date.now(),
-    read: false
-  };
-  NT.unshift(notif);
-  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+  // Instant Optimistic DOM Append (zero screen tear)
+  const appended = appendMessageToActiveThreadDOM('client-support-chat-thread', entry, true);
+  if (!appended) draw();
+  scrollChatToBottom(true);
+  playChime();
 
   if(db && db.collection){
     db.collection('client_support').doc(item.id).set(item).catch(() => {});
-    db.collection('notifs').doc(notif.id).set(notif).catch(() => {});
   }
 
   fetch('/api/client-submit', {
@@ -7586,18 +7622,17 @@ function sendClientFollowUpSupport(ticketRef, text){
       ticket_id: item.ticket_id,
       sender: 'client',
       by: senderName,
+      email: (typeof me !== 'undefined' && me && me.email) || m.email || item.email || '',
+      phone: m.phone || item.phone || '',
       msg: text.trim(),
       thread: item.thread,
       status: 'open'
     })
   }).catch(() => {});
 
-  playChime();
   broadcastLiveChatMessage('support', item);
   toast(tr('Message sent to Durga Sravan ✓', 'సందేశం దుర్గా శ్రావణ్ గారికి పంపబడింది ✓'));
-  draw();
-  scrollChatToBottom();
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 function buildAgreementDocumentHtml(mid, isAdminCopy) {
@@ -8116,11 +8151,13 @@ function submitClientBugReport(ev){
   const initialThread = [
     { sender: 'client', text: desc, ts: Date.now(), by: m.name || tr('Customer','ఖాతాదారుడు') }
   ];
+  const clientUserEmail = (typeof me !== 'undefined' && me && me.email) || m.email || '';
   const bugObj = {
     id: bugId,
     bug_id: bugTrackingId,
     mid: activeMid,
     borrower: m.name || tr('Customer','ఖాతాదారుడు'),
+    email: clientUserEmail,
     village: m.village || '',
     phone: m.phone || '',
     category: cat,
@@ -8168,6 +8205,7 @@ function submitClientBugReport(ev){
       bug_id: bugTrackingId,
       mid: bugObj.mid,
       borrower: bugObj.borrower,
+      email: clientUserEmail,
       village: bugObj.village,
       phone: bugObj.phone,
       category: cat,
@@ -8218,23 +8256,20 @@ function sendClientFollowUpBug(bugRef, text){
   };
   b.thread.push(entry);
   b.status = 'investigating';
+  b.ts = Date.now();
+  if (m.email && !b.email) b.email = m.email;
+  if (m.phone && !b.phone) b.phone = m.phone;
+
   try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
 
-  const notif = {
-    id: 'n_cb_fup_' + Date.now(),
-    type: 'client_bug',
-    mid: b.mid,
-    mname: senderName,
-    text: 'Bug Follow-up [' + (b.bug_id || b.id) + '] from ' + senderName + ': ' + text.trim(),
-    ts: Date.now(),
-    read: false
-  };
-  NT.unshift(notif);
-  try { localStorage.setItem('gf_notifs', JSON.stringify(NT)); } catch(_) {}
+  // Instant Optimistic DOM Append (zero screen tear)
+  const appended = appendMessageToActiveThreadDOM('client-bug-chat-thread', entry, true);
+  if (!appended) draw();
+  scrollChatToBottom(true);
+  playChime();
 
   if(db && db.collection){
     db.collection('client_bugs').doc(b.id).set(b).catch(() => {});
-    db.collection('notifs').doc(notif.id).set(notif).catch(() => {});
   }
 
   fetch('/api/client-submit', {
@@ -8246,18 +8281,17 @@ function sendClientFollowUpBug(bugRef, text){
       bug_id: b.bug_id,
       sender: 'client',
       by: senderName,
+      email: (typeof me !== 'undefined' && me && me.email) || m.email || b.email || '',
+      phone: m.phone || b.phone || '',
       notes: text.trim(),
       thread: b.thread,
       status: 'investigating'
     })
   }).catch(() => {});
 
-  playChime();
   broadcastLiveChatMessage('bug', b);
   toast(tr('Diagnostics note sent to Engineering ✓', 'సమాచారం ఇంజనీరింగ్ బృందానికి పంపబడింది ✓'));
-  draw();
-  scrollChatToBottom();
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 function resolveBugReport(bugId, status, notes){
@@ -8929,7 +8963,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v106</span>
+            <span class="v18-pill">v107</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9632,33 +9666,33 @@ function renderClientDashboard(){
       </div>
 
       <!-- Support Thread Stream Box -->
-      <div id="client-support-chat-thread" class="chat-stream-box" style="min-height:180px;max-height:380px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
+      <div id="client-support-chat-thread" class="chat-stream-box" style="min-height:220px;max-height:450px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
         ${thread.length > 0 ? thread.map(msg => `
-          <div class="chat-bubble ${msg.sender==='client' ? 'chat-bubble-client' : 'chat-bubble-admin'}">
+          <div class="chat-bubble ${msg.sender==='client' ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}" data-msg-ts="${msg.ts || 0}">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
-              <b>${esc(msg.by || (msg.sender==='client' ? (m.name||'Customer') : 'Durga Sravan (Admin)'))}</b>
-              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+              <b>${esc(msg.by || (msg.sender==='client' ? tr('You','మీరు') : 'Durga Sravan (Admin)'))}</b>
+              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''} ${msg.sender==='client'?'✓':''}</span>
             </div>
-            <div style="font-size:13.5px;line-height:1.5">${esc(msg.text)}</div>
+            <div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(msg.text)}</div>
           </div>
         `).join('') : `
-          <div class="chat-bubble chat-bubble-client">
-            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${esc(activeItem.borrower||m.name||'Customer')}</b></div>
+          <div class="chat-bubble chat-bubble-outgoing">
+            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${tr('You','మీరు')}</b></div>
             <div>${esc(activeItem.msg)}</div>
           </div>
           ${activeItem.reply ? `
-          <div class="chat-bubble chat-bubble-admin">
+          <div class="chat-bubble chat-bubble-incoming">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>Durga Sravan (Admin)</b></div>
             <div>${esc(activeItem.reply)}</div>
           </div>` : ''}
         `}
       </div>
 
-      <!-- Follow-up Support Toolbar -->
-      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-support-reply-inp');if(!inp||!inp.value.trim())return;sendClientFollowUpSupport('${activeItem.id}', inp.value);inp.value='';" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px">
-        <input id="client-support-reply-inp" name="support_reply" type="text" placeholder="${tr('Type reply to Durga Sravan...','దుర్గా శ్రావణ్ గారికి సమాధానం రాయండి...')}" required style="flex:1;padding:10px 14px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
-        <button type="submit" class="p sm" style="padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px">
-          ${tr('Send Reply →','పంపు →')}
+      <!-- Live Messenger Bottom Bar -->
+      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-support-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value;inp.value='';sendClientFollowUpSupport('${activeItem.id}', txt);inp.focus();" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px;align-items:center">
+        <input id="client-support-reply-inp" name="support_reply" type="text" placeholder="${tr('Type a message to Durga Sravan... (Press Enter to send)','దుర్గా శ్రావణ్ గారికి మెసేజ్ రాయండి... (Enter నొక్కండి)')}" autocomplete="off" required style="flex:1;padding:12px 16px;border-radius:24px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:14px;outline:none">
+        <button type="submit" class="p sm" style="padding:10px 20px;border-radius:24px;font-weight:800;font-size:13.5px;background:#065f46;border-color:#065f46;color:#ffffff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+          <span>${tr('Send →','పంపు →')}</span>
         </button>
       </form>
     </div>
@@ -9927,33 +9961,33 @@ function renderClientDashboard(){
       ` : ''}
 
       <!-- Bug Thread Stream -->
-      <div class="chat-stream-box" style="min-height:180px;max-height:380px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
+      <div id="client-bug-chat-thread" class="chat-stream-box" style="min-height:220px;max-height:450px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
         ${bugThread.length > 0 ? bugThread.map(msg => `
-          <div class="chat-bubble ${msg.sender==='client' ? 'chat-bubble-client' : 'chat-bubble-admin'}">
+          <div class="chat-bubble ${msg.sender==='client' ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}" data-msg-ts="${msg.ts || 0}">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
-              <b>${esc(msg.by || (msg.sender==='client' ? (m.name||'Customer') : 'Engineering Team'))}</b>
-              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+              <b>${esc(msg.by || (msg.sender==='client' ? tr('You','మీరు') : 'Engineering Team'))}</b>
+              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''} ${msg.sender==='client'?'✓':''}</span>
             </div>
-            <div style="font-size:13.5px;line-height:1.5">${esc(msg.text)}</div>
+            <div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(msg.text)}</div>
           </div>
         `).join('') : `
-          <div class="chat-bubble chat-bubble-client">
-            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${esc(activeBug.borrower||m.name||'Customer')}</b></div>
+          <div class="chat-bubble chat-bubble-outgoing">
+            <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${tr('You','మీరు')}</b></div>
             <div>${esc(activeBug.description)}</div>
           </div>
           ${activeBug.resolution_notes ? `
-          <div class="chat-bubble chat-bubble-admin">
+          <div class="chat-bubble chat-bubble-incoming">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>Engineering Update</b></div>
             <div>${esc(activeBug.resolution_notes)}</div>
           </div>` : ''}
         `}
       </div>
 
-      <!-- Follow-up Diagnostic Toolbar -->
-      <form onsubmit="event.preventDefault();const inp=this.elements.fnote;if(!inp||!inp.value.trim())return;sendClientFollowUpBug('${activeBug.id}', inp.value);inp.value='';" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px">
-        <input name="fnote" type="text" placeholder="${tr('Add more details or reply to engineering...','మరింత సమాచారం లేదా సమాధానం రాయండి...')}" required style="flex:1;padding:10px 14px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
-        <button type="submit" class="p sm" style="padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px;background:var(--r);border-color:var(--r)">
-          ${tr('Send Note →','పంపు →')}
+      <!-- Live Messenger Bottom Bar -->
+      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-bug-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value;inp.value='';sendClientFollowUpBug('${activeBug.id}', txt);inp.focus();" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px;align-items:center">
+        <input id="client-bug-reply-inp" name="fnote" type="text" placeholder="${tr('Add more details or reply to engineering... (Press Enter to send)','మరింత సమాచారం లేదా సమాధానం రాయండి... (Enter నొక్కండి)')}" autocomplete="off" required style="flex:1;padding:12px 16px;border-radius:24px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:14px;outline:none">
+        <button type="submit" class="p sm" style="padding:10px 20px;border-radius:24px;font-weight:800;font-size:13.5px;background:#065f46;border-color:#065f46;color:#ffffff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+          <span>${tr('Send →','పంపు →')}</span>
         </button>
       </form>
     </div>
@@ -10246,7 +10280,7 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
 
   if(!Array.isArray(item.thread)) item.thread = getTicketThread(item);
   const trimmed = replyText.trim();
-  const newStatus = statusOverride || 'resolved';
+  const newStatus = statusOverride || item.status || 'open';
   const entry = {
     sender: 'admin',
     text: trimmed,
@@ -10260,13 +10294,20 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
     item.resolved_at = new Date().toISOString();
     item.resolved_by = 'Durga Sravan (Admin)';
   }
+  item.ts = Date.now();
 
   try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
 
+  // Instant Optimistic DOM Append (zero screen tear)
+  const appended = appendMessageToActiveThreadDOM('admin-support-chat-thread', entry, true);
+  if (!appended) draw();
+  scrollChatToBottom(true);
+  playChime();
+
   if(db && db.collection){
     try {
-      await db.collection('client_support').doc(item.id).set(item);
-      await db.collection('notifs').doc('n_cs_rep_' + Date.now()).set({
+      db.collection('client_support').doc(item.id).set(item).catch(() => {});
+      db.collection('notifs').doc('n_cs_rep_' + Date.now()).set({
         id: 'n_cs_rep_' + Date.now(),
         type: 'support_reply',
         mid: item.mid,
@@ -10274,7 +10315,7 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
         body: 'Durga Sravan: "' + (trimmed.length > 80 ? trimmed.slice(0, 77) + '...' : trimmed) + '"',
         ts: Date.now(),
         read: false
-      });
+      }).catch(() => {});
     } catch(e) {
       console.warn('Sync error:', e);
     }
@@ -10297,12 +10338,9 @@ async function sendAdminChatReply(ticketId, replyText, statusOverride){
     })
   }).catch(() => {});
 
-  playChime();
   broadcastLiveChatMessage('support', item);
-  toast(tr('Reply sent to borrower and synced ✓', 'సమాధానం పంపబడింది మరియు సింక్ చేయబడింది ✓'));
-  draw();
-  scrollChatToBottom();
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
+  toast(tr('Message delivered to borrower ✓', 'సందేశం ఖాతాదారునికి చేరింది ✓'));
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 async function sendAdminBugReply(bugId, replyText, statusOverride){
@@ -10312,7 +10350,7 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
 
   if(!Array.isArray(bug.thread)) bug.thread = getBugThread(bug);
   const trimmed = replyText.trim();
-  const newStatus = statusOverride || 'investigating';
+  const newStatus = statusOverride || bug.status || 'investigating';
   const entry = {
     sender: 'admin',
     text: trimmed,
@@ -10325,13 +10363,20 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
   if(newStatus === 'resolved'){
     bug.resolved_at = new Date().toISOString();
   }
+  bug.ts = Date.now();
 
   try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
 
+  // Instant Optimistic DOM Append (zero screen tear)
+  const appended = appendMessageToActiveThreadDOM('admin-bug-chat-thread', entry, true);
+  if (!appended) draw();
+  scrollChatToBottom(true);
+  playChime();
+
   if(db && db.collection){
     try {
-      await db.collection('client_bugs').doc(bug.id).set(bug);
-      await db.collection('notifs').doc('n_cb_rep_' + Date.now()).set({
+      db.collection('client_bugs').doc(bug.id).set(bug).catch(() => {});
+      db.collection('notifs').doc('n_cb_rep_' + Date.now()).set({
         id: 'n_cb_rep_' + Date.now(),
         type: 'bug_update',
         mid: bug.mid,
@@ -10339,7 +10384,7 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
         body: 'Status: ' + newStatus + ' · ' + trimmed,
         ts: Date.now(),
         read: false
-      });
+      }).catch(() => {});
     } catch(e) {
       console.warn('Sync error:', e);
     }
@@ -10361,12 +10406,9 @@ async function sendAdminBugReply(bugId, replyText, statusOverride){
     })
   }).catch(() => {});
 
-  playChime();
   broadcastLiveChatMessage('bug', bug);
-  toast(tr('Bug update posted to borrower and ledger ✓', 'బగ్ అప్‌డేట్ రికార్డ్ చేయబడింది ✓'));
-  draw();
-  scrollChatToBottom();
-  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 150);
+  toast(tr('Update delivered to borrower ✓', 'అప్‌డేట్ ఖాతాదారునికి చేరింది ✓'));
+  if (typeof syncServerSubmissions === 'function') setTimeout(syncServerSubmissions, 300);
 }
 
 // Backward compatibility wrappers
@@ -10529,29 +10571,29 @@ function renderAdminSupportChatPanel(){
       </div>
 
       <!-- Speech Bubble Stream -->
-      <div class="chat-stream-box">
+      <div id="admin-support-chat-thread" class="chat-stream-box" style="min-height:220px;max-height:450px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
         ${thread.length > 0 ? thread.map(msg => `
-          <div class="chat-bubble ${msg.sender === 'client' ? 'chat-bubble-client' : 'chat-bubble-admin'}">
+          <div class="chat-bubble ${msg.sender === 'admin' ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}" data-msg-ts="${msg.ts || 0}">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
-              <b>${esc(msg.by || (msg.sender === 'client' ? (activeItem.borrower || 'Borrower') : 'Durga Sravan (Admin)'))}</b>
-              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+              <b>${esc(msg.by || (msg.sender === 'admin' ? 'Durga Sravan (Admin)' : (activeItem.borrower || 'Borrower')))}</b>
+              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''} ${msg.sender==='admin'?'✓':''}</span>
             </div>
-            <div style="font-size:13.5px;line-height:1.5">${esc(msg.text)}</div>
+            <div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(msg.text)}</div>
           </div>
         `).join('') : `
-          <div class="chat-bubble chat-bubble-client">
+          <div class="chat-bubble chat-bubble-incoming">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${esc(activeItem.borrower || 'Customer')}</b></div>
             <div>${esc(activeItem.msg)}</div>
           </div>
           ${activeItem.reply ? `
-          <div class="chat-bubble chat-bubble-admin">
+          <div class="chat-bubble chat-bubble-outgoing">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>Durga Sravan (Admin)</b></div>
             <div>${esc(activeItem.reply)}</div>
           </div>` : ''}
         `}
       </div>
 
-      <!-- Pinned Input Toolbar -->
+      <!-- Modern Live Messenger Toolbar -->
       <div class="chat-input-toolbar">
         <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch">
           <button type="button" class="sm" onclick="quickFillChatReply('${tr('Payment verified and credited to ledger ✓', 'చెల్లింపు సరిచూసి లెడ్జర్‌లో జమ చేయబడింది ✓')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Payment verified ✓</button>
@@ -10559,14 +10601,10 @@ function renderAdminSupportChatPanel(){
           <button type="button" class="sm" onclick="quickFillChatReply('${tr('Loan application is under review by Durga Sravan.', 'రుణ దరఖాస్తు పరిశీలనలో ఉంది.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Loan in review</button>
           <button type="button" class="sm" onclick="quickFillChatReply('${tr('Your inquiry has been resolved. Please reach out if you need anything else.', 'మీ సమస్య పరిష్కరించబడింది. ధన్యవాదాలు.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Resolved ✓</button>
         </div>
-        <form onsubmit="event.preventDefault();const inp=document.getElementById('admin-chat-reply-inp');const chk=document.getElementById('admin-chat-resolve-chk');if(!inp||!inp.value.trim())return;sendAdminChatReply('${activeItem.id}', inp.value, chk && chk.checked ? 'resolved' : 'open');inp.value='';" style="display:flex;gap:8px;align-items:center">
-          <input id="admin-chat-reply-inp" type="text" placeholder="${tr('Type official reply to ' + (activeItem.borrower || 'borrower') + '...','సమాధానం టైప్ చేయండి...')}" required style="flex:1;padding:10px 14px;font-size:13.5px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t)">
-          <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer">
-            <input id="admin-chat-resolve-chk" type="checkbox" ${activeItem.status==='open' ? 'checked' : ''}>
-            <span>${tr('Resolve','పరిష్కరించు')}</span>
-          </label>
-          <button type="submit" class="p sm" style="padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px;background:var(--ok);border-color:var(--ok);white-space:nowrap">
-            ${tr('Send Reply ✓','సమాధానం పంపు ✓')}
+        <form onsubmit="event.preventDefault();const inp=document.getElementById('admin-chat-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value;inp.value='';sendAdminChatReply('${activeItem.id}', txt, '${activeItem.status}');inp.focus();" style="display:flex;gap:8px;align-items:center">
+          <input id="admin-chat-reply-inp" type="text" placeholder="${tr('Type official reply to ' + (activeItem.borrower || 'borrower') + '... (Press Enter to send)','సమాధానం టైప్ చేయండి... (Enter నొక్కండి)')}" autocomplete="off" required style="flex:1;padding:12px 16px;font-size:14px;border-radius:24px;border:1.5px solid var(--b);background:var(--c);color:var(--t);outline:none">
+          <button type="submit" class="p sm" style="padding:10px 20px;border-radius:24px;font-weight:800;font-size:13.5px;background:#065f46;border-color:#065f46;color:#ffffff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+            <span>${tr('Send →','పంపు →')}</span>
           </button>
         </form>
       </div>
@@ -10674,7 +10712,7 @@ function renderAdminBugsChatPanel(){
             ${tr('Profile / KYC','ప్రొఫైల్')}
           </button>
           ${activeBug.status !== 'resolved' ? `
-            <button class="p sm" onclick="sendAdminBugReply('${activeBug.id}', 'Bug investigated and resolved in release v101 ✓', 'resolved')" style="border-radius:8px;font-weight:800;font-size:11.5px;background:var(--ok);border-color:var(--ok)">
+            <button class="p sm" onclick="sendAdminBugReply('${activeBug.id}', 'Bug investigated and resolved in release v107 ✓', 'resolved')" style="border-radius:8px;font-weight:800;font-size:11.5px;background:var(--ok);border-color:var(--ok)">
               ${tr('Mark Fixed ✓','పరిష్కరించు ✓')}
             </button>
           ` : `
@@ -10703,43 +10741,39 @@ function renderAdminBugsChatPanel(){
       ` : ''}
 
       <!-- Speech Bubble Stream -->
-      <div class="chat-stream-box">
+      <div id="admin-bug-chat-thread" class="chat-stream-box" style="min-height:220px;max-height:450px;overflow-y:auto;padding:16px;background:var(--bg);display:flex;flex-direction:column;gap:10px">
         ${thread.length > 0 ? thread.map(msg => `
-          <div class="chat-bubble ${msg.sender === 'client' ? 'chat-bubble-client' : 'chat-bubble-admin'}">
+          <div class="chat-bubble ${msg.sender === 'admin' ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}" data-msg-ts="${msg.ts || 0}">
             <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
-              <b>${esc(msg.by || (msg.sender === 'client' ? (activeBug.borrower || 'Borrower') : 'Durga Sravan (Engineering)'))}</b>
-              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+              <b>${esc(msg.by || (msg.sender === 'admin' ? 'Durga Sravan (Engineering)' : (activeBug.borrower || 'Borrower')))}</b>
+              <span class="chat-time">${msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : ''} ${msg.sender==='admin'?'✓':''}</span>
             </div>
-            <div style="font-size:13.5px;line-height:1.5">${esc(msg.text)}</div>
+            <div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(msg.text)}</div>
           </div>
         `).join('') : `
-          <div class="chat-bubble chat-bubble-client">
+          <div class="chat-bubble chat-bubble-incoming">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>${esc(activeBug.borrower || 'Customer')}</b></div>
             <div>${esc(activeBug.description)}</div>
           </div>
           ${activeBug.resolution_notes ? `
-          <div class="chat-bubble chat-bubble-admin">
+          <div class="chat-bubble chat-bubble-outgoing">
             <div style="font-size:11px;margin-bottom:2px;opacity:0.8"><b>Engineering Update</b></div>
             <div>${esc(activeBug.resolution_notes)}</div>
           </div>` : ''}
         `}
       </div>
 
-      <!-- Pinned Engineering Input Toolbar -->
+      <!-- Modern Live Messenger Toolbar -->
       <div class="chat-input-toolbar">
         <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch">
-          <button type="button" class="sm" onclick="quickFillBugReply('${tr('Fixed and deployed in release v101 ✓', 'v101 అప్‌డేట్‌లో పరిష్కరించబడింది ✓')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Fixed in v101 ✓</button>
+          <button type="button" class="sm" onclick="quickFillBugReply('${tr('Fixed and deployed in release v107 ✓', 'v107 అప్‌డేట్‌లో పరిష్కరించబడింది ✓')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Fixed in v107 ✓</button>
           <button type="button" class="sm" onclick="quickFillBugReply('${tr('Please clear browser cache or reopen app to verify.', 'దయచేసి క్యాష్ క్లియర్ చేసి మళ్ళీ చూడండి.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Clear cache & test</button>
           <button type="button" class="sm" onclick="quickFillBugReply('${tr('We are actively investigating this device compatibility issue.', 'పరిశీలిస్తున్నాము.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Investigating</button>
         </div>
-        <form onsubmit="event.preventDefault();const inp=document.getElementById('admin-bug-reply-inp');const sel=document.getElementById('admin-bug-status-sel');if(!inp||!inp.value.trim())return;sendAdminBugReply('${activeBug.id}', inp.value, sel ? sel.value : 'investigating');inp.value='';" style="display:flex;gap:8px;align-items:center">
-          <input id="admin-bug-reply-inp" type="text" placeholder="${tr('Type engineering update / resolution note...','ఇంజనీరింగ్ సమాధానం రాయండి...')}" required style="flex:1;padding:10px 14px;font-size:13.5px;border-radius:10px;border:1.5px solid var(--b);background:var(--c);color:var(--t)">
-          <select id="admin-bug-status-sel" style="padding:10px;border-radius:10px;border:1.5px solid var(--b);background:var(--s);color:var(--t);font-size:12.5px;font-weight:700">
-            <option value="resolved" ${activeBug.status!=='resolved'?'selected':''}>${tr('Fixed ✓','పరిష్కారం ✓')}</option>
-            <option value="investigating" ${activeBug.status==='investigating'?'selected':''}>${tr('Investigating ⟳','పరిశీలన ⟳')}</option>
-          </select>
-          <button type="submit" class="p sm" style="padding:10px 18px;border-radius:10px;font-weight:800;font-size:13px;background:var(--r);border-color:var(--r);white-space:nowrap">
-            ${tr('Post Update ✓','అప్‌డేట్ పంపు ✓')}
+        <form onsubmit="event.preventDefault();const inp=document.getElementById('admin-bug-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value;inp.value='';sendAdminBugReply('${activeBug.id}', txt, '${activeBug.status}');inp.focus();" style="display:flex;gap:8px;align-items:center">
+          <input id="admin-bug-reply-inp" type="text" placeholder="${tr('Type engineering update to ' + (activeBug.borrower || 'borrower') + '... (Press Enter to send)','ఇంజనీరింగ్ సమాధానం రాయండి... (Enter నొక్కండి)')}" autocomplete="off" required style="flex:1;padding:12px 16px;font-size:14px;border-radius:24px;border:1.5px solid var(--b);background:var(--c);color:var(--t);outline:none">
+          <button type="submit" class="p sm" style="padding:10px 20px;border-radius:24px;font-weight:800;font-size:13.5px;background:#065f46;border-color:#065f46;color:#ffffff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
+            <span>${tr('Send →','పంపు →')}</span>
           </button>
         </form>
       </div>
@@ -11126,59 +11160,150 @@ function adminLockoutsTab(){
 }
 
 // =========================================================================
-// REAL-TIME CHAT BROADCAST & LIVE WEBHOOK SYNC FOR SUPPORT & BUGS
+// REAL-TIME CHAT BROADCAST & LIVE MESSENGER ENGINE
 // =========================================================================
 let liveChatDeskChannel = null;
 let liveChatDeskPollTimer = null;
+let liveChatChannelStatus = 'DISCONNECTED';
 
-function scrollChatToBottom(){
+function scrollChatToBottom(smooth = false){
   setTimeout(() => {
     const boxes = document.querySelectorAll('.chat-stream-box, #admin-support-chat-thread, #admin-bug-chat-thread, #client-support-chat-thread, #client-bug-chat-thread');
-    boxes.forEach(b => { if (b) b.scrollTop = b.scrollHeight; });
-  }, 40);
+    boxes.forEach(b => {
+      if (b) {
+        if (smooth && b.scrollTo) {
+          b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
+        } else {
+          b.scrollTop = b.scrollHeight;
+        }
+      }
+    });
+  }, 25);
+}
+
+// Generate single chat message bubble HTML
+function renderChatMessageBubbleHtml(msg, isSenderViewer) {
+  const isOutgoing = isSenderViewer;
+  const timeStr = msg.ts ? new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const senderLabel = isOutgoing ? tr('You', 'మీరు') : esc(msg.by || tr('Customer', 'ఖాతాదారుడు'));
+  const checkMark = isOutgoing ? `<span style="margin-left:4px;font-size:11px;opacity:0.85">✓</span>` : '';
+  
+  return `
+  <div class="chat-bubble ${isOutgoing ? 'chat-bubble-outgoing' : 'chat-bubble-incoming'}" data-msg-ts="${msg.ts || Date.now()}" style="animation:chatBubbleSlideIn 0.18s ease-out">
+    <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px;opacity:0.85">
+      <b>${senderLabel}</b>
+      <span class="chat-time">${timeStr} ${checkMark}</span>
+    </div>
+    <div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(msg.text)}</div>
+  </div>
+  `;
+}
+
+// Directly append message bubble to active chat thread without redrawing the whole page
+function appendMessageToActiveThreadDOM(threadId, msg, isOutgoing) {
+  const container = document.getElementById(threadId);
+  if (!container) return false;
+  
+  // Prevent duplicate bubble if already in DOM
+  const existing = container.querySelector(`[data-msg-ts="${msg.ts}"]`);
+  if (existing) return true;
+
+  const bubbleHtml = renderChatMessageBubbleHtml(msg, isOutgoing);
+  const temp = document.createElement('div');
+  temp.innerHTML = bubbleHtml.trim();
+  const node = temp.firstElementChild;
+  if (node) {
+    container.appendChild(node);
+    scrollChatToBottom(true);
+    return true;
+  }
+  return false;
 }
 
 function initLiveChatDeskChannel(){
-  if(liveChatDeskChannel) return;
   try {
     const client = (typeof window !== 'undefined' && (window.sb || window._sb)) ? (window.sb || window._sb) : ((typeof sb !== 'undefined' && sb) ? sb : ((window.claude && window.claude._sb) || null));
     if(!client || !client.channel) return;
+    if(liveChatDeskChannel && (liveChatChannelStatus === 'SUBSCRIBED' || liveChatChannelStatus === 'JOINING')) return;
+
     liveChatDeskChannel = client.channel('gf_live_chat_desk', {
-      config: { broadcast: { self: true } }
+      config: { broadcast: { self: false } }
     });
+
     liveChatDeskChannel.on('broadcast', { event: 'chat_message' }, msg => {
       const payload = (msg && msg.payload) ? msg.payload : msg;
       if(!payload) return;
       const { chatType, item } = payload;
-      if(chatType === 'support' && item){
+      if(!item) return;
+
+      if(chatType === 'support'){
         const idx = CS.findIndex(x => x.id === item.id || (item.ticket_id && x.ticket_id && x.ticket_id.toUpperCase() === String(item.ticket_id).toUpperCase()));
         if(idx !== -1) CS[idx] = item;
         else CS.unshift(item);
         try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
-        if (tab === 'su' && adminSupportSub === 'support') {
-          if (!activeChatTicketId) activeChatTicketId = item.id;
+
+        // Check if viewing in Admin Support
+        if (tab === 'su' && adminSupportSub === 'support' && activeChatTicketId === item.id) {
+          const thread = item.thread || [];
+          const lastMsg = thread[thread.length - 1];
+          if (lastMsg) {
+            appendMessageToActiveThreadDOM('admin-support-chat-thread', lastMsg, lastMsg.sender === 'admin');
+            playChime();
+            return;
+          }
         }
-        if (role === 'c' && clientTab === 'my_support') {
+        // Check if viewing in Client Support
+        if (role === 'c' && clientTab === 'my_support' && (clientChatTicketId === item.id || !clientChatTicketId)) {
           if (!clientChatTicketId) clientChatTicketId = item.id;
+          const thread = item.thread || [];
+          const lastMsg = thread[thread.length - 1];
+          if (lastMsg) {
+            appendMessageToActiveThreadDOM('client-support-chat-thread', lastMsg, lastMsg.sender === 'client');
+            playChime();
+            return;
+          }
         }
-      } else if(chatType === 'bug' && item){
+      } else if(chatType === 'bug'){
         const idx = CB.findIndex(x => x.id === item.id || (item.bug_id && x.bug_id && x.bug_id.toUpperCase() === String(item.bug_id).toUpperCase()));
         if(idx !== -1) CB[idx] = item;
         else CB.unshift(item);
         try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
-        if (tab === 'su' && adminSupportSub === 'bugs') {
-          if (!activeChatBugId) activeChatBugId = item.id;
+
+        // Check if viewing in Admin Bugs
+        if (tab === 'su' && adminSupportSub === 'bugs' && activeChatBugId === item.id) {
+          const thread = item.thread || [];
+          const lastMsg = thread[thread.length - 1];
+          if (lastMsg) {
+            appendMessageToActiveThreadDOM('admin-bug-chat-thread', lastMsg, lastMsg.sender === 'admin');
+            playChime();
+            return;
+          }
         }
-        if (role === 'c' && clientTab === 'report_bug') {
+        // Check if viewing in Client Bugs
+        if (role === 'c' && clientTab === 'report_bug' && (clientChatBugId === item.id || !clientChatBugId)) {
           if (!clientChatBugId) clientChatBugId = item.id;
+          const thread = item.thread || [];
+          const lastMsg = thread[thread.length - 1];
+          if (lastMsg) {
+            appendMessageToActiveThreadDOM('client-bug-chat-thread', lastMsg, lastMsg.sender === 'client');
+            playChime();
+            return;
+          }
         }
       }
+
       playChime();
       draw();
       scrollChatToBottom();
     });
+
     liveChatDeskChannel.subscribe((status) => {
+      liveChatChannelStatus = status;
       console.log('Realtime chat channel status:', status);
+      if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+        liveChatDeskChannel = null;
+        setTimeout(initLiveChatDeskChannel, 2000);
+      }
     });
   } catch(e) {
     console.warn('Realtime chat channel note:', e);
@@ -11186,7 +11311,9 @@ function initLiveChatDeskChannel(){
 }
 
 function broadcastLiveChatMessage(chatType, item){
-  if(!liveChatDeskChannel) initLiveChatDeskChannel();
+  if(!liveChatDeskChannel || liveChatChannelStatus !== 'SUBSCRIBED') {
+    initLiveChatDeskChannel();
+  }
   if(liveChatDeskChannel && liveChatDeskChannel.send){
     try {
       liveChatDeskChannel.send({
@@ -11205,10 +11332,10 @@ function ensureLiveChatDeskPolling(){
     if(isSupportOpen && typeof syncServerSubmissions === 'function'){
       syncServerSubmissions();
     }
-  }, 1200);
+  }, 1000);
 }
 ensureLiveChatDeskPolling();
-setTimeout(initLiveChatDeskChannel, 400);
+setTimeout(initLiveChatDeskChannel, 300);
 if (typeof window !== 'undefined') {
   window.addEventListener('gf_sb_ready', () => initLiveChatDeskChannel());
 }
@@ -11316,7 +11443,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v106</span>
+          <span class="v18-pill">v107</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -11484,6 +11611,13 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (idx >= 0) {
               const prev = CS[idx];
               if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                // If currently viewing this support ticket, append new messages directly
+                const threadId = isAdm ? 'admin-support-chat-thread' : 'client-support-chat-thread';
+                const curActiveId = isAdm ? activeChatTicketId : clientChatTicketId;
+                if (curActiveId === item.id) {
+                  const arr = item.thread || [];
+                  arr.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
+                }
                 if (_initialServerSyncDone && !isAdm && !prev.reply && item.reply) {
                   playChime();
                   notifyBrowser('Gangaya Finance', tr('Admin replied: ' + item.reply, 'అడ్మిన్ నుండి సమాధానం: ' + item.reply));
@@ -11515,6 +11649,13 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             if (idx >= 0) {
               const prev = CB[idx];
               if (JSON.stringify(prev) !== JSON.stringify(item)) {
+                // If currently viewing this bug, append new messages directly
+                const threadId = isAdm ? 'admin-bug-chat-thread' : 'client-bug-chat-thread';
+                const curActiveBugId = isAdm ? activeChatBugId : clientChatBugId;
+                if (curActiveBugId === item.id) {
+                  const arr = item.thread || [];
+                  arr.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
+                }
                 if (_initialServerSyncDone && !isAdm && prev.status !== item.status) {
                   playChime();
                   notifyBrowser('Gangaya Finance', tr('Bug Report Update: Status is ' + item.status, 'బగ్ రిపోర్ట్ అప్‌డేట్: ' + item.status));
@@ -11674,5 +11815,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=104').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=107').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
