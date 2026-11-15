@@ -168,8 +168,10 @@ module.exports = async (req, res) => {
 
   function isTestRecord(x) {
     if (!x) return true;
-    const s = ((x.id || '') + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '')).toLowerCase();
-    return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
+    const idStr = String(x.id || '').toLowerCase();
+    if (idStr === 'bug_1794720280942' || idStr === 'bug_1794733266721' || idStr === 'cs_1794688337795') return true;
+    const s = (idStr + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '') + ' ' + (x.msg || '') + ' ' + (x.description || '')).toLowerCase();
+    return s.includes('m_test') || s.includes('test user') || s.includes('test_write') || s.includes('live verification test') || s.includes('testing live bug') || s.includes('bug_test');
   }
 
   // -------------------------------------------------------------
@@ -263,6 +265,7 @@ module.exports = async (req, res) => {
         receipts: [],
         agreements: [],
         loan_requests: [],
+        notifs: [],
         timestamp: Date.now()
       });
     }
@@ -275,6 +278,7 @@ module.exports = async (req, res) => {
       receipts: merged.receipts.filter(matchBorrower),
       agreements: merged.agreements.filter(matchBorrower),
       loan_requests: merged.loan_requests.filter(matchBorrower),
+      notifs: merged.notifs.filter(x => (x.to === 'client' || x.type === 'reminder') && matchBorrower(x)),
       timestamp: Date.now()
     });
   }
@@ -610,6 +614,8 @@ module.exports = async (req, res) => {
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
 
+      await broadcastRealtimeWebhook('payment_lodged', { item, ts: Date.now() });
+
       return res.status(200).json({ ok: true, message: 'Payment proof lodged successfully. Pending Admin verification.', item });
     }
 
@@ -900,25 +906,95 @@ module.exports = async (req, res) => {
     // 11. Admin Verifying Client Payment Proof
     if (action === 'verify_payment') {
       const proofId = String(body.id || '').trim();
-      const item = serverStore.receipts.find(x => x.id === proofId) || { id: proofId };
-      item.status = 'verified';
-      item.verified_by = 'Durga Sravan';
-      item.verified_at = new Date().toISOString();
-      item.txn_id = body.txn_id || ('gf-' + Math.random().toString(36).slice(2, 10));
+      let item = serverStore.receipts.find(x => x.id === proofId);
+      if (!item) {
+        const existing = await fetchSupabaseCollections();
+        item = (existing?.receipts || []).find(x => x.id === proofId) || body.item || { id: proofId };
+      }
+      item = {
+        ...item,
+        ...(body.item || {}),
+        id: proofId,
+        status: 'verified',
+        verified_by: 'Durga Sravan',
+        verified_at: new Date().toISOString(),
+        txn_id: body.txn_id || item.txn_id || ('gf-' + Math.random().toString(36).slice(2, 10))
+      };
+      const idx = serverStore.receipts.findIndex(x => x.id === proofId);
+      if (idx >= 0) serverStore.receipts[idx] = item;
+      else serverStore.receipts.unshift(item);
+
       await trySupabaseWrite('client_receipts', item.id, item);
-      return res.status(200).json({ ok: true, message: 'Payment verified successfully' });
+      await broadcastRealtimeWebhook('payment_verified', { item, ts: Date.now() });
+      return res.status(200).json({ ok: true, message: 'Payment verified successfully', item });
     }
 
     // 12. Admin Rejecting Client Payment Proof
     if (action === 'reject_payment') {
       const proofId = String(body.id || '').trim();
       const reason = String(body.reason || 'Payment could not be verified').slice(0, 200);
-      const item = serverStore.receipts.find(x => x.id === proofId) || { id: proofId };
-      item.status = 'rejected';
-      item.rejection_reason = reason;
-      item.rejected_at = new Date().toISOString();
+      let item = serverStore.receipts.find(x => x.id === proofId);
+      if (!item) {
+        const existing = await fetchSupabaseCollections();
+        item = (existing?.receipts || []).find(x => x.id === proofId) || body.item || { id: proofId };
+      }
+      item = {
+        ...item,
+        ...(body.item || {}),
+        id: proofId,
+        status: 'rejected',
+        rejection_reason: reason,
+        rejected_at: new Date().toISOString()
+      };
+      const idx = serverStore.receipts.findIndex(x => x.id === proofId);
+      if (idx >= 0) serverStore.receipts[idx] = item;
+      else serverStore.receipts.unshift(item);
+
       await trySupabaseWrite('client_receipts', item.id, item);
-      return res.status(200).json({ ok: true, message: 'Payment rejected' });
+      await broadcastRealtimeWebhook('payment_rejected', { item, ts: Date.now() });
+      return res.status(200).json({ ok: true, message: 'Payment rejected', item });
+    }
+
+    // 12b. Admin Sending In-App Reminder to Client Portal
+    if (action === 'send_reminder') {
+      const mid = String(body.mid || '').trim();
+      const mname = String(body.name || 'Customer').slice(0, 60);
+      const text = String(body.text || '').slice(0, 500);
+      const amt = Math.max(0, Number(body.amt) || 0);
+      const d = body.d || new Date().toISOString().slice(0, 10);
+      if (!mid || !text) {
+        return res.status(400).json({ ok: false, error: 'Member ID and reminder text required' });
+      }
+      const notif = {
+        id: 'rem_' + mid + '_' + Date.now(),
+        type: 'reminder',
+        to: 'client',
+        mid: mid,
+        mname: mname,
+        phone: String(body.phone || ''),
+        amt: amt,
+        text: text,
+        d: d,
+        ts: Date.now(),
+        read: false
+      };
+      serverStore.notifs.unshift(notif);
+      if (serverStore.notifs.length > 200) serverStore.notifs.pop();
+
+      await trySupabaseWrite('notifs', notif.id, notif);
+      await broadcastRealtimeWebhook('reminder_sent', { notif, mid, text, amt, ts: Date.now() });
+
+      return res.status(200).json({ ok: true, message: 'In-app reminder delivered to borrower app', notif });
+    }
+
+    // 12c. Client Marking Reminder as Read / Acknowledged
+    if (action === 'mark_reminder_read') {
+      const notifId = String(body.id || '').trim();
+      const item = serverStore.notifs.find(x => x.id === notifId) || { id: notifId };
+      item.read = true;
+      item.read_at = Date.now();
+      await trySupabaseWrite('notifs', item.id, item);
+      return res.status(200).json({ ok: true, message: 'Reminder marked read' });
     }
 
     // 13. Direct Email Verification (Bypasses email delivery rate limits)

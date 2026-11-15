@@ -1628,7 +1628,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=110"></script>
+<script src="/runtime.js?v=111"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2321,8 +2321,10 @@ function getCollectorDisplay(by){
 }
 function isTestRecord(x){
   if(!x) return true;
-  const s = ((x.id || '') + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '')).toLowerCase();
-  return s.includes('m_test') || s.includes('test user') || s.includes('test_write');
+  const idStr = String(x.id || '').toLowerCase();
+  if(idStr === 'bug_1794720280942' || idStr === 'bug_1794733266721' || idStr === 'cs_1794688337795') return true;
+  const s = (idStr + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '') + ' ' + (x.msg || '') + ' ' + (x.description || '')).toLowerCase();
+  return s.includes('m_test') || s.includes('test user') || s.includes('test_write') || s.includes('live verification test') || s.includes('testing live bug') || s.includes('bug_test');
 }
 function isMemberAdmin(x){
   if(!x) return false;
@@ -4040,6 +4042,27 @@ async function sendRemind(mid,langOpt){
   const s=st(m),lang=langOpt||rmLang||'te',text=rmsg(m,s,lang);
   const id=m.id+'_'+today();
   try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),lang});RM.add(id)}catch(_){}
+
+  // Dispatch In-App Reminder to Client Portal directly
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'send_reminder',
+      mid: m.id,
+      name: m.name,
+      phone: m.phone || '',
+      amt: Math.max(0, s.due),
+      text: text,
+      d: today()
+    })
+  }).then(r => r.json()).then(res => {
+    if (res && res.notif) {
+      NT.unshift(res.notif);
+      try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
+    }
+  }).catch(e => console.warn('Reminder dispatch note:', e));
+
   let shared=false;
   if(navigator.canShare){
     try{
@@ -4789,6 +4812,27 @@ async function sendManualRemNow(){
   if(!text)return toast(tr('Enter a reminder message','రిమైండర్ మెసేజ్ రాయండి'));
   const id=m.id+'_'+today();
   try{db.doc('rem/'+id).set({mid:m.id,d:today(),sent:true,ts:Date.now(),manual:true,lang:mremLang});RM.add(id)}catch(_){}
+
+  // Dispatch In-App Reminder to Client Portal directly
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'send_reminder',
+      mid: m.id,
+      name: m.name,
+      phone: m.phone || '',
+      amt: Math.max(0, st(m).due),
+      text: text,
+      d: today()
+    })
+  }).then(r => r.json()).then(res => {
+    if (res && res.notif) {
+      NT.unshift(res.notif);
+      try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
+    }
+  }).catch(e => console.warn('Reminder dispatch note:', e));
+
   let shared=false;
   if(navigator.canShare){
     try{
@@ -8973,7 +9017,6 @@ async function adminVerifyClientPayment(proofId){
   p.status = 'verified';
   p.verified_by = 'Durga Sravan';
   p.verified_at = new Date().toISOString();
-  p.verified_at = new Date().toISOString();
   p.txn_id = newTxn.id;
 
   // Live dispatch to unified Server Sync API
@@ -8983,7 +9026,8 @@ async function adminVerifyClientPayment(proofId){
     body: JSON.stringify({
       action: 'verify_payment',
       id: p.id,
-      txn_id: newTxn.id
+      txn_id: newTxn.id,
+      item: p
     })
   }).catch(e => console.warn('Verify server sync note:', e));
 
@@ -8997,7 +9041,7 @@ async function adminVerifyClientPayment(proofId){
         type: 'pay_verified',
         mid: p.mid,
         amt: p.amt,
-        to: 'collector',
+        to: 'client',
         text: tr(`Payment of ${inr(p.amt)} for ${p.borrower} has been VERIFIED & CREDITED by Durga Sravan ✓`, `${p.borrower} కి ${inr(p.amt)} చెల్లింపు దుర్గా శ్రావణ్ గారి ద్వారా ధృవీకరించబడింది ✓`),
         created_at: Date.now(),
         read: false
@@ -9029,7 +9073,8 @@ async function adminRejectClientPayment(proofId, reason){
     body: JSON.stringify({
       action: 'reject_payment',
       id: p.id,
-      reason: p.rejection_reason
+      reason: p.rejection_reason,
+      item: p
     })
   }).catch(e => console.warn('Reject server sync note:', e));
 
@@ -9494,7 +9539,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v110</span>
+            <span class="v18-pill">v111</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10651,9 +10696,61 @@ function renderClientDashboard(){
     </div>
   </div>` : '';
 
+  return topNav + renderClientReminderBanner(m) + clientTabButtons + clientBody + agreementPopupModal;
+}
 
+function renderClientReminderBanner(m) {
+  if (!m) return '';
+  const remNotif = NT.find(n => (n.to === 'client' || n.type === 'reminder') && (n.mid === m.id || n.mid === m.phone || n.mid === clientMid) && !n.read);
+  if (!remNotif) return '';
+  return `
+  <div class="card" style="border:2px solid var(--amber);background:linear-gradient(135deg,rgba(245,158,11,0.12) 0%,rgba(245,158,11,0.03) 100%);margin-bottom:16px;padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(245,158,11,0.12)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;gap:12px;align-items:flex-start;flex:1;min-width:240px">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(245,158,11,0.2);color:var(--amber);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex-shrink:0">
+          !
+        </div>
+        <div>
+          <div style="font-weight:900;font-size:15px;color:var(--amber);display:flex;align-items:center;gap:8px">
+            <span>${tr('Payment Reminder from Durga Sravan (Admin)', 'అడ్మిన్ దుర్గా శ్రావణ్ గారి నుండి చెల్లింపు రిమైండర్')}</span>
+            <span class="chip" style="background:var(--amber);color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px">${tr('ACTION REQUIRED', 'తక్షణ చర్య')}</span>
+          </div>
+          <div style="font-size:13.5px;color:var(--t);margin-top:6px;line-height:1.5;font-weight:600">
+            ${esc(remNotif.text || '')}
+          </div>
+          <div class="m" style="font-size:11.5px;margin-top:4px">
+            ${tr('Due Amount: ', 'బాకీ మొత్తం: ')}<b style="color:var(--amber)">${inr(remNotif.amt || st(m).due)}</b> · ${fd(remNotif.d || today())}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="button" class="p sm" onclick="setClientTab('my_pay')" style="background:var(--amber);border-color:var(--amber);color:#fff;font-weight:800;border-radius:8px;padding:8px 14px;font-size:13px">
+          ${tr('Pay Now via UPI →', 'UPI ద్వారా చెల్లించండి →')}
+        </button>
+        <button type="button" class="sm" onclick="dismissClientReminder('${remNotif.id}')" style="border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700" title="${tr('Acknowledge & Dismiss','చదివాను, తీసివేయి')}">
+          ${tr('Acknowledge ✓', 'గుర్తించాను ✓')}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
 
-  return topNav + clientTabButtons + clientBody + agreementPopupModal;
+function dismissClientReminder(notifId) {
+  const n = NT.find(x => x.id === notifId);
+  if (n) {
+    n.read = true;
+    try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
+    if (db && db.collection) {
+      try { db.collection('notifs').doc(n.id).update({ read: true }); } catch(_) {}
+    }
+    fetch('/api/client-submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_reminder_read', id: notifId })
+    }).catch(()=>{});
+  }
+  toast(tr('Reminder acknowledged ✓', 'రిమైండర్ గుర్తించబడింది ✓'));
+  draw();
 }
 
 /* -------------------------------------------------------------
@@ -11951,6 +12048,95 @@ function initLiveChatDeskChannel(){
       if (!isTyping) draw();
     });
 
+    liveChatDeskChannel.on('broadcast', { event: 'payment_lodged' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      const item = payload && payload.item;
+      if (!item) return;
+      const idx = CR.findIndex(x => x.id === item.id);
+      if (idx !== -1) CR[idx] = item;
+      else CR.unshift(item);
+      try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
+      playChime();
+      if (owner || role === 'a' || role === 'all') {
+        showActionAlert(
+          tr('New Payment Lodged for Verification ✓', 'కొత్త చెల్లింపు రసీదు పరిశీలనకు వచ్చింది ✓'),
+          tr(`Payment of ₹${item.amt} lodged by ${item.borrower} (UTR: ${item.utr}). Ready for verification.`, `${item.borrower} నుండి ₹${item.amt} చెల్లింపు నమోదైంది (UTR: ${item.utr}).`),
+          'UTR: ' + item.utr + ' • ₹' + item.amt
+        );
+        toast(tr('Payment proof received from ' + item.borrower + ' (₹' + item.amt + ') ✓', item.borrower + ' నుండి చెల్లింపు రసీదు వచ్చింది ✓'));
+      }
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
+    });
+
+    liveChatDeskChannel.on('broadcast', { event: 'payment_verified' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      const item = payload && payload.item;
+      if (!item) return;
+      const idx = CR.findIndex(x => x.id === item.id);
+      if (idx !== -1) CR[idx] = item;
+      else CR.unshift(item);
+      try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
+      playChime();
+      const activeMid = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null)?.id || clientMid;
+      if (role === 'c' && item.mid === activeMid) {
+        showActionAlert(
+          tr('Payment Verified & Credited ✓', 'చెల్లింపు ధృవీకరించబడింది ✓'),
+          tr(`Your payment of ₹${item.amt} has been verified and approved by Durga Sravan (Admin). Official receipt generated.`, `మీ ₹${item.amt} చెల్లింపు దుర్గా శ్రావణ్ గారి ద్వారా ధృవీకరించబడింది. అధికారిక రసీదు జారీ చేయబడింది.`),
+          'UTR: ' + (item.utr || 'Direct Payment') + ' • ' + inr(item.amt)
+        );
+        toast(tr(`Payment of ₹${item.amt} verified & credited to your ledger ✓`, `₹${item.amt} చెల్లింపు మీ ఖాతాలో జమ చేయబడింది ✓`));
+      }
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
+    });
+
+    liveChatDeskChannel.on('broadcast', { event: 'payment_rejected' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      const item = payload && payload.item;
+      if (!item) return;
+      const idx = CR.findIndex(x => x.id === item.id);
+      if (idx !== -1) CR[idx] = item;
+      else CR.unshift(item);
+      try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
+      const activeMid = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null)?.id || clientMid;
+      if (role === 'c' && item.mid === activeMid) {
+        playChime();
+        toast(tr('Payment proof could not be verified: ' + (item.rejection_reason || ''), 'చెల్లింపు ధృవీకరణ కాలేదు: ' + (item.rejection_reason || '')), 'warn');
+      }
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
+    });
+
+    liveChatDeskChannel.on('broadcast', { event: 'reminder_sent' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      if (!payload) return;
+      const notif = payload.notif;
+      if (notif) {
+        const idx = NT.findIndex(x => x.id === notif.id);
+        if (idx !== -1) NT[idx] = notif;
+        else NT.unshift(notif);
+        try { localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50))); } catch(_) {}
+      }
+      const activeMid = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null)?.id || clientMid;
+      if (role === 'c' && payload.mid === activeMid) {
+        playChime();
+        notifyBrowser('Gangaya Finance', tr('Payment Reminder from Durga Sravan: ₹' + (payload.amt || ''), 'దుర్గా శ్రావణ్ గారి నుండి చెల్లింపు రిమైండర్: ₹' + (payload.amt || '')));
+        showActionAlert(
+          tr('Payment Reminder from Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ గారి నుండి చెల్లింపు రిమైండర్ ✓'),
+          payload.text || tr('Please clear your due instalment.', 'మీ బాకీ వాయిదాను చెల్లించవలసిందిగా కోరడమైనది.'),
+          tr('Amount Due: ', 'బాకీ మొత్తం: ') + inr(payload.amt || 0)
+        );
+        toast(tr('Payment Reminder received from Admin ✓', 'అడ్మిన్ నుండి చెల్లింపు రిమైండర్ వచ్చింది ✓'));
+      }
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
+    });
+
     liveChatDeskChannel.on('broadcast', { event: 'loan_approved' }, msg => {
       const payload = (msg && msg.payload) ? msg.payload : msg;
       if (!payload) return;
@@ -12129,7 +12315,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v110</span>
+          <span class="v18-pill">v111</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -12498,12 +12684,20 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
           }
         }
 
-        // Merge notifs
-        if (Array.isArray(d.notifs) && isAdm) {
+        // Merge notifs (both admin alerts and client in-app reminders)
+        if (Array.isArray(d.notifs)) {
           for (const item of d.notifs) {
             if (isTestRecord(item)) continue;
             const idx = NT.findIndex(x => x.id === item.id);
-            if (idx < 0) { NT.unshift(item); changed = true; }
+            if (idx >= 0) {
+              if (JSON.stringify(NT[idx]) !== JSON.stringify(item)) {
+                NT[idx] = item;
+                changed = true;
+              }
+            } else {
+              NT.unshift(item);
+              changed = true;
+            }
           }
         }
 
@@ -12516,6 +12710,7 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50)));
             localStorage.setItem('gf_client_agreements', JSON.stringify(CA));
             localStorage.setItem('gf_client_profiles', JSON.stringify(CP));
+            localStorage.setItem('gf_notifs', JSON.stringify(NT.slice(0, 50)));
           } catch(_) {}
           const activeEl = document.activeElement;
           const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
@@ -12550,5 +12745,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=110').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=111').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

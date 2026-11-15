@@ -531,6 +531,9 @@
           throw e;
         }
       },
+      doc(id) {
+        return docRef(c + '/' + id);
+      },
       onSnapshot(next, fail) {
         s.subs.add(next);
         let on = true;
