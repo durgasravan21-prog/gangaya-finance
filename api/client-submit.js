@@ -179,13 +179,32 @@ module.exports = async (req, res) => {
       });
     }
 
-    // If Client: return items matching borrower's mid, phone, email, or name
+    // STRICT CLIENT DATA ISOLATION: A client can ONLY see their own records.
+    // Must match their exact member ID, exact authenticated email, or exact 10-digit phone.
     function matchBorrower(x) {
       if (!x) return false;
-      if (mid && (x.mid === mid || (x.phone && (x.phone.includes(mid) || mid.includes(x.phone))) || (x.id && x.id.includes(mid)))) return true;
-      if (qEmail && (x.email === qEmail || (x.mid && qEmail.includes(x.mid)))) return true;
-      if (qName && x.borrower && (x.borrower.toLowerCase() === qName || x.borrower.toLowerCase().includes(qName) || qName.includes(x.borrower.toLowerCase()))) return true;
+      const xMid = String(x.mid || '').trim();
+      const xEmail = String(x.email || '').toLowerCase().trim();
+      const xPhone = String(x.phone || '').replace(/\D/g, '');
+      const clientPhone = String(mid || '').replace(/\D/g, '');
+
+      if (mid && xMid && xMid === mid) return true;
+      if (qEmail && xEmail && xEmail === qEmail) return true;
+      if (clientPhone.length === 10 && xPhone.length === 10 && clientPhone === xPhone) return true;
       return false;
+    }
+
+    if (!mid && !qEmail) {
+      return res.status(200).json({
+        ok: true,
+        support: [],
+        bugs: [],
+        profiles: [],
+        receipts: [],
+        agreements: [],
+        loan_requests: [],
+        timestamp: Date.now()
+      });
     }
 
     return res.status(200).json({

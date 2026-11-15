@@ -1549,7 +1549,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=103"></script>
+<script src="/runtime.js?v=104"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -1576,37 +1576,6 @@ let lastUserActivity=Date.now();
 const INACTIVITY_TIMEOUT_MS=60*60*1000;
 
 let clientSearchFilter = '';
-function onClientSearchInput(val){
-  clientSearchFilter = val;
-  const listEl = document.getElementById('clientSearchResults');
-  if (listEl) {
-    listEl.innerHTML = renderClientSearchResults();
-  }
-}
-function renderClientSearchResults(){
-  const q = String(clientSearchFilter || '').trim().toLowerCase();
-  const digits = q.replace(/\D/g, '');
-  const activeM = M.filter(x => !x.archived);
-  let filtered = activeM;
-  if (q) {
-    filtered = activeM.filter(x => {
-      const nameMatch = (x.name && x.name.toLowerCase().includes(q)) || (x.te && x.te.toLowerCase().includes(q));
-      const phoneMatch = digits && x.phone && cleanPh(x.phone).includes(digits);
-      const vilMatch = x.village && vl(x.village).toLowerCase().includes(q);
-      return nameMatch || phoneMatch || vilMatch;
-    });
-  }
-  if (!filtered.length) {
-    return '<div style="padding:20px;text-align:center;background:var(--s);border-radius:10px;border:1px dashed var(--b)">' +
-      '<p class="m" style="margin:0">' + tr('No borrower account found for: ','ఎలాంటి ఖాతా కనపడలేదు: ') + '<b>' + esc(clientSearchFilter) + '</b></p>' +
-      '<span class="m" style="font-size:11.5px;display:block;margin-top:4px">' + tr('Please verify name spelling or enter 10-digit phone number.','దయచేసి పేరు లేదా 10 అంకెల ఫోన్ నంబర్ సరిచూడండి.') + '</span></div>';
-  }
-  return filtered.map(x => '<div onclick="selectClientMember(\'' + x.id + '\')" style="background:var(--s);padding:12px 14px;border-radius:10px;border:1.5px solid var(--b);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;transition:border-color 0.15s ease" onmouseover="this.style.borderColor=\'var(--p)\'" onmouseout="this.style.borderColor=\'var(--b)\'">' +
-    '<div style="min-width:0"><b style="font-size:14.5px;color:var(--t)">' + esc(x.name) + (x.te ? ' <span class="m">(' + esc(x.te) + ')</span>' : '') + '</b>' +
-    '<div class="m" style="font-size:12px;margin-top:2px">' + esc(vl(x.village)) + ' · ' + (x.phone ? ph(x.phone) : 'No phone') + '</div></div>' +
-    '<button type="button" class="sm p" style="border-radius:8px;font-size:12px;font-weight:700;flex-shrink:0">' + tr('Open Account →','ఖాతా తెరువు →') + '</button></div>'
-  ).join('');
-}
 
 let clientPayStep='set_amount'; // 'set_amount' | 'scan_pay' | 'waiting' | 'success'
 let clientPayCustomAmt=0;
@@ -2166,12 +2135,7 @@ function syncRoleFromUser(){
   role = 'c';
   let found = null;
   if (em) {
-    if (em.includes('mohanadeep') || em.includes('suda')) {
-      found = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-    }
-    if (!found) {
-      found = M.find(x => x.email && x.email.toLowerCase() === em);
-    }
+    found = M.find(x => x.email && x.email.toLowerCase() === em);
     if (!found && me && me.id) {
       found = M.find(x => x.id === me.id);
     }
@@ -2188,7 +2152,7 @@ function syncRoleFromUser(){
         id: newMid,
         name: (me && me.name && me.name !== 'Customer') ? me.name : cleanName,
         email: em,
-        village: 'Guntur',
+        village: 'Gudivada',
         phone: '',
         inst: 0,
         freq: 1,
@@ -2341,14 +2305,9 @@ function resolveActiveClientMember(){
   let m = null;
   const em = String((typeof me !== 'undefined' && me && me.email) || (typeof user !== 'undefined' && user && user.email) || '').toLowerCase().trim();
 
-  // If authenticated user is present, prioritize finding their specific member record by email or ID
+  // If authenticated user is present, strictly match their specific member record by email or ID
   if (em) {
-    if (em.includes('mohanadeep') || em.includes('suda')) {
-      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-    }
-    if (!m) {
-      m = M.find(x => x.email && x.email.toLowerCase() === em);
-    }
+    m = M.find(x => x.email && x.email.toLowerCase() === em);
     if (!m && typeof me !== 'undefined' && me && me.id) {
       m = M.find(x => x.id === me.id);
     }
@@ -2359,17 +2318,6 @@ function resolveActiveClientMember(){
     if (!m) {
       const cp = CP.find(x => x.email && x.email.toLowerCase() === em);
       if (cp && cp.mid) m = M.find(x => x.id === cp.mid);
-    }
-    if (!m) {
-      const rawName = em.split('@')[0];
-      const cleanName = rawName.replace(/[0-9_.-]+/g, ' ').trim().toLowerCase();
-      if (cleanName.length > 3) {
-        m = M.find(x => x.name && x.name.toLowerCase().replace(/\s+/g, '').includes(cleanName.replace(/\s+/g, '')));
-      }
-    }
-    // Strict isolation: non-Mohanadeep users must never be bound to Mohanadeep
-    if (m && !em.includes('mohanadeep') && !em.includes('suda') && m.name && m.name.toLowerCase().includes('mohanadeep')) {
-      m = null;
     }
     // Auto-create borrower member if not found for authenticated client
     if (!m) {
@@ -3533,7 +3481,29 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);ba
 
     <!-- Clean, Attractive Action Buttons Outside Paper -->
     <div class="gf-receipt-actions-panel gf-anim-acts">
-      <!-- Full-Width Hero Share Button -->
+      ${!isAdm ? `
+      <!-- CLIENT VIEW: STRICTLY SHARE, DOWNLOAD RECEIPT, SAVE PHOTO, AND CLOSE -->
+      <button class="gf-btn-hero-wa" onclick="shareReceiptPhoto('${t.id}')">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
+        <span>${tr('Share Receipt','రసీదు షేర్ చేయండి')}</span>
+      </button>
+
+      <div class="gf-btn-grid-2" style="margin-top:8px">
+        <button class="gf-btn-action" onclick="downloadReceiptPhoto('${t.id}')" style="font-weight:700">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span>${tr('Save Photo','ఫోటో సేవ్')}</span>
+        </button>
+        <button class="gf-btn-action" onclick="window.print()" style="font-weight:700">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          <span>${tr('Download Receipt','రసీదు డౌన్‌లోడ్')}</span>
+        </button>
+      </div>
+
+      <div style="margin-top:8px">
+        <button class="gf-btn-utility" onclick="vr='';draw()" style="width:100%">${tr('Close','మూసివేయి')}</button>
+      </div>
+      ` : `
+      <!-- ADMIN VIEW -->
       <button class="gf-btn-hero-wa" onclick="shareReceiptPhoto('${t.id}')">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/></svg>
         <span>${tr('Share Receipt Photo','రసీదు ఫోటో పంపు')}</span>
@@ -3572,6 +3542,7 @@ return `<div id="ov" style="position:fixed;inset:0;background:rgba(0,0,0,.78);ba
         <button class="gf-btn-utility" onclick="dl()">${tr('Download Records','రికార్డులు డౌన్‌లోడ్')}</button>
         <button class="gf-btn-utility" onclick="vr='';draw()">${tr('Close','మూసివేయి')}</button>
       </div>
+      `}
     </div>
   </div>
 </div>`}
@@ -6951,56 +6922,34 @@ function renderStandaloneReceiptPage(receiptId){
     m = publicReceiptData.m || {};
   }
 
-  // Dual-path resilient lookup: API first, then direct Supabase RPC fallback
+  // Secure public receipt lookup via backend endpoint (No database keys exposed to client)
   if (!t && !publicReceiptError) {
     if (!_publicFetchStarted) {
       _publicFetchStarted = true;
       const doLookup = async () => {
-        const rpcKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpZ214bGNlb2VqZXBpeGZscW5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNDAyNTMsImV4cCI6MjEwNjkxNjI1M30.LK3l8h7EnWcsKTzEJrRC-r7z9GY2UKThUQ8bmmCXwkk';
-
-        const fetchRpc = async () => {
-          const rpcUrl = 'https://digmxlceoejepixflqnh.supabase.co/rest/v1/rpc/get_verified_receipt';
-          const r2 = await fetch(rpcUrl, {
-            method: 'POST',
-            headers: {
-              apikey: rpcKey,
-              Authorization: 'Bearer ' + rpcKey,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ p_id: queryId }),
-            signal: timeoutSignal(8000)
-          });
-          if (!r2.ok) throw new Error('RPC error ' + r2.status);
-          const res2 = await r2.json();
-          if (res2 && res2.ok && res2.t) return res2;
-          throw new Error('Not found in ledger');
-        };
-
-        const fetchApi = async () => {
-          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: timeoutSignal(8000) });
-          if (!r.ok) throw new Error('API error ' + r.status);
-          const res = await r.json();
-          if (res && res.ok && res.t) return res;
-          throw new Error('Not found in API');
-        };
-
         try {
-          const win = await Promise.any([fetchRpc(), fetchApi()]);
-          if (win && win.ok && win.t) {
-            publicReceiptData = win;
-            publicReceiptError = '';
-            return draw();
+          const r = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: timeoutSignal(8000) });
+          if (r.ok) {
+            const res = await r.json();
+            if (res && res.ok && res.t) {
+              publicReceiptData = res;
+              publicReceiptError = '';
+              return draw();
+            }
           }
         } catch (_) {}
 
-        // Fallback retry for mobile connection stability
+        // Fallback retry for connection stability
         try {
           await new Promise(r => setTimeout(r, 600));
-          const retryRes = await fetchRpc();
-          if (retryRes && retryRes.ok && retryRes.t) {
-            publicReceiptData = retryRes;
-            publicReceiptError = '';
-            return draw();
+          const r2 = await fetch(`/api/verify-receipt?id=${encodeURIComponent(queryId)}`, { signal: timeoutSignal(8000) });
+          if (r2.ok) {
+            const res2 = await r2.json();
+            if (res2 && res2.ok && res2.t) {
+              publicReceiptData = res2;
+              publicReceiptError = '';
+              return draw();
+            }
           }
         } catch (_) {}
 
@@ -7310,7 +7259,7 @@ function renderLockoutScreen(){
       <button class="p sm" onclick="const p=prompt('${tr('Enter Admin Master Passkey (12101992) to unlock:','అడ్మిన్ పాస్‌కీ (12101992) నమోదు చేయండి:')}');if(p==='12101992'){unlockDevice('${lockId}');}" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:800;background:var(--ok);border-color:var(--ok)">
         ${tr('Admin Unlock (12101992) ✓', 'అడ్మిన్ అన్‌లాక్ (12101992) ✓')}
       </button>
-      <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="sm" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+      <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, my device was locked out (ID: ' + lockId + '). Please unlock my Gangaya Finance access.')}" target="_blank" class="sm" style="padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
         <span>${tr('Contact Admin via WhatsApp →', 'వాట్సాప్‌లో అడ్మిన్‌ని సంప్రదించు →')}</span>
       </a>
       <button class="sm" onclick="location.reload()" style="padding:10px 18px;border-radius:10px;font-size:13px">${tr('Check Status / Refresh ⟳', 'స్థితిని తనిఖీ చేయి ⟳')}</button>
@@ -7627,10 +7576,8 @@ function buildAgreementDocumentHtml(mid, isAdminCopy) {
     m = M.find(x => x.id === clientMid || x.phone === clientMid || x.name === clientMid);
   }
   if (!m && typeof me !== 'undefined' && me && me.email) {
-    const em = (me.email || '').toLowerCase();
-    if (em.includes('mohanadeep') || em.includes('suda')) {
-      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
-    }
+    const em = (me.email || '').toLowerCase().trim();
+    if (em) m = M.find(x => x.email && x.email.toLowerCase() === em);
   }
   m = m || {};
 
@@ -8921,7 +8868,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v103</span>
+            <span class="v18-pill">v104</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -8941,27 +8888,25 @@ function renderClientDashboard(){
   </div>`;
 
   if(!m){
-    // Borrower selection / lookup screen
+    // Private borrower mobile authentication screen (Strict data privacy: zero visibility of other borrowers)
     return topNav + `
-    <div class="card" style="max-width:520px;margin:24px auto;padding:28px 20px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,0.08)">
+    <div class="card" style="max-width:440px;margin:30px auto;padding:32px 22px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,0.1)">
       <div style="width:52px;height:52px;border-radius:50%;background:rgba(5,150,105,0.12);color:#059669;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:24px;font-weight:900">
         ✓
       </div>
-      <h2 style="margin:0 0 8px">${tr('Welcome to Customer Portal', 'ఖాతాదారుల పోర్టల్‌కు స్వాగతం')}</h2>
-      <p class="m" style="margin:0 0 20px;font-size:13.5px;line-height:1.5">
-        ${tr('Select your registered borrower name or enter your 10-digit phone number to view your active loans, repayment schedule, and download official receipts.', 'మీ అప్పు వివరాలు, చెల్లింపుల షెడ్యూల్ మరియు రసీదులు చూడటానికి మీ పేరు లేదా ఫోన్ నంబర్ ఎంచుకోండి.')}
+      <h2 style="margin:0 0 8px;font-size:20px">${tr('Client Account Access', 'ఖాతాదారుల లాగిన్')}</h2>
+      <p class="m" style="margin:0 0 20px;font-size:13px;line-height:1.5">
+        ${tr('Enter your 10-digit registered mobile number to access your active loans, repayment schedule, and download receipts securely.', 'మీ అప్పు వివరాలు, రసీదులు మరియు చెల్లింపులు చూడటానికి మీ 10 అంకెల రిజిస్టర్డ్ ఫోన్ నంబర్ నమోదు చేయండి.')}
       </p>
 
-      <!-- SINGLE UNIFIED SEARCH INPUT (NAME OR PHONE) -->
-      <form onsubmit="event.preventDefault();const qInp=document.getElementById('clientSearchQuery');if(qInp){const val=qInp.value.trim().toLowerCase();const d=val.replace(/\D/g,'');const mList=M.filter(x=>!x.archived);const match=mList.find(x=>(x.name&&x.name.toLowerCase().includes(val))||(d&&x.phone&&cleanPh(x.phone).includes(d)));if(match){selectClientMember(match.id);}else{toast(tr('No account matching: '+val,'ఖాతా కనపడలేదు: '+val),'warn');}}" style="margin-bottom:14px">
-        <div style="position:relative">
-          <input id="clientSearchQuery" type="text" autocomplete="name" placeholder="${tr('Search your Name or 10-digit Phone...','మీ పేరు లేదా 10 అంకెల ఫోన్ నంబర్‌తో వెతకండి...')}" oninput="onClientSearchInput(this.value)" value="${esc(clientSearchFilter)}" autofocus style="width:100%;padding:13px 16px;font-size:15px;border-radius:12px;border:2px solid var(--p);background:var(--s);color:var(--t);font-weight:600;box-sizing:border-box">
+      <form onsubmit="event.preventDefault();const pInp=document.getElementById('clientPhoneLogin');if(pInp){const raw=pInp.value.replace(/\\D/g,'');if(raw.length!==10){toast(tr('Please enter a valid 10-digit mobile number','దయచేసి 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి'),'warn');return;}const match=M.find(x=>!x.archived&&x.phone&&cleanPh(x.phone).endsWith(raw));if(match){selectClientMember(match.id);playChime();toast(tr('Welcome, '+match.name+' ✓','స్వాగతం, '+match.name+' ✓'));}else{toast(tr('No active account found for mobile: '+raw+'. Contact Admin (9398011913).','ఈ నంబర్‌తో ఖాతా లేదు. అడ్మిన్ (9398011913) ని సంప్రదించండి.'),'warn');}}" style="margin-bottom:14px">
+        <div style="margin-bottom:14px">
+          <input id="clientPhoneLogin" type="tel" maxlength="10" inputmode="numeric" placeholder="${tr('Enter 10-Digit Mobile Number...','10 అంకెల మొబైల్ నంబర్...')}" autofocus style="width:100%;padding:13px 16px;font-size:16px;border-radius:12px;border:2px solid var(--p);background:var(--s);color:var(--t);font-weight:700;letter-spacing:0.05em;text-align:center;box-sizing:border-box">
         </div>
+        <button type="submit" class="p" style="width:100%;padding:12px;font-size:14px;font-weight:800;border-radius:10px">${tr('Access My Account →','నా ఖాతాలోకి ప్రవేశించు →')}</button>
       </form>
-
-      <!-- UNIFIED SEARCH RESULTS LIST -->
-      <div id="clientSearchResults" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;text-align:left">
-        ${renderClientSearchResults()}
+      <div class="m" style="font-size:11.5px;margin-top:12px">
+        ${tr('Need help? Contact Admin Durga Sravan: ','సహాయం కోసం అడ్మిన్ దుర్గా శ్రావణ్ గారిని సంప్రదించండి: ')}<a href="tel:9398011913" style="color:var(--p);font-weight:700">9398011913</a>
       </div>
     </div>`;
   }
@@ -9579,11 +9524,11 @@ function renderClientDashboard(){
       </p>
 
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-        <a href="https://wa.me/919494201305?text=${encodeURIComponent('Hello Durga Sravan, I am ' + (m.name||'') + ' (Phone: ' + (m.phone||'') + '), requesting assistance.')}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(16,185,129,0.15);color:var(--ok);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+        <a href="https://wa.me/919398011913?text=${encodeURIComponent('Hello Durga Sravan, I am ' + (m.name||'') + ' (Phone: ' + (m.phone||'') + '), requesting assistance.')}" target="_blank" rel="noopener" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(16,185,129,0.15);color:var(--ok);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
           <span>WhatsApp Durga Sravan →</span>
         </a>
-        <a href="tel:9494201305" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--p);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
-          <span>Call: 9494201305</span>
+        <a href="tel:9398011913" class="chip" style="text-decoration:none;padding:8px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:var(--p);font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px">
+          <span>Call: 9398011913</span>
         </a>
       </div>
 
@@ -9688,7 +9633,7 @@ function renderClientDashboard(){
         <!-- UPI ID Box -->
         <div id="cla-upi-box" style="margin-bottom:14px;background:var(--s);padding:14px;border-radius:10px;border:1px solid var(--b)">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Enter Your Beneficiary UPI ID:*','మీ UPI ID నమోదు చేయండి:*')}</label>
-          <input id="cla-upi-id" type="text" placeholder="e.g. 9494201305@ybl or yourname@oksbi" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:14px">
+          <input id="cla-upi-id" type="text" placeholder="e.g. 9398011913@ybl or yourname@oksbi" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-family:monospace;font-size:14px">
         </div>
 
         <!-- Bank Details Box -->
@@ -11118,7 +11063,7 @@ function ensureLiveChatDeskPolling(){
     if(isSupportOpen && typeof syncServerSubmissions === 'function'){
       syncServerSubmissions();
     }
-  }, 2200);
+  }, 1200);
 }
 ensureLiveChatDeskPolling();
 setTimeout(initLiveChatDeskChannel, 1000);
@@ -11226,7 +11171,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v103</span>
+          <span class="v18-pill">v104</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -11580,5 +11525,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=100').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=104').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
