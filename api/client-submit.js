@@ -140,11 +140,11 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       ok: true,
       support: mid ? merged.support.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
-      bugs: mid ? merged.bugs.filter(x => x.mid === mid) : [],
-      profiles: mid ? merged.profiles.filter(x => x.mid === mid || (x.phone1 && x.phone1.includes(mid))) : [],
-      receipts: mid ? merged.receipts.filter(x => x.mid === mid) : [],
-      agreements: mid ? merged.agreements.filter(x => x.mid === mid) : [],
-      loan_requests: mid ? merged.loan_requests.filter(x => x.mid === mid) : [],
+      bugs: mid ? merged.bugs.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
+      profiles: mid ? merged.profiles.filter(x => x.mid === mid || (x.phone1 && x.phone1.includes(mid)) || (x.phone2 && x.phone2.includes(mid))) : [],
+      receipts: mid ? merged.receipts.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
+      agreements: mid ? merged.agreements.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid)) || (mid.length > 5 && x.id && x.id.includes(mid))) : [],
+      loan_requests: mid ? merged.loan_requests.filter(x => x.mid === mid || (x.phone && x.phone.includes(mid))) : [],
       timestamp: Date.now()
     });
   }
@@ -198,8 +198,10 @@ module.exports = async (req, res) => {
       };
       serverStore.notifs.unshift(notif);
 
-      trySupabaseWrite('client_support', item.id, item);
-      trySupabaseWrite('notifs', notif.id, notif);
+      await Promise.all([
+        trySupabaseWrite('client_support', item.id, item),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
 
       return res.status(200).json({ ok: true, message: 'Support message delivered to Admin successfully', item });
     }
@@ -219,7 +221,7 @@ module.exports = async (req, res) => {
         category: String(body.category || 'Other').slice(0, 40),
         description: desc,
         diagnostics: body.diagnostics || {},
-        photo: String(body.photo || '').slice(0, 200000), // bounded photo size
+        photo: String(body.photo || '').slice(0, 500000), // bounded photo size
         status: 'investigating',
         resolution_notes: '',
         ts: Date.now()
@@ -238,8 +240,10 @@ module.exports = async (req, res) => {
       };
       serverStore.notifs.unshift(notif);
 
-      trySupabaseWrite('client_bugs', item.id, item);
-      trySupabaseWrite('notifs', notif.id, notif);
+      await Promise.all([
+        trySupabaseWrite('client_bugs', item.id, item),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
 
       return res.status(200).json({ ok: true, message: 'Bug report delivered to technical team successfully', item });
     }
@@ -260,14 +264,14 @@ module.exports = async (req, res) => {
         place: String(body.place || '').slice(0, 60).trim(),
         phone1: phone1,
         phone2: String(body.phone2 || '').slice(0, 15).trim(),
-        photo: String(body.photo || '').slice(0, 200000),
+        photo: String(body.photo || '').slice(0, 500000),
         updated_at: new Date().toISOString(),
         ts: Date.now()
       };
       const idx = serverStore.profiles.findIndex(x => x.id === item.id || x.mid === item.mid);
       if (idx >= 0) serverStore.profiles[idx] = item; else serverStore.profiles.unshift(item);
 
-      trySupabaseWrite('client_profiles', item.id, item);
+      await trySupabaseWrite('client_profiles', item.id, item);
       return res.status(200).json({ ok: true, message: 'Personal profile & KYC saved successfully', item });
     }
 
@@ -288,7 +292,7 @@ module.exports = async (req, res) => {
         d: body.d || new Date().toISOString().slice(0, 10),
         mode: 'upi',
         utr: utr,
-        photo: String(body.photo || '').slice(0, 200000),
+        photo: String(body.photo || '').slice(0, 500000),
         status: 'pending',
         ts: Date.now()
       };
@@ -308,8 +312,10 @@ module.exports = async (req, res) => {
       };
       serverStore.notifs.unshift(notif);
 
-      trySupabaseWrite('client_receipts', item.id, item);
-      trySupabaseWrite('notifs', notif.id, notif);
+      await Promise.all([
+        trySupabaseWrite('client_receipts', item.id, item),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
 
       return res.status(200).json({ ok: true, message: 'Payment proof lodged successfully. Pending Admin verification.', item });
     }
@@ -330,12 +336,13 @@ module.exports = async (req, res) => {
         needs_resignature: false,
         ts: Date.now(),
         signed_at: new Date().toISOString(),
-        hash: body.hash || ('SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase())
+        hash: body.hash || ('SHA256-' + Math.random().toString(36).slice(2, 10).toUpperCase()),
+        selfie_photo: String(body.selfie_photo || body.photo || '').slice(0, 500000)
       };
       const idx = serverStore.agreements.findIndex(x => x.id === agrObj.id || x.mid === agrObj.mid);
       if (idx >= 0) serverStore.agreements[idx] = agrObj; else serverStore.agreements.unshift(agrObj);
 
-      trySupabaseWrite('client_agreements', agrObj.id, agrObj);
+      await trySupabaseWrite('client_agreements', agrObj.id, agrObj);
       return res.status(200).json({ ok: true, message: 'Digital agreement signed & recorded', agreement: agrObj });
     }
 
@@ -356,7 +363,7 @@ module.exports = async (req, res) => {
       agr.needs_resignature = true;
       agr.resignature_reason = reason;
       agr.requested_at = new Date().toISOString();
-      trySupabaseWrite('client_agreements', agr.id, agr);
+      await trySupabaseWrite('client_agreements', agr.id, agr);
       return res.status(200).json({ ok: true, message: 'Re-signature requested' });
     }
 
@@ -408,8 +415,10 @@ module.exports = async (req, res) => {
       };
       serverStore.notifs.unshift(notif);
 
-      trySupabaseWrite('loan_requests', loanReq.id, loanReq);
-      trySupabaseWrite('notifs', notif.id, notif);
+      await Promise.all([
+        trySupabaseWrite('loan_requests', loanReq.id, loanReq),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
 
       return res.status(200).json({ ok: true, message: 'Loan application submitted for Admin approval', item: loanReq });
     }
@@ -421,7 +430,7 @@ module.exports = async (req, res) => {
       lr.status = 'approved';
       lr.approved_at = Date.now();
       lr.approved_by = 'Durga Sravan';
-      trySupabaseWrite('loan_requests', lr.id, lr);
+      await trySupabaseWrite('loan_requests', lr.id, lr);
       return res.status(200).json({ ok: true, message: 'Loan application approved' });
     }
 
@@ -432,7 +441,7 @@ module.exports = async (req, res) => {
       lr.status = 'rejected';
       lr.rejected_at = Date.now();
       lr.rejected_by = 'Durga Sravan';
-      trySupabaseWrite('loan_requests', lr.id, lr);
+      await trySupabaseWrite('loan_requests', lr.id, lr);
       return res.status(200).json({ ok: true, message: 'Loan application rejected' });
     }
 
@@ -444,7 +453,7 @@ module.exports = async (req, res) => {
       item.reply = replyText;
       item.status = 'resolved';
       item.resolved_at = new Date().toISOString();
-      trySupabaseWrite('client_support', item.id, item);
+      await trySupabaseWrite('client_support', item.id, item);
       return res.status(200).json({ ok: true, message: 'Inquiry resolved successfully' });
     }
 
@@ -456,7 +465,7 @@ module.exports = async (req, res) => {
       item.verified_by = 'Durga Sravan';
       item.verified_at = new Date().toISOString();
       item.txn_id = body.txn_id || ('gf-' + Math.random().toString(36).slice(2, 10));
-      trySupabaseWrite('client_receipts', item.id, item);
+      await trySupabaseWrite('client_receipts', item.id, item);
       return res.status(200).json({ ok: true, message: 'Payment verified successfully' });
     }
 
@@ -468,7 +477,7 @@ module.exports = async (req, res) => {
       item.status = 'rejected';
       item.rejection_reason = reason;
       item.rejected_at = new Date().toISOString();
-      trySupabaseWrite('client_receipts', item.id, item);
+      await trySupabaseWrite('client_receipts', item.id, item);
       return res.status(200).json({ ok: true, message: 'Payment rejected' });
     }
 

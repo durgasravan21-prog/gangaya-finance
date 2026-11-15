@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=93"></script>
+<script src="/runtime.js?v=94"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2128,6 +2128,28 @@ function seedFromCache(){
   }catch(_){}
 }
 seedFromCache();
+syncRoleFromUser();
+
+function resolveActiveClientMember(){
+  let m = M.find(x => x.id === clientMid);
+  if(!m && clientMid){
+    m = M.find(x => x.phone === clientMid || x.name === clientMid);
+  }
+  if(!m && typeof me !== 'undefined' && me && me.email){
+    const em = (me.email || '').toLowerCase();
+    if(em.includes('mohanadeep') || em.includes('suda')){
+      m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+    }
+  }
+  if(!m && clientMid === 'm_mohanadeep'){
+    m = M.find(x => (x.name && x.name.toLowerCase().includes('mohanadeep')) || (x.phone && x.phone.includes('9494201305')));
+  }
+  if(m && m.id && clientMid !== m.id){
+    clientMid = m.id;
+    try { localStorage.setItem('gf_client_mid', m.id); } catch(_) {}
+  }
+  return m || null;
+}
 function initAudio(){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(()=>{})}catch(_){}}
 function playChime(){
   try{
@@ -4716,7 +4738,7 @@ return `${impBanner()}${f}${rvCard()}<div class="card"><h2>Add member</h2><div c
 <input id="lg" type="number" placeholder="Loan given ₹"><input id="lr" type="number" placeholder="Total to return ₹"><label class="m">Loan date (blank = today)<input id="ld" type="date" min="1990-01-01" max="${today()}"></label><input id="i" type="number" placeholder="Installment ₹"><select id="f"><option value="7">Weekly</option><option value="1">Daily</option></select></div>
 <label class="opt" style="margin-top:10px"><input type="checkbox" ${exb?'checked':''} onchange="exb=this.checked;draw()"> Existing borrower: already has a running loan and has paid some instalments</label>${exb?histSection():''}
 <p><button class="p" onclick="addM()">${exb?'Save member with history':'Save member'}</button></p></div>
-<div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}<div class="m">${esc(m.te||'— no Telugu name —')}</div></td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
+<div class="card sc"><h2>${M.filter(m=>!m.archived).length} members</h2><table><tr><th>Name</th><th>Village</th><th>Due</th><th></th></tr>${M.filter(m=>!m.archived).sort((a,b)=>nm(a).localeCompare(nm(b))).map(m=>`<tr><td>${esc(nm(m))}<div class="m">${esc(m.te||'— no Telugu name —')}</div></td><td>${esc(vl(m.village))}</td><td>${(s=>s.g>0&&s.due<=0?'<span class="ok">Closed ✓</span>':inr(s.due))(st(m))}</td><td><div class="acts"><button onclick="viewBorrowerFullProfile('${m.id}')" style="font-weight:700;color:var(--p)" title="${tr('View KYC Profile & Signed Agreement','KYC ప్రొఫైల్ & ఒప్పందం చూడు')}">KYC</button><button onclick="rv='${m.id}';draw();scrollTo(0,0)">Records</button><button onclick="sel={id:'${m.id}',k:'past'};hp=[];draw();scrollTo(0,0)">+ Past</button><button onclick="sel={id:'${m.id}',k:'edit'};draw()">Edit</button><button onclick="sel={id:'${m.id}',k:'loan'};draw()">+ Loan</button><button class="d" onclick="delM('${m.id}')">Delete</button></div></td></tr>`).join('')}</table></div>`}
 const clr=a=>a.forEach(k=>{const e=$('#'+k);if(e)e.value=''});
 function saveEdit(){if(!owner||!sel)return;const n=$('#en').value.trim().slice(0,60),p=cleanPh($('#ep').value),v=$('#ev').value,i=num($('#ei').value);
 if(!n||!v)return toast('Name and village are required');if(!okPh(p))return toast('Enter a valid WhatsApp number (10 digits)');if(!amtOk(i))return toast('Check the installment');
@@ -4989,8 +5011,9 @@ function pendingLoansHtml(){
             </div>
             <div class="acts" style="flex-shrink:0">
               ${isAdm ? `
-                <button class="p sm" onclick="approveLoanReq('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700">✓ ${tr('Approve','ఆమోదించు')}</button>
-                <button class="d sm" onclick="rejectLoanReq('${lr.id}')" style="font-weight:700">✕ ${tr('Reject','తిరస్కరించు')}</button>
+                <button class="sm" onclick="viewBorrowerFullProfile('${lr.mid}')" style="font-weight:700;color:var(--p);border-radius:8px">${tr('View KYC / Agreement','KYC & ఒప్పందం')}</button>
+                <button class="p sm" onclick="approveLoanReq('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700;border-radius:8px">✓ ${tr('Approve','ఆమోదించు')}</button>
+                <button class="d sm" onclick="rejectLoanReq('${lr.id}')" style="font-weight:700;border-radius:8px">✕ ${tr('Reject','తిరస్కరించు')}</button>
               ` : `
                 <span class="chip" style="background:#fef3c7;color:#92400e;font-weight:700;font-size:12px">${tr('Pending Approval','ఆమోదం కోసం వేచి ఉంది')}</span>
               `}
@@ -6605,10 +6628,11 @@ function submitClientSupportMsg(ev){
     toast(tr('Please enter a message', 'సందేశాన్ని నమోదు చేయండి'), 'warn');
     return;
   }
-  const m = M.find(x => x.id === clientMid) || {};
+  const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
+  const activeMid = (m && m.id) || clientMid || 'guest';
   const newMsg = {
     id: 'cs_' + Date.now(),
-    mid: clientMid,
+    mid: activeMid,
     borrower: m.name || tr('Customer','ఖాతాదారుడు'),
     village: m.village || '',
     phone: m.phone || '',
@@ -6780,7 +6804,8 @@ function signClientAgreement(ev){
       mid: activeMid,
       borrower: (m && m.name) || signName,
       signed_name: signName,
-      hash: agrObj.hash
+      hash: agrObj.hash,
+      selfie_photo: agrSelfie
     })
   }).catch(e => console.warn('Agreement server sync note:', e));
 
@@ -6984,11 +7009,12 @@ function submitClientBugReport(ev){
     return;
   }
 
-  const m = M.find(x => x.id === clientMid) || {};
+  const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
+  const activeMid = (m && m.id) || clientMid || 'guest';
   const bugId = 'bug_' + Date.now();
   const bugObj = {
     id: bugId,
-    mid: clientMid || 'guest',
+    mid: activeMid,
     borrower: m.name || tr('Customer','ఖాతాదారుడు'),
     village: m.village || '',
     phone: m.phone || '',
@@ -7273,7 +7299,8 @@ async function saveClientPersonalDetails(ev){
     return;
   }
 
-  let m = M.find(x => x.id === clientMid);
+  let m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid);
+  const activeMid = (m && m.id) || clientMid || phone1;
   if(m){
     m.name = name;
     m.email = emailVal;
@@ -7285,8 +7312,8 @@ async function saveClientPersonalDetails(ev){
   }
 
   const profObj = {
-    id: 'cp_' + (clientMid || phone1),
-    mid: clientMid,
+    id: 'cp_' + activeMid,
+    mid: activeMid,
     name: name,
     email: emailVal,
     age: age,
@@ -7362,7 +7389,8 @@ async function submitClientLoanApplication(ev){
     return;
   }
 
-  const m = M.find(x => x.id === clientMid) || {};
+  const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
+  const activeMid = (m && m.id) || clientMid || 'guest';
   const reqId = 'lr_' + Date.now();
   // Standard simple interest calculation (e.g. 10% tenure repayment)
   const repay = Math.round(amt * 1.10);
@@ -7370,7 +7398,7 @@ async function submitClientLoanApplication(ev){
 
   const loanAppObj = {
     id: reqId,
-    mid: clientMid,
+    mid: activeMid,
     mname: m.name || tr('Customer','ఖాతాదారుడు'),
     village: m.village || '',
     phone: m.phone || '',
@@ -7508,6 +7536,14 @@ function renderBorrowerProfileModal(){
             ${agr.signed ? 'SIGNED & VALIDATED ✓' : 'PENDING SIGNATURE'}
           </span>
         </div>
+        ${agr.selfie_photo ? `
+        <div style="display:flex;align-items:center;gap:12px;margin:8px 0 10px;background:var(--c);padding:8px 12px;border-radius:8px;border:1px solid var(--b)">
+          <img src="${agr.selfie_photo}" style="height:60px;width:60px;border-radius:8px;border:2px solid var(--ok);object-fit:cover" alt="Selfie Photo">
+          <div>
+            <div style="font-weight:700;font-size:12.5px;color:var(--t)">${tr('Borrower Identity Selfie (Embedded in Agreement)','ఒప్పందంలో చేర్చబడిన రుణగ్రహీత సెల్ఫీ')}</div>
+            <div class="m" style="font-size:11px">${tr('Captured live at the moment of digital signing','డిజిటల్ సంతకం సమయంలో తీసిన ఫోటో')}</div>
+          </div>
+        </div>` : ''}
         ${agr.signed ? `
         <div class="m" style="font-size:12px;margin-bottom:8px">
           ${tr('Signed Name: ','సంతకం: ')}<b>${esc(agr.signed_name || displayName)}</b> · ${fd(agr.signed_at ? agr.signed_at.slice(0,10) : today())}
@@ -7643,7 +7679,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v93</span>
+            <span class="v18-pill">v94</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -8260,7 +8296,7 @@ function renderClientDashboard(){
 <div style="margin-bottom:14px">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:6px">${tr('Step 1: Take a Selfie Photo (Required for Document)','దశ 1: సెల్ఫీ తీయండి (పత్రానికి అవసరం)')}</label>
           <div id="ca-selfie-preview" style="display:none;margin-bottom:8px"><img id="ca-selfie-img" style="max-height:120px;border-radius:8px;border:1.5px solid var(--ok)" alt="Selfie"></div>
-          <input id="ca-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var pre=document.getElementById('ca-selfie-preview');var img=document.getElementById('ca-selfie-img');if(pre&&img){img.src=e.target.result;pre.style.display='block';}};r.readAsDataURL(f);})(this)">
+          <input id="ca-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;compressProofImage(f, function(dataUri){var pre=document.getElementById('ca-selfie-preview');var img=document.getElementById('ca-selfie-img');if(pre&&img&&dataUri){img.src=dataUri;pre.style.display='block';}});})(this)">
           <button type="button" class="sm" onclick="document.getElementById('ca-selfie').click()" style="border-radius:8px;font-weight:700;font-size:12.5px;border:1.5px dashed var(--p);background:rgba(99,102,241,0.08);color:var(--p)">
             ${tr('Open Camera & Take Selfie','కెమెరా తెరవండి & సెల్ఫీ తీయండి')}
           </button>
@@ -8509,7 +8545,7 @@ function renderClientDashboard(){
 
         <div style="margin-bottom:16px">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Borrower Profile Photo / KYC Picture','ప్రొఫైల్ ఫోటో / KYC చిత్రం')}</label>
-          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('cp-photo-data');if(hid)hid.value=e.target.result;const prev=document.getElementById('cp-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){compressProofImage(f, dataUri=>{const hid=document.getElementById('cp-photo-data');if(hid)hid.value=dataUri;const prev=document.getElementById('cp-photo-prev');if(prev){prev.src=dataUri;prev.style.display='block';}})}" style="font-size:12.5px">
           <input id="cp-photo-data" type="hidden" value="${esc(prof.photo || m.photo || '')}">
           <img id="cp-photo-prev" src="${esc(prof.photo || m.photo || '')}" style="display:${(prof.photo || m.photo) ? 'block' : 'none'};max-height:140px;border-radius:10px;border:1px solid var(--b);margin-top:8px">
         </div>
@@ -8562,7 +8598,7 @@ function renderClientDashboard(){
 
         <div style="margin-bottom:16px">
           <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Optional: Attach Screenshot or Error Photo','స్క్రీన్‌షాట్ లేదా ఎర్రర్ ఫోటో జతచేయండి')}</label>
-          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){const r=new FileReader();r.onload=e=>{const hid=document.getElementById('bug-photo-data');if(hid)hid.value=e.target.result;const prev=document.getElementById('bug-photo-prev');if(prev){prev.src=e.target.result;prev.style.display='block';}};r.readAsDataURL(f);}" style="font-size:12.5px">
+          <input type="file" accept="image/*" onchange="const f=this.files[0];if(f){compressProofImage(f, dataUri=>{const hid=document.getElementById('bug-photo-data');if(hid)hid.value=dataUri;const prev=document.getElementById('bug-photo-prev');if(prev){prev.src=dataUri;prev.style.display='block';}})}" style="font-size:12.5px">
           <input id="bug-photo-data" type="hidden">
           <img id="bug-photo-prev" style="display:none;max-height:140px;border-radius:8px;border:1px solid var(--b);margin-top:8px">
         </div>
@@ -8685,7 +8721,7 @@ function renderClientDashboard(){
           <div id="ca-popup-selfie-preview" style="display:none;margin-bottom:8px">
             <img id="ca-popup-selfie-img" style="max-height:120px;border-radius:8px;border:1.5px solid var(--ok)" alt="Selfie">
           </div>
-          <input id="ca-popup-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(e){var p=document.getElementById('ca-popup-selfie-preview');var i=document.getElementById('ca-popup-selfie-img');if(p&&i){i.src=e.target.result;p.style.display='block';}};r.readAsDataURL(f);})(this)">
+          <input id="ca-popup-selfie" type="file" accept="image/*" capture="user" style="display:none" onchange="(function(inp){var f=inp.files[0];if(!f)return;compressProofImage(f, function(dataUri){var p=document.getElementById('ca-popup-selfie-preview');var i=document.getElementById('ca-popup-selfie-img');if(p&&i&&dataUri){i.src=dataUri;p.style.display='block';}});})(this)">
           <button type="button" class="sm" onclick="document.getElementById('ca-popup-selfie').click()" style="border-radius:8px;font-weight:700;font-size:12.5px;background:rgba(99,102,241,0.12);color:var(--p);border:1px solid var(--p)">
             ${tr('Open Camera & Take Selfie','కెమెరా తెరవండి & సెల్ఫీ తీయండి')}
           </button>
@@ -8825,6 +8861,7 @@ function adminSupportTab(){
             ${item.phone ? '<span class="m" style="font-size:12px"> · ' + esc(item.phone) + '</span>' : ''}
           </div>
           <div style="display:flex;gap:6px;align-items:center">
+            <button class="sm" onclick="viewBorrowerFullProfile('${item.mid}')" style="font-size:11px;padding:3px 8px;border-radius:6px;font-weight:700;color:var(--p)">${tr('Profile / KYC','ప్రొఫైల్')}</button>
             <span class="chip" style="font-size:11px;font-weight:700">${esc(item.topic || 'Inquiry')}</span>
             <span class="chip" style="background:${item.status === 'open' ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)'};color:${item.status === 'open' ? 'var(--r)' : 'var(--ok)'};font-weight:800;font-size:11px">
               ${item.status === 'open' ? tr('Open Ticket','పెండింగ్') : tr('Resolved ✓','పరిష్కరించబడింది ✓')}
@@ -8907,6 +8944,7 @@ function adminSupportTab(){
         ${p.photo ? `<div style="margin:8px 0"><img src="${p.photo}" style="max-height:140px;border-radius:8px;border:1px solid var(--b)"></div>` : ''}
         
         <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+          <button class="sm" onclick="viewBorrowerFullProfile('${p.mid}')" style="border-radius:8px;font-weight:700;font-size:12.5px;color:var(--p)">${tr('Profile / KYC','ప్రొఫైల్')}</button>
           ${p.status === 'pending' ? `
             <button class="p sm" onclick="adminVerifyClientPayment('${p.id}')" style="border-radius:8px;font-weight:800;font-size:13px;background:var(--ok);border-color:var(--ok)">
               ${tr('Verify & Approve Payment ✓','ధృవీకరించి ఆమోదించు ✓')}
@@ -8990,6 +9028,7 @@ function adminSupportTab(){
         ${bug.photo ? `<div style="margin-bottom:8px"><img src="${bug.photo}" style="max-height:120px;border-radius:6px;border:1px solid var(--b)"></div>` : ''}
         
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          <button class="sm" onclick="viewBorrowerFullProfile('${bug.mid}')" style="border-radius:8px;font-weight:700;font-size:12px;color:var(--p)">${tr('Borrower Profile / KYC','ప్రొఫైల్')}</button>
           ${bug.status !== 'resolved' ? `
           <button class="p sm" onclick="resolveBugReport('${bug.id}', 'resolved', 'Fixed & verified by Durga Sravan ✓')" style="border-radius:8px;font-weight:700;font-size:12px;background:var(--ok);border-color:var(--ok)">
             ${tr('Mark as Fixed & Resolved ✓','పరిష్కరించబడింది అని గుర్తించు ✓')}
@@ -9210,7 +9249,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v93</span>
+          <span class="v18-pill">v94</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9327,8 +9366,14 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
 
     async function syncServerSubmissions(){
       try {
-        const isAdm = (owner && role === 'a') || (role === 'a' && passkeyUnlocked);
-        const mid = isAdm ? '' : (clientMid || 'm_mohanadeep');
+        const userEmail = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
+        const isAdm = (owner && role === 'a') || (role === 'a' && passkeyUnlocked) || userEmail === 'durgasravan21@gmail.com' || userEmail.includes('durgasravan') || ((me && me.role) === 'admin');
+        let activeMid = clientMid;
+        if (!activeMid && typeof resolveActiveClientMember === 'function') {
+          const actM = resolveActiveClientMember();
+          if (actM) activeMid = actM.id;
+        }
+        const mid = isAdm ? '' : (activeMid || (me && me.mid) || '');
         const url = isAdm ? '/api/client-submit?role=admin' : ('/api/client-submit?mid=' + encodeURIComponent(mid));
         const res = await fetch(url);
         if (!res.ok) return;
