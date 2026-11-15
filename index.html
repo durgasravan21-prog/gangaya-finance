@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=91"></script>
+<script src="/runtime.js?v=92"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -7579,7 +7579,7 @@ function adminDownloadAgreementPdf(mid){
   printWin.document.close();
 }
 
-function adminRequestReSignature(mid, reason){
+async function adminRequestReSignature(mid, reason){
   if(!owner) return;
   let agr = CA.find(x => x.mid === mid);
   if(!agr) return;
@@ -7644,7 +7644,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v91</span>
+            <span class="v18-pill">v92</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9211,7 +9211,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v91</span>
+          <span class="v18-pill">v92</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>

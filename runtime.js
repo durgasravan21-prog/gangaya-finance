@@ -839,6 +839,17 @@
       return;
     }
 
+    // Allow direct access to borrower / client portal when navigating to ?portal=client
+    const isClientPortal = (urlParams.get('portal') === 'client');
+    if (!forceLogin && isClientPortal && !s && !hasCachedProf) {
+      prof = { id: 'public-client', role: 'client', name: 'Borrower', mid: '' };
+      uid = 'public-client';
+      hasCachedProf = true;
+      const o = document.getElementById('rt-ov'); if (o) o.remove();
+      finish();
+      return;
+    }
+
     // Fast-derive profile from session user email if not in localStorage or stale
     if (s && (!prof || !prof.role || (s.user && prof.id && prof.id !== s.user.id))) {
       prof = sanitizeProfile(s.user, prof);
