@@ -100,21 +100,28 @@
           '<p id="rt-m" class="m" style="color:var(--r);min-height:18px"></p><button class="p" style="width:100%;padding:12px">' + (isSignUp ? 'Create account' : 'Sign in') + '</button>' +
           '<div style="text-align:center;margin:12px 0 6px"><a href="/?portal=client" style="color:var(--p);font-size:13px;font-weight:700;text-decoration:none;display:inline-block;padding:6px 14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.22);border-radius:20px">Borrower / Client Portal &rsaquo;</a></div>' + '<p style="text-align:center;margin:8px 0 0"><a href="#" id="rt-t" style="color:var(--a);font-size:13px;text-decoration:none">' + (isSignUp ? 'Already have an account? Sign in' : 'First time? Create account') + '</a></p>' +
           '<div style="text-align:center;margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--b);display:flex;flex-direction:column;gap:5px"><a href="#" id="rt-resend" style="color:var(--m);font-size:12px;text-decoration:none">Link expired? Resend confirmation email &rsaquo;</a><a href="#" id="rt-magic" style="color:var(--p);font-size:12px;font-weight:700;text-decoration:none">Email not arriving? Send Instant Magic Login Link &rsaquo;</a></div></form>');
-        o.querySelector('#rt-th').onclick = () => {
-          const next = isDark ? 'light' : 'dark';
-          document.documentElement.setAttribute('data-theme', next);
-          try { localStorage.setItem('gangaya_theme', next); } catch (_) {}
-          const m = document.querySelector('meta[name="theme-color"]');
-          if (m) m.setAttribute('content', next === 'dark' ? '#090d12' : '#059669');
-          render();
-        };
-        o.querySelector('#rt-m').textContent = msg || '';
-        o.querySelector('#rt-t').onclick = ev => {
-          ev.preventDefault();
-          isSignUp = !isSignUp;
-          msg = '';
-          render();
-        };
+        const thBtn = o.querySelector('#rt-th');
+        if (thBtn) {
+          thBtn.onclick = () => {
+            const next = isDark ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            try { localStorage.setItem('gangaya_theme', next); } catch (_) {}
+            const m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', next === 'dark' ? '#090d12' : '#059669');
+            render();
+          };
+        }
+        const mEl = o.querySelector('#rt-m');
+        if (mEl) mEl.textContent = msg || '';
+        const tBtn = o.querySelector('#rt-t');
+        if (tBtn) {
+          tBtn.onclick = ev => {
+            ev.preventDefault();
+            isSignUp = !isSignUp;
+            msg = '';
+            render();
+          };
+        }
         const resendBtn = o.querySelector('#rt-resend');
         if (resendBtn) {
           resendBtn.onclick = async ev => {
@@ -680,7 +687,8 @@
     } catch (_) {}
 
     // Background verify without blocking boot
-    fetch('/api/config', { signal: AbortSignal.timeout(4000) })
+    const configSignal = (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(4000) : undefined;
+    fetch('/api/config', configSignal ? { signal: configSignal } : {})
       .then(r => r.json())
       .then(fresh => {
         if (fresh && fresh.url && fresh.anonKey) {
