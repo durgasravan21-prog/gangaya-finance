@@ -74,28 +74,51 @@
   }catch(e){}
 })();
 // Bootstrap Guardian: If an older corrupted cached script causes an uncaught error on initial load, purge stale service worker and caches.
+function forcePurgeStaleCachesAndReload(){
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(keys) {
+        keys.forEach(function(k) { caches.delete(k); });
+      });
+    }
+    sessionStorage.clear();
+    setTimeout(function() { window.location.reload(true); }, 400);
+  } catch(_) { window.location.reload(true); }
+}
 window.addEventListener('error', function(e) {
   try {
     var app = document.getElementById('app');
     if (app && (app.innerHTML.indexOf('Connecting to Cloud Ledger') !== -1 || app.innerHTML.indexOf('v18-loading-card') !== -1)) {
       console.warn('Bootstrap guardian clearing stale cache due to error:', e.message);
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          regs.forEach(function(r) { r.unregister(); });
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then(function(keys) {
-          keys.forEach(function(k) { caches.delete(k); });
-        });
-      }
-      if (!sessionStorage.getItem('gf_auto_recovered_v107')) {
-        sessionStorage.setItem('gf_auto_recovered_v107', '1');
-        setTimeout(function() { window.location.reload(true); }, 800);
+      if (!sessionStorage.getItem('gf_auto_recovered_v108')) {
+        sessionStorage.setItem('gf_auto_recovered_v108', '1');
+        forcePurgeStaleCachesAndReload();
       }
     }
   } catch(_) {}
 });
+setTimeout(function(){
+  try {
+    var app = document.getElementById('app');
+    if (app && (app.innerHTML.indexOf('Connecting to Cloud Ledger') !== -1 || app.innerHTML.indexOf('v18-loading-card') !== -1)) {
+      var loadingCard = app.querySelector('.v18-loading-card');
+      if (loadingCard && !document.getElementById('gf-recovery-btn')) {
+        var btn = document.createElement('button');
+        btn.id = 'gf-recovery-btn';
+        btn.type = 'button';
+        btn.innerHTML = '↻ Clear Stale Cache & Reload';
+        btn.style.cssText = 'margin-top:14px;padding:8px 16px;border-radius:8px;background:#059669;color:#fff;border:none;font-weight:700;font-size:12.5px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2)';
+        btn.onclick = forcePurgeStaleCachesAndReload;
+        loadingCard.appendChild(btn);
+      }
+    }
+  } catch(_) {}
+}, 3800);
 </script>
 <style>
 /* ========================================================
@@ -1584,7 +1607,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=107"></script>
+<script src="/runtime.js?v=108"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -5731,7 +5754,7 @@ function pendingLoansHtml(){
             <div class="acts" style="flex-shrink:0">
               ${isAdm ? `
                 <button class="sm" onclick="viewBorrowerFullProfile('${lr.mid}')" style="font-weight:700;color:var(--p);border-radius:8px">${tr('View KYC / Agreement','KYC & ఒప్పందం')}</button>
-                <button class="p sm" onclick="approveLoanReq('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700;border-radius:8px">✓ ${tr('Approve','ఆమోదించు')}</button>
+                <button class="p sm" onclick="openFixLoanModal('${lr.id}')" style="background:#10b981;border-color:#10b981;color:#fff;font-weight:700;border-radius:8px">✓ ${tr('Review & Fix Loan','సరిచూసి ఆమోదించు ✓')}</button>
                 <button class="d sm" onclick="rejectLoanReq('${lr.id}')" style="font-weight:700;border-radius:8px">✕ ${tr('Reject','తిరస్కరించు')}</button>
               ` : `
                 <span class="chip" style="background:#fef3c7;color:#92400e;font-weight:700;font-size:12px">${tr('Pending Approval','ఆమోదం కోసం వేచి ఉంది')}</span>
@@ -5920,7 +5943,182 @@ async function submitFatherNewLoan(){
   }
 }
 
+function openFixLoanModal(id) {
+  const lr = LR.find(x => x.id === id) || NT.find(x => x.id === id);
+  if (!lr) return;
+  const m = M.find(x => x.id === lr.mid) || {};
+  const requestedAmt = Number(lr.amt) || 10000;
+  const defaultRepay = Number(lr.repay) || Math.round(requestedAmt * 1.1);
+  const defaultFreq = Number(lr.freq) || 1;
+  const defaultInst = Number(lr.inst) || (defaultFreq === 1 ? Math.round(requestedAmt * 0.01) : Math.round(requestedAmt * 0.1));
+
+  const existing = document.getElementById('fix-loan-modal');
+  if (existing) existing.remove();
+
+  const modalHtml = `
+  <div id="fix-loan-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div class="card" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto;border:1.5px solid var(--p);box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid var(--b);padding-bottom:8px">
+        <div>
+          <b style="font-size:16px;color:var(--t)">${tr('Review, Fix & Sanction Loan', 'అప్పు వివరాలు సరిచూసి ఆమోదించు')}</b>
+          <div class="m" style="font-size:12px">${esc(lr.mname)} · ${esc(vl(lr.village || m.village || 'Gudivada'))}</div>
+        </div>
+        <button type="button" class="sm" onclick="closeFixLoanModal()" style="border-radius:8px">✕</button>
+      </div>
+
+      <div style="background:var(--s);padding:10px 14px;border-radius:10px;margin-bottom:14px;border:1px solid var(--b);font-size:12.5px">
+        <div><b>${tr('Requested By Borrower:','ఖాతాదారుడు కోరినది:')}</b> ₹${requestedAmt} · ${esc(lr.purpose || 'Personal')}</div>
+        ${lr.disbursement_type ? `<div style="margin-top:3px;color:var(--p)"><b>${tr('Disbursement:','చెల్లింపు:')}</b> ${esc(lr.disbursement_type.toUpperCase())} ${lr.upi_id ? '(' + esc(lr.upi_id) + ')' : ''}</div>` : ''}
+      </div>
+
+      <form onsubmit="event.preventDefault();saveAndSanctionLoan('${lr.id}');">
+        <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Sanction Loan Amount (₹)*','ఇచ్చే అప్పు మొత్తం (₹)*')}</label>
+            <input id="fix-loan-amt" type="number" min="500" step="500" value="${requestedAmt}" required oninput="const a=num(this.value);const rep=document.getElementById('fix-loan-repay');if(rep)rep.value=Math.round(a*1.1);const f=num(document.getElementById('fix-loan-freq')?.value)||1;const ins=document.getElementById('fix-loan-inst');if(ins)ins.value=f===1?Math.round(a*0.01):Math.round(a*0.1);" style="width:100%;padding:10px;font-size:15px;font-weight:800;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t)">
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Total Return Amount (₹)*','మొత్తం తిరిగి చెల్లించేది (₹)*')}</label>
+            <input id="fix-loan-repay" type="number" min="500" step="100" value="${defaultRepay}" required style="width:100%;padding:10px;font-size:15px;font-weight:800;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--ok)">
+          </div>
+        </div>
+
+        <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Repayment Frequency*','వాయిదా విధానం*')}</label>
+            <select id="fix-loan-freq" onchange="const a=num(document.getElementById('fix-loan-amt')?.value)||10000;const f=num(this.value)||1;const ins=document.getElementById('fix-loan-inst');if(ins)ins.value=f===1?Math.round(a*0.01):Math.round(a*0.1);" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
+              <option value="1" ${defaultFreq===1?'selected':''}>${tr('Daily Collection (రోజువారీ)','రోజువారీ (డైలీ)')}</option>
+              <option value="7" ${defaultFreq===7?'selected':''}>${tr('Weekly Collection (వారానికి)','వారానికి (వీక్లీ)')}</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Installment Amount (₹)*','వాయిదా మొత్తం (₹)*')}</label>
+            <input id="fix-loan-inst" type="number" min="10" step="10" value="${defaultInst}" required style="width:100%;padding:10px;font-size:15px;font-weight:800;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t)">
+          </div>
+        </div>
+
+        <div class="g" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Disbursement Mode*','డబ్బు చెల్లింపు విధానం*')}</label>
+            <select id="fix-loan-mode" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
+              <option value="cash" ${lr.disbursement_type==='cash'?'selected':''}>${tr('Cash Handover (చేతికి నగదు)','చేతికి నగదు (Cash)')}</option>
+              <option value="upi" ${lr.disbursement_type==='upi'?'selected':''}>${tr('UPI Online Transfer','ఆన్‌లైన్ UPI')}</option>
+              <option value="bank" ${lr.disbursement_type==='bank'?'selected':''}>${tr('Bank NEFT / IMPS','బ్యాంక్ ఖాతాకు')}</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:var(--m);display:block;margin-bottom:4px">${tr('Sanction Date*','అప్పు మంజూరు తేదీ*')}</label>
+            <input id="fix-loan-date" type="date" value="${today()}" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--c);color:var(--t);font-size:13.5px">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" class="sm" onclick="closeFixLoanModal()" style="border-radius:8px;padding:9px 16px">${tr('Cancel','రద్దు')}</button>
+          <button type="button" class="sm d" onclick="rejectLoanReq('${lr.id}');closeFixLoanModal();" style="border-radius:8px;padding:9px 16px">${tr('Reject Application','తిరస్కరించు')}</button>
+          <button type="submit" class="p" style="border-radius:8px;padding:9px 20px;font-weight:800;background:var(--ok);border-color:var(--ok)">✓ ${tr('Save & Sanction Loan','ఆమోదించి లెడ్జర్‌లో నమోదు చేయి ✓')}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeFixLoanModal() {
+  const m = document.getElementById('fix-loan-modal');
+  if (m) m.remove();
+}
+
+async function saveAndSanctionLoan(id) {
+  const lr = LR.find(x => x.id === id) || NT.find(x => x.id === id);
+  if (!lr) return;
+  const amt = num(document.getElementById('fix-loan-amt')?.value) || lr.amt;
+  const repay = num(document.getElementById('fix-loan-repay')?.value) || Math.round(amt * 1.1);
+  const inst = num(document.getElementById('fix-loan-inst')?.value) || Math.round(amt * 0.01);
+  const freq = num(document.getElementById('fix-loan-freq')?.value) || lr.freq || 1;
+  const mode = document.getElementById('fix-loan-mode')?.value || lr.disbursement_type || 'cash';
+  const d = document.getElementById('fix-loan-date')?.value || today();
+
+  const newTxn = {
+    mid: lr.mid,
+    type: 'loan',
+    amt: amt,
+    repay: repay,
+    inst: inst,
+    freq: freq,
+    mode: mode,
+    d: d,
+    ts: Date.now(),
+    sent: true,
+    by: 'Durga Sravan'
+  };
+  T.unshift(newTxn);
+  try { localStorage.setItem('gf_c_txns', JSON.stringify(T)); } catch(_) {}
+
+  const m = M.find(x => x.id === lr.mid);
+  if (m) {
+    m.inst = inst;
+    m.freq = freq;
+    try { localStorage.setItem('gf_c_members', JSON.stringify(M)); } catch(_) {}
+    if (db && db.doc) {
+      try { await db.doc('members/' + m.id).update({ inst, freq }); } catch(_) {}
+    }
+  }
+
+  lr.status = 'approved';
+  lr.approved_at = Date.now();
+  lr.approved_by = 'Durga Sravan';
+  lr.approved_amt = amt;
+  lr.approved_repay = repay;
+  try { localStorage.setItem('gf_loan_requests', JSON.stringify(LR)); } catch(_) {}
+
+  if (db && db.collection) {
+    try {
+      const res = await db.collection('txns').add(newTxn);
+      if (res && res.id) newTxn.id = res.id;
+      await db.doc('loan_requests/' + id).update({
+        status: 'approved',
+        approved_at: Date.now(),
+        approved_by: 'Durga Sravan',
+        amt: amt,
+        repay: repay,
+        inst: inst
+      });
+    } catch(e) { console.warn(e); }
+  }
+
+  fetch('/api/client-submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      action: 'approve_loan',
+      id: id,
+      mid: lr.mid,
+      mname: lr.mname,
+      amt: amt,
+      repay: repay,
+      inst: inst,
+      freq: freq,
+      mode: mode,
+      d: d
+    })
+  }).catch(() => {});
+
+  closeFixLoanModal();
+  playChime();
+  showActionAlert(
+    tr('Loan Sanctioned & Saved to Ledger ✓', 'అప్పు ఆమోదించబడి లెడ్జర్‌లో చేర్చబడింది ✓'),
+    tr(`Loan of ₹${amt} for ${lr.mname} has been officially sanctioned with ₹${repay} return and ₹${inst} ${freq===1?'daily':'weekly'} installment.`, `${lr.mname} గారికి ₹${amt} అప్పు ఆమోదించబడింది.`),
+    tr('Status: Active in Ledger', 'స్థితి: ఖాతాలో యాక్టివ్')
+  );
+  toast(tr(`Loan for ${lr.mname} sanctioned and saved ✓`, `${lr.mname} గారి అప్పు ఆమోదించబడింది ✓`));
+  draw();
+}
+
 async function approveLoanReq(id){
+  openFixLoanModal(id);
+}
+async function _legacyApproveLoanReq(id){
   if(!owner) return;
   const lr = NT.find(x => x.id == id && (x.type === 'loan_req' || x.type === 'loan')) || LR.find(x => x.id == id);
   if(!lr) return;
@@ -8991,7 +9189,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v107</span>
+            <span class="v18-pill">v108</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10740,7 +10938,7 @@ function renderAdminBugsChatPanel(){
             ${tr('Profile / KYC','ప్రొఫైల్')}
           </button>
           ${activeBug.status !== 'resolved' ? `
-            <button class="p sm" onclick="sendAdminBugReply('${activeBug.id}', 'Bug investigated and resolved in release v107 ✓', 'resolved')" style="border-radius:8px;font-weight:800;font-size:11.5px;background:var(--ok);border-color:var(--ok)">
+            <button class="p sm" onclick="sendAdminBugReply('${activeBug.id}', 'Bug investigated and resolved in release v108 ✓', 'resolved')" style="border-radius:8px;font-weight:800;font-size:11.5px;background:var(--ok);border-color:var(--ok)">
               ${tr('Mark Fixed ✓','పరిష్కరించు ✓')}
             </button>
           ` : `
@@ -10794,7 +10992,7 @@ function renderAdminBugsChatPanel(){
       <!-- Modern Live Messenger Toolbar -->
       <div class="chat-input-toolbar">
         <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch">
-          <button type="button" class="sm" onclick="quickFillBugReply('${tr('Fixed and deployed in release v107 ✓', 'v107 అప్‌డేట్‌లో పరిష్కరించబడింది ✓')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Fixed in v107 ✓</button>
+          <button type="button" class="sm" onclick="quickFillBugReply('${tr('Fixed and deployed in release v108 ✓', 'v108 అప్‌డేట్‌లో పరిష్కరించబడింది ✓')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Fixed in v108 ✓</button>
           <button type="button" class="sm" onclick="quickFillBugReply('${tr('Please clear browser cache or reopen app to verify.', 'దయచేసి క్యాష్ క్లియర్ చేసి మళ్ళీ చూడండి.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Clear cache & test</button>
           <button type="button" class="sm" onclick="quickFillBugReply('${tr('We are actively investigating this device compatibility issue.', 'పరిశీలిస్తున్నాము.')}')" style="font-size:11px;padding:3px 8px;border-radius:6px;white-space:nowrap">Investigating</button>
         </div>
@@ -11255,7 +11453,7 @@ function initLiveChatDeskChannel(){
     if(liveChatDeskChannel && (liveChatChannelStatus === 'SUBSCRIBED' || liveChatChannelStatus === 'JOINING')) return;
 
     liveChatDeskChannel = client.channel('gf_live_chat_desk', {
-      config: { broadcast: { self: false } }
+      config: { broadcast: { self: true } }
     });
 
     liveChatDeskChannel.on('broadcast', { event: 'chat_message' }, msg => {
@@ -11321,8 +11519,64 @@ function initLiveChatDeskChannel(){
       }
 
       playChime();
-      draw();
-      scrollChatToBottom();
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) {
+        draw();
+        scrollChatToBottom();
+      }
+    });
+
+    liveChatDeskChannel.on('broadcast', { event: 'loan_applied' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      const item = payload && payload.item;
+      if (!item) return;
+      const idx = LR.findIndex(x => x.id === item.id);
+      if (idx !== -1) LR[idx] = item;
+      else LR.unshift(item);
+      try { localStorage.setItem('gf_loan_requests', JSON.stringify(LR)); } catch(_) {}
+      playChime();
+      showActionAlert(
+        tr('New Loan Application Received ✓', 'కొత్త అప్పు దరఖాస్తు వచ్చింది ✓'),
+        tr(`Loan application of ₹${item.amt} from ${item.mname || 'Customer'} (${vl(item.village || 'Gudivada')}) is ready for review and fixing.`, `${item.mname || 'ఖాతాదారుడు'} నుండి ₹${item.amt} అప్పు దరఖాస్తు వచ్చింది.`),
+        tr('Borrower: ', 'ఖాతాదారుడు: ') + (item.mname || 'Customer') + ' · ₹' + item.amt
+      );
+      toast(tr('New loan application from ' + (item.mname || 'Customer') + ' (₹' + item.amt + ') ✓', (item.mname || 'ఖాతాదారుడు') + ' నుండి కొత్త అప్పు దరఖాస్తు ✓'));
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
+    });
+
+    liveChatDeskChannel.on('broadcast', { event: 'loan_approved' }, msg => {
+      const payload = (msg && msg.payload) ? msg.payload : msg;
+      if (!payload) return;
+      const id = payload.id;
+      const lr = LR.find(x => x.id === id);
+      if (lr) {
+        lr.status = 'approved';
+        lr.amt = payload.amt || lr.amt;
+        lr.repay = payload.repay || lr.repay;
+        lr.inst = payload.inst || lr.inst;
+        lr.freq = payload.freq || lr.freq;
+      }
+      if (payload.txn && !T.some(t => t.id === payload.txn.id)) {
+        T.unshift(payload.txn);
+        try { localStorage.setItem('gf_c_txns', JSON.stringify(T)); } catch(_) {}
+      }
+      try { localStorage.setItem('gf_loan_requests', JSON.stringify(LR)); } catch(_) {}
+      playChime();
+      const activeMid = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null)?.id || clientMid;
+      if (role === 'c' && payload.mid === activeMid) {
+        showActionAlert(
+          tr('Loan Sanctioned & Disbursed ✓', 'అప్పు మంజూరు చేయబడింది ✓'),
+          tr(`Your loan of ₹${payload.amt} has been approved and added to your khata ledger.`, `మీ ₹${payload.amt} అప్పు మంజూరు చేయబడింది.`),
+          '₹' + payload.amt + ' • ' + tr('Active in Khata', 'ఖాతాలో యాక్టివ్')
+        );
+        toast(tr('Congratulations! Your loan of ₹' + payload.amt + ' has been sanctioned ✓', 'అభినందనలు! మీ అప్పు మంజూరు చేయబడింది ✓'));
+      }
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+      if (!isTyping) draw();
     });
 
     liveChatDeskChannel.subscribe((status) => {
@@ -11356,11 +11610,10 @@ function broadcastLiveChatMessage(chatType, item){
 function ensureLiveChatDeskPolling(){
   if(liveChatDeskPollTimer) return;
   liveChatDeskPollTimer = setInterval(() => {
-    const isSupportOpen = (tab === 'su') || (role === 'c' && (clientTab === 'my_support' || clientTab === 'report_bug'));
-    if(isSupportOpen && typeof syncServerSubmissions === 'function'){
+    if(typeof syncServerSubmissions === 'function'){
       syncServerSubmissions();
     }
-  }, 1000);
+  }, 1500);
 }
 ensureLiveChatDeskPolling();
 setTimeout(initLiveChatDeskChannel, 300);
@@ -11471,7 +11724,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v107</span>
+          <span class="v18-pill">v108</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -11603,7 +11856,18 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
     async function syncServerSubmissions(){
       try {
         const userEmail = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
-        const isAdm = (role === 'a' || role === 'all' || owner || passkeyUnlocked || userEmail === 'durgasravan21@gmail.com' || userEmail.includes('durgasravan') || ((me && me.role) === 'admin'));
+        const isAdm = (
+          role === 'a' ||
+          role === 'all' ||
+          owner ||
+          passkeyUnlocked ||
+          userEmail === 'durgasravan21@gmail.com' ||
+          userEmail.includes('durgasravan') ||
+          ((me && me.role) === 'admin') ||
+          tab === 'su' || tab === 'bg' || tab === 'lk' || tab === 'mb' || tab === 'collect' || tab === 'exp' || tab === 'rep' || tab === 'audit' ||
+          sessionStorage.getItem('gf_passkey_unlocked') === '1' ||
+          localStorage.getItem('gf_passkey_unlocked') === '1'
+        );
         let activeMid = clientMid;
         let actM = null;
         if (typeof resolveActiveClientMember === 'function') {
@@ -11814,8 +12078,12 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
             localStorage.setItem('gf_client_agreements', JSON.stringify(CA));
             localStorage.setItem('gf_client_profiles', JSON.stringify(CP));
           } catch(_) {}
-          draw();
-          scrollChatToBottom();
+          const activeEl = document.activeElement;
+          const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+          if (!isTyping) {
+            draw();
+            scrollChatToBottom();
+          }
         }
       } catch (_) {}
     }
@@ -11843,5 +12111,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=107').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=108').then(r=>r.update()).catch(()=>{})</script>
 </body></html>

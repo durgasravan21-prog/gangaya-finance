@@ -82,6 +82,29 @@ async function getExistingDoc(collection, id) {
   return null;
 }
 
+// Helper to broadcast event via Supabase Realtime REST API
+async function broadcastRealtimeWebhook(event, payload) {
+  try {
+    await fetch(`${SUPABASE_URL}/realtime/v1/api/broadcast`, {
+      method: 'POST',
+      headers: {
+        'apikey': authKey,
+        'Authorization': `Bearer ${authKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            topic: 'realtime:gf_live_chat_desk',
+            event: event,
+            payload: payload
+          }
+        ]
+      })
+    });
+  } catch (_) {}
+}
+
 // Helper to fetch live from Supabase docs table
 async function fetchSupabaseCollections() {
   try {
@@ -318,6 +341,8 @@ module.exports = async (req, res) => {
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
 
+      await broadcastRealtimeWebhook('chat_message', { chatType: 'support', item, ts: Date.now() });
+
       return res.status(200).json({ ok: true, message: 'Support ticket ' + ticketId + ' delivered to Admin successfully', item });
     }
 
@@ -366,6 +391,8 @@ module.exports = async (req, res) => {
         trySupabaseWrite('client_bugs', item.id, item),
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
+
+      await broadcastRealtimeWebhook('chat_message', { chatType: 'bug', item, ts: Date.now() });
 
       return res.status(200).json({ ok: true, message: 'Bug report ' + bugId + ' delivered to technical team successfully', item });
     }
@@ -593,18 +620,84 @@ module.exports = async (req, res) => {
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
 
+      await broadcastRealtimeWebhook('loan_applied', { item: loanReq, ts: Date.now() });
+
       return res.status(200).json({ ok: true, message: 'Loan application submitted for Admin approval', item: loanReq });
     }
 
-    // 8. Admin Approving Loan Application
+    // 8. Admin Approving Loan Application & Recording in Cloud Ledger
     if (action === 'approve_loan') {
       const id = String(body.id || '').trim();
-      const lr = serverStore.loan_requests.find(x => x.id === id) || { id, status: 'approved' };
+      const mid = String(body.mid || '').trim();
+      const mname = String(body.mname || 'Customer').trim();
+      const amt = Number(body.amt) || 10000;
+      const repay = Number(body.repay) || Math.round(amt * 1.1);
+      const inst = Number(body.inst) || Math.round(amt * 0.01);
+      const freq = Number(body.freq) || 1;
+      const mode = String(body.mode || 'cash').trim();
+      const d = String(body.d || new Date().toISOString().slice(0, 10)).trim();
+
+      let lr = serverStore.loan_requests.find(x => x.id === id);
+      if (!lr) {
+        const existing = await getExistingDoc('loan_requests', id);
+        lr = existing || { id };
+        serverStore.loan_requests.unshift(lr);
+      }
       lr.status = 'approved';
       lr.approved_at = Date.now();
       lr.approved_by = 'Durga Sravan';
-      await trySupabaseWrite('loan_requests', lr.id, lr);
-      return res.status(200).json({ ok: true, message: 'Loan application approved' });
+      lr.amt = amt;
+      lr.repay = repay;
+      lr.inst = inst;
+      lr.freq = freq;
+
+      const txnId = 't_sanction_' + Date.now();
+      const loanTxn = {
+        id: txnId,
+        mid: mid || lr.mid,
+        type: 'loan',
+        amt: amt,
+        repay: repay,
+        inst: inst,
+        freq: freq,
+        mode: mode,
+        d: d,
+        ts: Date.now(),
+        sent: true,
+        by: 'Durga Sravan'
+      };
+
+      const notif = {
+        id: 'n_la_' + Date.now(),
+        type: 'loan_approved',
+        mid: mid || lr.mid,
+        mname: mname,
+        text: `Congratulations ${mname}! Your loan of ₹${amt} has been approved and sanctioned by Durga Sravan.`,
+        ts: Date.now(),
+        read: false
+      };
+      serverStore.notifs.unshift(notif);
+
+      await Promise.all([
+        trySupabaseWrite('loan_requests', lr.id, lr),
+        trySupabaseWrite('txns', txnId, loanTxn),
+        trySupabaseWrite('notifs', notif.id, notif)
+      ]);
+
+      await broadcastRealtimeWebhook('loan_approved', {
+        id: lr.id,
+        mid: lr.mid,
+        mname: mname,
+        amt: amt,
+        repay: repay,
+        inst: inst,
+        freq: freq,
+        status: 'approved',
+        txn: loanTxn,
+        ts: Date.now()
+      });
+
+      return res.status(200).json({ ok: true, message: `Loan of ₹${amt} sanctioned and added to ledger successfully`, item: lr, txn: loanTxn });
     }
 
     // 9. Admin Rejecting Loan Application
@@ -628,7 +721,7 @@ module.exports = async (req, res) => {
         item = existing || { id: itemId };
         serverStore.support.unshift(item);
       }
-      if (replyText) item.reply = replyText;
+      if (body.sender === 'admin' && replyText) item.reply = replyText;
       item.status = body.status || (body.sender === 'client' ? 'open' : (item.status || 'open'));
       if (item.status === 'resolved') {
         item.resolved_at = new Date().toISOString();
@@ -676,6 +769,9 @@ module.exports = async (req, res) => {
         trySupabaseWrite('client_support', item.id, item),
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
+
+      await broadcastRealtimeWebhook('chat_message', { chatType: 'support', item, ts: Date.now() });
+
       return res.status(200).json({ ok: true, message: 'Support message delivered and synchronized', item });
     }
 
@@ -820,7 +916,7 @@ module.exports = async (req, res) => {
         serverStore.bugs.unshift(bug);
       }
       bug.status = body.status || (body.sender === 'client' ? 'investigating' : (bug.status || 'investigating'));
-      if (notes) bug.resolution_notes = notes;
+      if (body.sender === 'admin' && notes) bug.resolution_notes = notes;
       if (bug.status === 'resolved') {
         bug.resolved_at = new Date().toISOString();
         bug.resolved_by = 'Durga Sravan (Engineering)';
@@ -868,6 +964,9 @@ module.exports = async (req, res) => {
         trySupabaseWrite('client_bugs', bug.id, bug),
         trySupabaseWrite('notifs', notif.id, notif)
       ]);
+
+      await broadcastRealtimeWebhook('chat_message', { chatType: 'bug', item: bug, ts: Date.now() });
+
       return res.status(200).json({ ok: true, message: 'Bug report message delivered and synchronized', item: bug });
     }
 
