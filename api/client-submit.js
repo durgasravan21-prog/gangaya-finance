@@ -673,6 +673,21 @@ module.exports = async (req, res) => {
             method: 'DELETE',
             headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
           });
+          // Also clear village on any members belonging to this village
+          const mRes = await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.members&data->>village=ilike.${encodeURIComponent(vname)}`, {
+            headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}` }
+          });
+          if (mRes.ok) {
+            const mRows = await mRes.json();
+            for (const mr of mRows) {
+              const patchedData = { ...(mr.data || {}), village: '' };
+              await fetch(`${SUPABASE_URL}/rest/v1/docs?collection=eq.members&id=eq.${mr.id}`, {
+                method: 'PATCH',
+                headers: { 'apikey': authKey, 'Authorization': `Bearer ${authKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: patchedData })
+              });
+            }
+          }
         } catch (_) {}
       }
       return res.status(200).json({ ok: true, message: 'Village and duplicate rows deleted successfully' });

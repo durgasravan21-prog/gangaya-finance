@@ -452,7 +452,23 @@
           if (s.loaded && !force && s.map.size > 0) return;
           try {
             const rows = await allRows(c);
-            s.map = new Map(rows.map(r => [r.id, r.data]));
+            if (c === 'villages') {
+              const vMap = new Map();
+              rows.forEach(r => {
+                const name = ((r.data && r.data.name) || '').trim().toLowerCase();
+                if (!name) return;
+                if (!vMap.has(name)) {
+                  vMap.set(name, r);
+                } else {
+                  const ex = vMap.get(name);
+                  if (ex.data && ex.data.day == null && r.data && r.data.day != null) ex.data.day = r.data.day;
+                  if (ex.data && !ex.data.te && r.data && r.data.te) ex.data.te = r.data.te;
+                }
+              });
+              s.map = new Map(Array.from(vMap.values()).map(r => [r.id, r.data]));
+            } else {
+              s.map = new Map(rows.map(r => [r.id, r.data]));
+            }
             s.loaded = true;
             schedulePersist(c, s);
             s.emit();
@@ -471,7 +487,23 @@
         if (cached) {
           const list = JSON.parse(cached);
           if (Array.isArray(list) && list.length > 0) {
-            s.map = new Map(list.map(r => [r.id, r.data]));
+            if (c === 'villages') {
+              const vMap = new Map();
+              list.forEach(r => {
+                const name = ((r.data && r.data.name) || '').trim().toLowerCase();
+                if (!name) return;
+                if (!vMap.has(name)) {
+                  vMap.set(name, r);
+                } else {
+                  const ex = vMap.get(name);
+                  if (ex.data && ex.data.day == null && r.data && r.data.day != null) ex.data.day = r.data.day;
+                  if (ex.data && !ex.data.te && r.data && r.data.te) ex.data.te = r.data.te;
+                }
+              });
+              s.map = new Map(Array.from(vMap.values()).map(r => [r.id, r.data]));
+            } else {
+              s.map = new Map(list.map(r => [r.id, r.data]));
+            }
             s.loaded = true;
           }
         }
@@ -488,6 +520,15 @@
     return {
       async add(d) {
         const id = crypto.randomUUID();
+        // Automatic village deduplication in memory: remove any existing duplicate name
+        if (c === 'villages') {
+          const vName = ((d && d.name) || '').trim().toLowerCase();
+          for (const [k, v] of s.map.entries()) {
+            if (((v && v.name) || '').trim().toLowerCase() === vName) {
+              s.map.delete(k);
+            }
+          }
+        }
         // Optimistic update: instantaneous UI feedback
         s.map.set(id, d);
         schedulePersist(c, s);
@@ -608,9 +649,20 @@
         const prev = s.map.get(id);
         if (prev) {
           s.map.delete(id);
-          schedulePersist(c, s);
-          s.emit();
         }
+        // Purge any duplicates sharing the same name in memory
+        if (c === 'villages') {
+          const vName = ((prev && prev.name) || '').trim().toLowerCase();
+          if (vName) {
+            for (const [k, v] of s.map.entries()) {
+              if (((v && v.name) || '').trim().toLowerCase() === vName) {
+                s.map.delete(k);
+              }
+            }
+          }
+        }
+        schedulePersist(c, s);
+        s.emit();
         try {
           const { error } = await sb.from('docs').delete().eq('collection', c).eq('id', id);
           if (error) {

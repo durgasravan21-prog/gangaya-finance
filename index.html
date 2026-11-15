@@ -1549,7 +1549,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=102"></script>
+<script src="/runtime.js?v=103"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2134,7 +2134,15 @@ cleanPh=p=>String(p).replace(/\D/g,''),okPh=p=>p.length>=10&&p.length<=13,amtOk=
 function syncRoleFromUser(){
   const em = String((me && me.email) || (user && user.email) || '').toLowerCase().trim();
   const uRole = String((me && me.role) || (user && user.role) || '').toLowerCase().trim();
-  const isAdminUser = (em === 'durgasravan21@gmail.com' || em.includes('durgasravan') || em.includes('sravan21') || uRole === 'admin');
+  const uName = String((me && me.name) || (user && user.name) || '').toLowerCase().trim();
+  const isAdminUser = (
+    em === 'durgasravan21@gmail.com' ||
+    em.includes('durgasravan') ||
+    em.includes('sravan21') ||
+    uRole === 'admin' ||
+    uName.includes('durga') ||
+    uName.includes('sravan')
+  );
   const isCollectorUser = (em === 'challagollasridevi@gmail.com' || em.includes('sridevi') || em.includes('gangaya') || uRole === 'collector');
 
   if (isAdminUser) {
@@ -2308,10 +2316,11 @@ cUC=a=>a.filter(d=>OKID.test(d.id));
 function seedFromCache(){
   try{
     const _pl=k=>{try{const r=localStorage.getItem('gf_c_'+k);if(!r)return [];const a=JSON.parse(r);return Array.isArray(a)?a.map(x=>({id:x.id,...(x.data||{})})):[];}catch(_){return [];}};
+    V=cV(_pl('villages'));
+    try { localStorage.setItem('gf_c_villages', JSON.stringify(V.map(x => ({ id: x.id, data: { name: x.name, te: x.te, day: x.day } })))); } catch(_) {}
     const _cm=_pl('members');
     if(_cm.length>0){
       M=cM(_cm);
-      V=cV(_pl('villages'));
       T=cT(_pl('txns'));
       NT=cNT(_pl('notifs'));
       LR=cLR(_pl('loan_requests'));
@@ -5276,7 +5285,7 @@ function saveEdit(){
   });
 }
 function delM(id){
-  if(!owner || role !== 'a') return;
+  if(!owner && role !== 'a') return;
   const m = M.find(x => x.id === id);
   if(!m) return;
   const n = T.filter(t => t.mid === id).length;
@@ -6063,6 +6072,7 @@ async function ensureVillagesFromMembers() {
 }
 
 function villages(){
+  V = cV(V);
   const activeM = M.filter(m => !m.archived);
   const totalVillages = V.length;
   const totalMapped = activeM.filter(m => m.village).length;
@@ -6159,7 +6169,7 @@ function villages(){
 }
 
 async function tlVIndex(i){
-  if(!V[i] || !owner) return;
+  if(!V[i] || (!owner && role !== 'a')) return;
   const v = V[i];
   try {
     const s = await claude.use('sample');
@@ -6172,7 +6182,7 @@ async function tlVIndex(i){
 }
 
 function delV(id){
-  if(!owner || role !== 'a') return;
+  if(!owner && role !== 'a') return;
   const v = V.find(x => x.id == id || (x.name && x.name.toLowerCase() === String(id).toLowerCase()));
   if(!v) return;
   const vName = String(v.name).trim();
@@ -6241,13 +6251,14 @@ function addV(){
     const res = await db.collection('villages').add(newV);
     if(res && res.id) newV.id = res.id;
     V.push(newV);
+    V = cV(V);
     logAdminAction('village_added', `Added village ${n} with collection day ${DE[dayVal]}`);
     toast(tr('Village added successfully ✓', 'ఊరు విజయవంతంగా జోడించబడింది ✓'));
     clr(['nv','vt']);
   });
 }
-function setVTe(i,t){if(!owner||!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
-function setDay(i,d){d=+d;if(!owner||!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
+function setVTe(i,t){if(!owner && role !== 'a')return;if(!V[i])return;w(()=>db.doc('villages/'+V[i].id).update({te:str(t,60).trim()}))}
+function setDay(i,d){d=+d;if(!owner && role !== 'a')return;if(!V[i]||!(d>=0&&d<=6))return;w(()=>db.doc('villages/'+V[i].id).update({day:d}))}
 function heroKpis(preRemList, prePndRc){
   const r=rep();
   const todayTot=r.t.c,todayUpi=r.t.u,todayCash=todayTot-todayUpi;
@@ -8910,7 +8921,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v102</span>
+            <span class="v18-pill">v103</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10768,7 +10779,7 @@ function renderAdminBorrowerProfiles(){
               <button class="sm" onclick="adminDownloadAgreementPdf('${p.mid || (mem ? mem.id : '')}')" style="border-radius:6px;font-weight:700;font-size:11px">
                 ${agr && agr.signed ? tr('Agreement PDF ✓','అగ్రిమెంట్ PDF ✓') : tr('Agreement PDF','అగ్రిమెంట్ PDF')}
               </button>
-              ${(role === 'a' && owner) ? `<button class="sm d" onclick="delM('${p.mid || (mem ? mem.id : '')}')" style="border-radius:6px;font-weight:700;font-size:11px">${tr('Delete Customer','ఖాతాదారుని తొలగించు')}</button>` : ''}
+              ${(role === 'a' || owner) ? `<button class="sm d" onclick="delM('${p.mid || (mem ? mem.id : '')}')" style="border-radius:6px;font-weight:700;font-size:11px">${tr('Delete Customer','ఖాతాదారుని తొలగించు')}</button>` : ''}
             </div>
           </div>
         </div>
@@ -11215,7 +11226,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v102</span>
+          <span class="v18-pill">v103</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
