@@ -170,8 +170,11 @@ module.exports = async (req, res) => {
     if (!x) return true;
     const idStr = String(x.id || '').toLowerCase();
     if (idStr === 'bug_1794720280942' || idStr === 'bug_1794733266721' || idStr === 'cs_1794688337795') return true;
-    const s = (idStr + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '') + ' ' + (x.msg || '') + ' ' + (x.description || '')).toLowerCase();
-    return s.includes('m_test') || s.includes('test user') || s.includes('test_write') || s.includes('live verification test') || s.includes('testing live bug') || s.includes('bug_test');
+    if (idStr.startsWith('test_') || idStr.startsWith('probe_')) return true;
+    if (x.mid === 'm_test') return true;
+    const nameStr = String(x.name || x.borrower || '').toLowerCase().trim();
+    if (nameStr === 'test user' || nameStr === 'test borrower') return true;
+    return false;
   }
 
   // -------------------------------------------------------------
@@ -189,8 +192,27 @@ module.exports = async (req, res) => {
 
     function mergeLists(remoteList, localList) {
       const map = new Map();
-      (remoteList || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, x); });
-      (localList || []).forEach(x => { if (x && x.id && !map.has(x.id) && !isTestRecord(x)) map.set(x.id, x); });
+      (remoteList || []).forEach(x => { if (x && x.id && !isTestRecord(x)) map.set(x.id, { ...x }); });
+      (localList || []).forEach(loc => {
+        if (!loc || !loc.id || isTestRecord(loc)) return;
+        if (!map.has(loc.id)) {
+          map.set(loc.id, { ...loc });
+        } else {
+          const rem = map.get(loc.id);
+          const thMap = new Map();
+          (rem.thread || []).forEach(m => thMap.set((m.ts||0) + '_' + (m.text||''), m));
+          (loc.thread || []).forEach(m => thMap.set((m.ts||0) + '_' + (m.text||''), m));
+          const mergedThread = Array.from(thMap.values()).sort((a,b) => (a.ts||0) - (b.ts||0));
+          map.set(loc.id, {
+            ...rem,
+            ...loc,
+            thread: mergedThread,
+            reply: loc.reply || rem.reply || '',
+            status: (loc.status === 'open' || rem.status === 'open') ? 'open' : (loc.status || rem.status),
+            ts: Math.max(rem.ts || 0, loc.ts || 0)
+          });
+        }
+      });
       return Array.from(map.values()).sort((a,b) => (b.ts || 0) - (a.ts || 0));
     }
 
@@ -575,10 +597,8 @@ module.exports = async (req, res) => {
     // 4. Payment Proof Lodgement (Pending Admin Verification)
     if (action === 'lodge_payment') {
       const amt = Math.max(1, Math.round(Number(body.amt) || 0));
-      const utr = String(body.utr || '').slice(0, 30).trim();
-      if (!utr || utr.length < 4) {
-        return res.status(400).json({ ok: false, error: 'Valid UTR number required' });
-      }
+      const rawUtr = String(body.utr || '').slice(0, 30).trim();
+      const utr = rawUtr || ('UPI-' + Date.now().toString().slice(-8));
       const item = {
         id: body.id || ('cr_' + Date.now()),
         mid: String(body.mid || 'guest').trim(),
@@ -587,7 +607,7 @@ module.exports = async (req, res) => {
         phone: String(body.phone || '').slice(0, 20),
         amt: amt,
         d: body.d || new Date().toISOString().slice(0, 10),
-        mode: 'upi',
+        mode: body.mode || 'upi',
         utr: utr,
         photo: String(body.photo || '').slice(0, 500000),
         status: 'pending',

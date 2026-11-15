@@ -1628,7 +1628,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=111"></script>
+<script src="/runtime.js?v=112"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -2323,8 +2323,11 @@ function isTestRecord(x){
   if(!x) return true;
   const idStr = String(x.id || '').toLowerCase();
   if(idStr === 'bug_1794720280942' || idStr === 'bug_1794733266721' || idStr === 'cs_1794688337795') return true;
-  const s = (idStr + ' ' + (x.mid || '') + ' ' + (x.name || '') + ' ' + (x.borrower || '') + ' ' + (x.phone || '') + ' ' + (x.msg || '') + ' ' + (x.description || '')).toLowerCase();
-  return s.includes('m_test') || s.includes('test user') || s.includes('test_write') || s.includes('live verification test') || s.includes('testing live bug') || s.includes('bug_test');
+  if(idStr.startsWith('test_') || idStr.startsWith('probe_')) return true;
+  if(x.mid === 'm_test') return true;
+  const nameStr = String(x.name || x.borrower || '').toLowerCase().trim();
+  if(nameStr === 'test user' || nameStr === 'test borrower') return true;
+  return false;
 }
 function isMemberAdmin(x){
   if(!x) return false;
@@ -2404,7 +2407,7 @@ function resolveActiveClientMember(){
     uName.includes('durga') ||
     uName.includes('sravan')
   );
-  if (isAdminUser) {
+  if (isAdminUser && role !== 'c') {
     clientMid = '';
     try {
       localStorage.removeItem('gf_client_mid');
@@ -7821,7 +7824,8 @@ function submitClientReceiptProof(ev){
   const amt = num(f.querySelector('#cr-amt').value);
   const d = f.querySelector('#cr-d').value || today();
   const mode = f.querySelector('#cr-mode').value || 'upi';
-  const utr = str(f.querySelector('#cr-utr').value, 30);
+  const rawUtr = str(f.querySelector('#cr-utr').value, 30).trim();
+  const utr = rawUtr || ('UPI-' + Date.now().toString().slice(-8));
   const photo = f.querySelector('#cr-photo-data') ? f.querySelector('#cr-photo-data').value : '';
 
   if(!amt || amt <= 0){
@@ -7881,6 +7885,16 @@ function submitClientReceiptProof(ev){
     db.collection('notifs').doc(payNotif.id).set(payNotif).catch(e => console.warn('Sync note:', e));
   }
 
+  if (liveChatDeskChannel && liveChatDeskChannel.send) {
+    try {
+      liveChatDeskChannel.send({
+        type: 'broadcast',
+        event: 'payment_lodged',
+        payload: { item: newReceipt, ts: Date.now() }
+      }).catch(() => {});
+    } catch(_) {}
+  }
+
   fetch('/api/client-submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -7897,6 +7911,16 @@ function submitClientReceiptProof(ev){
       utr: utr,
       photo: photo
     })
+  }).then(async r => {
+    if (r.ok) {
+      const d = await r.json();
+      if (d && d.item) {
+        const sIdx = CR.findIndex(x => x.id === d.item.id || x.id === newReceipt.id);
+        if (sIdx >= 0) CR[sIdx] = d.item;
+        else CR.unshift(d.item);
+        try { localStorage.setItem('gf_client_receipts', JSON.stringify(CR.slice(0, 50))); } catch(_) {}
+      }
+    }
   }).catch(e => console.warn('Payment server sync note:', e));
 }
 
@@ -8001,18 +8025,53 @@ function submitClientSupportMsg(ev){
   if (typeof syncServerSubmissions === 'function') { setTimeout(syncServerSubmissions, 200); }
 }
 
+function sendClientSupportMessage(text, topic = 'General'){
+  if(!text || !text.trim()) return;
+  const trimmed = text.trim();
+  const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || (clientMid && M.find(x => x.id === clientMid)) || {};
+  const mCleanPh = m.phone ? cleanPh(m.phone).slice(-10) : '';
+
+  let item = null;
+  if (clientChatTicketId) {
+    item = CS.find(x => x.id === clientChatTicketId || (x.ticket_id && x.ticket_id.toUpperCase() === String(clientChatTicketId).toUpperCase()));
+  }
+  if (!item && (m.id || clientMid || mCleanPh)) {
+    item = CS.find(c => 
+      (m.id && c.mid === m.id) || 
+      (clientMid && c.mid === clientMid) || 
+      (mCleanPh && c.phone && cleanPh(c.phone).slice(-10) === mCleanPh) ||
+      (m.email && c.email && c.email.toLowerCase() === m.email.toLowerCase()) ||
+      (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
+    );
+  }
+  if (!item && CS.length > 0 && (m.id || mCleanPh)) {
+    const myTickets = CS.filter(c => (m.id && c.mid === m.id) || (mCleanPh && cleanPh(c.phone).slice(-10) === mCleanPh));
+    if (myTickets.length > 0) item = myTickets[0];
+  }
+
+  if (item) {
+    clientChatTicketId = item.id;
+    return sendClientFollowUpSupport(item.id, trimmed);
+  } else {
+    return submitClientSupportMsgDirect(trimmed, topic);
+  }
+}
+
 function submitClientSupportMsgDirect(msgText, topic = 'General'){
   if(!msgText || !msgText.trim()) return;
   const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
-  
+  const mCleanPh = m.phone ? cleanPh(m.phone).slice(-10) : '';
+
   // Check if customer already has an existing conversation in CS
   let existingItem = CS.find(c => 
     (m.id && c.mid === m.id) || 
     (clientMid && c.mid === clientMid) || 
-    (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
+    (mCleanPh && c.phone && cleanPh(c.phone).slice(-10) === mCleanPh) ||
+    (m.email && c.email && c.email.toLowerCase() === m.email.toLowerCase()) ||
     (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
   );
   if (existingItem) {
+    clientChatTicketId = existingItem.id;
     return sendClientFollowUpSupport(existingItem.id, msgText);
   }
 
@@ -8039,12 +8098,17 @@ function submitClientSupportMsgDirect(msgText, topic = 'General'){
     ts: now
   };
 
+  clientChatTicketId = newMsg.id;
   CS.unshift(newMsg);
   try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
 
   appendMessageToActiveThreadDOM('client-support-chat-thread', initialThread[0], true);
   scrollChatToBottom(true);
   playChime();
+
+  if(db && db.collection){
+    db.collection('client_support').doc(newMsg.id).set(newMsg).catch(() => {});
+  }
 
   fetch('/api/client-submit', {
     method: 'POST',
@@ -8066,6 +8130,7 @@ function submitClientSupportMsgDirect(msgText, topic = 'General'){
     if (r.ok) {
       const d = await r.json();
       if (d && d.item) {
+        clientChatTicketId = d.item.id;
         const sIdx = CS.findIndex(x => x.id === d.item.id || x.id === newMsg.id);
         if (sIdx >= 0) CS[sIdx] = d.item;
         else CS.unshift(d.item);
@@ -8083,11 +8148,13 @@ function sendClientFollowUpSupport(ticketRef, text){
   let item = CS.find(x => x.id === ticketRef || (x.ticket_id && x.ticket_id.toUpperCase() === String(ticketRef).toUpperCase()));
   if(!item) {
     const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
-    item = CS.find(c => (m.id && c.mid === m.id) || (m.phone && c.phone && c.phone.includes(m.phone)));
+    const mCleanPh = m.phone ? cleanPh(m.phone).slice(-10) : '';
+    item = CS.find(c => (m.id && c.mid === m.id) || (mCleanPh && c.phone && cleanPh(c.phone).slice(-10) === mCleanPh));
   }
   if(!item) {
     return submitClientSupportMsgDirect(text.trim());
   }
+  clientChatTicketId = item.id;
   if(!Array.isArray(item.thread)) item.thread = (typeof getTicketThread === 'function') ? getTicketThread(item) : [];
   const m = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || M.find(x => x.id === clientMid) || {};
   const senderName = m.name || item.borrower || 'Customer';
@@ -8134,6 +8201,7 @@ function sendClientFollowUpSupport(ticketRef, text){
     if (r.ok) {
       const d = await r.json();
       if (d && d.item) {
+        clientChatTicketId = d.item.id;
         const sIdx = CS.findIndex(x => x.id === d.item.id || x.id === item.id);
         if (sIdx >= 0) CS[sIdx] = d.item;
         else CS.unshift(d.item);
@@ -9539,7 +9607,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v111</span>
+            <span class="v18-pill">v112</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -10181,16 +10249,19 @@ function renderClientDashboard(){
 
   /* TAB 4: CUSTOMER SUPPORT & MESSAGES (Strictly ONE chat per customer) */
   else if(clientTab === 'my_support'){
+    const myCleanPhone = m.phone ? cleanPh(m.phone).slice(-10) : '';
     const myMsgs = CS.filter(c => 
       (m.id && c.mid === m.id) || 
       c.mid === clientMid || 
-      (m.phone && (c.phone === m.phone || (c.phone && c.phone.includes(m.phone)))) ||
+      (myCleanPhone && c.phone && cleanPh(c.phone).slice(-10) === myCleanPhone) ||
+      (m.email && c.email && c.email.toLowerCase() === m.email.toLowerCase()) ||
       (m.name && c.borrower && c.borrower.toLowerCase() === m.name.toLowerCase())
     );
 
     // Consolidate all customer messages into ONE unified customer chat thread
     let consolidatedThread = [];
     const activeItem = myMsgs[0] || null;
+    if (activeItem) clientChatTicketId = activeItem.id;
     if (myMsgs.length > 0) {
       const seen = new Set();
       myMsgs.forEach(it => {
@@ -10251,7 +10322,7 @@ function renderClientDashboard(){
       </div>
 
       <!-- Live Messenger Bottom Bar -->
-      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-support-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value.trim();inp.value='';${activeItem ? `sendClientFollowUpSupport('${activeItem.id}', txt)` : `submitClientSupportMsgDirect(txt)`};inp.focus();" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px;align-items:center">
+      <form onsubmit="event.preventDefault();const inp=document.getElementById('client-support-reply-inp');if(!inp||!inp.value.trim())return;const txt=inp.value.trim();inp.value='';sendClientSupportMessage(txt);inp.focus();" class="chat-input-toolbar" style="padding:12px 14px;background:var(--s);border-top:1px solid var(--b);display:flex;gap:8px;align-items:center">
         <input id="client-support-reply-inp" name="support_reply" type="text" placeholder="${tr('Type a message to Durga Sravan... (Press Enter to send)','దుర్గా శ్రావణ్ గారికి మెసేజ్ రాయండి... (Enter నొక్కండి)')}" autocomplete="off" required style="flex:1;padding:12px 16px;border-radius:24px;border:1.5px solid var(--b);background:var(--c);color:var(--t);font-size:14px;outline:none">
         <button type="submit" class="p sm" style="padding:10px 20px;border-radius:24px;font-weight:800;font-size:13.5px;background:#065f46;border-color:#065f46;color:#ffffff;white-space:nowrap;display:inline-flex;align-items:center;gap:6px">
           <span>${tr('Send →','పంపు →')}</span>
@@ -11045,8 +11116,8 @@ async function adminReconcileClientPayment(proofId){
 }
 
 function renderAdminSupportSubNav(){
-  const openSupportCount = CS.filter(x => x.status === 'open').length;
-  const activeBugsCount = CB.filter(x => x.status !== 'resolved').length;
+  const openSupportCount = getConsolidatedCustomerSupportList(CS).filter(x => x.status === 'open').length;
+  const activeBugsCount = getConsolidatedCustomerBugList(CB).filter(x => x.status !== 'resolved').length;
   const profilesCount = CP.length || M.length;
   const kycCount = CA.length;
   const pendingPaymentsCount = CR.filter(x => x.status === 'pending').length;
@@ -11081,7 +11152,26 @@ function getConsolidatedCustomerSupportList(rawList) {
   const map = new Map();
   (rawList || []).forEach(item => {
     if (!item || isTestRecord(item)) return;
-    const key = (item.mid || item.phone || item.borrower || item.name || item.id).trim().toLowerCase();
+    const cleanPhone = cleanPh(item.phone || '').slice(-10);
+    const mId = (item.mid && item.mid !== 'guest' && item.mid !== 'public-client') ? item.mid.trim().toLowerCase() : '';
+    const bName = (item.borrower && item.borrower !== 'Customer' && item.borrower !== 'Borrower') ? item.borrower.trim().toLowerCase() : '';
+    const email = (item.email || '').toLowerCase().trim();
+    
+    // Find if an entry already exists for this borrower by mid, phone, email, or name
+    let matchKey = null;
+    for (const [k, ex] of map.entries()) {
+      const exCleanPhone = cleanPh(ex.phone || '').slice(-10);
+      const exMid = (ex.mid && ex.mid !== 'guest' && ex.mid !== 'public-client') ? ex.mid.trim().toLowerCase() : '';
+      const exName = (ex.borrower && ex.borrower !== 'Customer' && ex.borrower !== 'Borrower') ? ex.borrower.trim().toLowerCase() : '';
+      const exEmail = (ex.email || '').toLowerCase().trim();
+
+      if (mId && exMid && mId === exMid) { matchKey = k; break; }
+      if (cleanPhone && cleanPhone.length === 10 && exCleanPhone && exCleanPhone.length === 10 && cleanPhone === exCleanPhone) { matchKey = k; break; }
+      if (email && exEmail && email === exEmail) { matchKey = k; break; }
+      if (bName && exName && bName === exName) { matchKey = k; break; }
+    }
+
+    const key = matchKey || mId || (cleanPhone.length === 10 ? cleanPhone : '') || email || bName || item.id;
     if (!map.has(key)) {
       map.set(key, {
         ...item,
@@ -11111,10 +11201,13 @@ function getConsolidatedCustomerSupportList(rawList) {
         existing.ts = item.ts;
         existing.msg = item.msg || existing.msg;
         existing.topic = item.topic || existing.topic;
+        existing.reply = item.reply || existing.reply;
       }
       if (!existing.phone && item.phone) existing.phone = item.phone;
       if (!existing.village && item.village) existing.village = item.village;
       if (!existing.mid && item.mid) existing.mid = item.mid;
+      if (!existing.email && item.email) existing.email = item.email;
+      if ((!existing.borrower || existing.borrower === 'Customer') && item.borrower) existing.borrower = item.borrower;
     }
   });
   return Array.from(map.values()).sort((a,b) => (b.ts||0) - (a.ts||0));
@@ -11124,7 +11217,25 @@ function getConsolidatedCustomerBugList(rawList) {
   const map = new Map();
   (rawList || []).forEach(item => {
     if (!item || isTestRecord(item)) return;
-    const key = (item.mid || item.phone || item.borrower || item.name || item.id).trim().toLowerCase();
+    const cleanPhone = cleanPh(item.phone || '').slice(-10);
+    const mId = (item.mid && item.mid !== 'guest' && item.mid !== 'public-client') ? item.mid.trim().toLowerCase() : '';
+    const bName = (item.borrower && item.borrower !== 'Customer' && item.borrower !== 'Borrower') ? item.borrower.trim().toLowerCase() : '';
+    const email = (item.email || '').toLowerCase().trim();
+
+    let matchKey = null;
+    for (const [k, ex] of map.entries()) {
+      const exCleanPhone = cleanPh(ex.phone || '').slice(-10);
+      const exMid = (ex.mid && ex.mid !== 'guest' && ex.mid !== 'public-client') ? ex.mid.trim().toLowerCase() : '';
+      const exName = (ex.borrower && ex.borrower !== 'Customer' && ex.borrower !== 'Borrower') ? ex.borrower.trim().toLowerCase() : '';
+      const exEmail = (ex.email || '').toLowerCase().trim();
+
+      if (mId && exMid && mId === exMid) { matchKey = k; break; }
+      if (cleanPhone && cleanPhone.length === 10 && exCleanPhone && exCleanPhone.length === 10 && cleanPhone === exCleanPhone) { matchKey = k; break; }
+      if (email && exEmail && email === exEmail) { matchKey = k; break; }
+      if (bName && exName && bName === exName) { matchKey = k; break; }
+    }
+
+    const key = matchKey || mId || (cleanPhone.length === 10 ? cleanPhone : '') || email || bName || item.id;
     if (!map.has(key)) {
       map.set(key, {
         ...item,
@@ -11158,6 +11269,8 @@ function getConsolidatedCustomerBugList(rawList) {
       if (!existing.phone && item.phone) existing.phone = item.phone;
       if (!existing.village && item.village) existing.village = item.village;
       if (!existing.mid && item.mid) existing.mid = item.mid;
+      if (!existing.email && item.email) existing.email = item.email;
+      if ((!existing.borrower || existing.borrower === 'Customer') && item.borrower) existing.borrower = item.borrower;
     }
   });
   return Array.from(map.values()).sort((a,b) => (b.ts||0) - (a.ts||0));
@@ -11957,36 +12070,71 @@ function initLiveChatDeskChannel(){
         try { localStorage.setItem('gf_client_support', JSON.stringify(CS)); } catch(_) {}
 
         // Check if viewing in Admin Support
-        if (tab === 'su' && adminSupportSub === 'support') {
+        const isAdmin = (owner || role === 'a' || role === 'all' || passkeyUnlocked || ((me && me.role) === 'admin'));
+        if (isAdmin) {
           const curActive = CS.find(x => x.id === activeChatTicketId);
-          const isSame = curActive && (
+          const isViewingThis = (tab === 'su' && adminSupportSub === 'support') && curActive && (
             curActive.id === item.id ||
             (curActive.mid && curActive.mid === item.mid) ||
-            (curActive.phone && item.phone && curActive.phone.slice(-10) === item.phone.slice(-10))
+            (curActive.phone && item.phone && cleanPh(curActive.phone).slice(-10) === cleanPh(item.phone).slice(-10))
           );
-          if (isSame || activeChatTicketId === item.id || !activeChatTicketId) {
+          if (isViewingThis || ((tab === 'su' && adminSupportSub === 'support') && !activeChatTicketId)) {
             if (!activeChatTicketId) activeChatTicketId = item.id;
             const thread = item.thread || [];
-            const lastMsg = thread[thread.length - 1];
-            if (lastMsg) {
-              appendMessageToActiveThreadDOM('admin-support-chat-thread', lastMsg, lastMsg.sender === 'admin');
-              playChime();
-              return;
-            }
+            thread.forEach(msg => {
+              appendMessageToActiveThreadDOM('admin-support-chat-thread', msg, msg.sender === 'admin');
+            });
+            scrollChatToBottom(true);
+            playChime();
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+            if (!isTyping) draw();
+            return;
           } else {
             playChime();
-            toast(tr('New message from ' + (item.borrower || 'Customer') + ' ✓', (item.borrower || 'ఖాతాదారుడు') + ' నుండి సందేశం వచ్చింది ✓'));
+            const thread = item.thread || [];
+            const lastMsg = thread[thread.length - 1] || { text: item.msg || '' };
+            const snippet = lastMsg.text ? (lastMsg.text.length > 50 ? lastMsg.text.slice(0, 47) + '...' : lastMsg.text) : '';
+            toast(tr('New Support message from ' + (item.borrower || 'Customer') + ': ' + snippet + ' ✓', (item.borrower || 'ఖాతాదారుడు') + ' నుండి సందేశం: ' + snippet + ' ✓'));
+            showActionAlert(
+              tr('New Customer Support Message ✓', 'కొత్త కస్టమర్ సపోర్ట్ సందేశం ✓'),
+              (item.borrower || 'Customer') + ': "' + snippet + '"',
+              tr('Ticket: ', 'టికెట్: ') + getTicketId(item)
+            );
             draw();
             return;
           }
         }
+
         // Check if viewing in Client Support
-        if (role === 'c' && clientTab === 'my_support') {
+        const actM = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || (clientMid && M.find(x => x.id === clientMid)) || null;
+        const matchesClient = actM && (
+          (item.mid && item.mid === actM.id) ||
+          (actM.phone && item.phone && cleanPh(actM.phone).slice(-10) === cleanPh(item.phone).slice(-10)) ||
+          (actM.email && item.email && actM.email.toLowerCase() === item.email.toLowerCase())
+        );
+        if (matchesClient || (!actM && role === 'c')) {
+          clientChatTicketId = item.id;
           const thread = item.thread || [];
-          const lastMsg = thread[thread.length - 1];
-          if (lastMsg) {
-            appendMessageToActiveThreadDOM('client-support-chat-thread', lastMsg, lastMsg.sender === 'client');
+          if (role === 'c' && clientTab === 'my_support') {
+            thread.forEach(msg => {
+              appendMessageToActiveThreadDOM('client-support-chat-thread', msg, msg.sender === 'client');
+            });
+            scrollChatToBottom(true);
             playChime();
+            return;
+          } else if (role === 'c') {
+            playChime();
+            const lastAdminMsg = [...thread].reverse().find(m => m.sender === 'admin');
+            if (lastAdminMsg) {
+              showActionAlert(
+                tr('New Message from Durga Sravan (Admin) ✓', 'దుర్గా శ్రావణ్ (అడ్మిన్) గారి నుండి కొత్త సందేశం ✓'),
+                lastAdminMsg.text,
+                tr('Support Ticket: ', 'సపోర్ట్ టికెట్: ') + getTicketId(item)
+              );
+              toast(tr('New message received from Durga Sravan ✓', 'దుర్గా శ్రావణ్ గారి నుండి సందేశం వచ్చింది ✓'));
+            }
+            draw();
             return;
           }
         }
@@ -11996,24 +12144,59 @@ function initLiveChatDeskChannel(){
         else CB.unshift(item);
         try { localStorage.setItem('gf_client_bugs', JSON.stringify(CB)); } catch(_) {}
 
-        // Check if viewing in Admin Bugs
-        if (tab === 'su' && adminSupportSub === 'bugs' && activeChatBugId === item.id) {
-          const thread = item.thread || [];
-          const lastMsg = thread[thread.length - 1];
-          if (lastMsg) {
-            appendMessageToActiveThreadDOM('admin-bug-chat-thread', lastMsg, lastMsg.sender === 'admin');
+        const isAdmin = (owner || role === 'a' || role === 'all' || passkeyUnlocked || ((me && me.role) === 'admin'));
+        if (isAdmin) {
+          if (tab === 'su' && adminSupportSub === 'bugs' && (activeChatBugId === item.id || !activeChatBugId)) {
+            if (!activeChatBugId) activeChatBugId = item.id;
+            const thread = item.thread || [];
+            thread.forEach(msg => {
+              appendMessageToActiveThreadDOM('admin-bug-chat-thread', msg, msg.sender === 'admin');
+            });
+            scrollChatToBottom(true);
             playChime();
+            const activeEl = document.activeElement;
+            const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.value.trim().length > 0;
+            if (!isTyping) draw();
+            return;
+          } else {
+            playChime();
+            const thread = item.thread || [];
+            const lastMsg = thread[thread.length - 1] || { text: item.description || '' };
+            const snippet = lastMsg.text ? (lastMsg.text.length > 50 ? lastMsg.text.slice(0, 47) + '...' : lastMsg.text) : '';
+            toast(tr('Bug Update from ' + (item.borrower || 'User') + ': ' + snippet + ' ✓', (item.borrower || 'యూజర్') + ' నుండి బగ్ అప్‌డేట్ ✓'));
+            showActionAlert(
+              tr('Bug Report Update ✓', 'బగ్ రిపోర్ట్ అప్‌డేట్ ✓'),
+              (item.borrower || 'User') + ': "' + snippet + '"',
+              getBugId(item)
+            );
+            draw();
             return;
           }
         }
-        // Check if viewing in Client Bugs
-        if (role === 'c' && clientTab === 'report_bug' && (clientChatBugId === item.id || !clientChatBugId)) {
-          if (!clientChatBugId) clientChatBugId = item.id;
+
+        const actM = (typeof resolveActiveClientMember === 'function' ? resolveActiveClientMember() : null) || (clientMid && M.find(x => x.id === clientMid)) || null;
+        const matchesClient = actM && (
+          (item.mid && item.mid === actM.id) ||
+          (actM.phone && item.phone && cleanPh(actM.phone).slice(-10) === cleanPh(item.phone).slice(-10))
+        );
+        if (matchesClient || (!actM && role === 'c')) {
+          clientChatBugId = item.id;
           const thread = item.thread || [];
-          const lastMsg = thread[thread.length - 1];
-          if (lastMsg) {
-            appendMessageToActiveThreadDOM('client-bug-chat-thread', lastMsg, lastMsg.sender === 'client');
+          if (role === 'c' && clientTab === 'report_bug') {
+            thread.forEach(msg => {
+              appendMessageToActiveThreadDOM('client-bug-chat-thread', msg, msg.sender === 'client');
+            });
+            scrollChatToBottom(true);
             playChime();
+            return;
+          } else if (role === 'c') {
+            playChime();
+            showActionAlert(
+              tr('Bug Report Update from Durga Sravan (Engineering) ✓', 'దుర్గా శ్రావణ్ గారి నుండి బగ్ అప్‌డేట్ ✓'),
+              tr('Status: ', 'స్థితి: ') + item.status.toUpperCase() + (item.resolution_notes ? ' • ' + item.resolution_notes : ''),
+              getBugId(item)
+            );
+            draw();
             return;
           }
         }
@@ -12315,7 +12498,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v111</span>
+          <span class="v18-pill">v112</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -12532,8 +12715,14 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
               if (JSON.stringify(prev) !== JSON.stringify(mergedItem)) {
                 const threadId = isAdm ? 'admin-support-chat-thread' : 'client-support-chat-thread';
                 const curActiveId = isAdm ? activeChatTicketId : clientChatTicketId;
-                if (curActiveId === item.id) {
+                const isViewing = isAdm
+                  ? (tab === 'su' && adminSupportSub === 'support' && (curActiveId === item.id || !curActiveId))
+                  : (role === 'c' && clientTab === 'my_support');
+                if (isViewing) {
+                  if (!clientChatTicketId) clientChatTicketId = item.id;
+                  if (!activeChatTicketId && isAdm) activeChatTicketId = item.id;
                   mergedTh.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
+                  scrollChatToBottom(true);
                 }
                 if (_initialServerSyncDone && !isAdm && !prev.reply && item.reply) {
                   playChime();
@@ -12553,6 +12742,11 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
                 notifyBrowser('Gangaya Finance', tr('New Customer Support message from ' + (item.borrower||'Customer'), (item.borrower||'ఖాతాదారుడు') + ' నుండి సందేశం: ' + (item.msg||'')));
                 toast(tr('New Support message from ' + (item.borrower||'Customer') + ' ✓', (item.borrower||'ఖాతాదారుడు') + ' నుండి కొత్త సందేశం ✓'));
               }
+              if (!isAdm && role === 'c' && clientTab === 'my_support' && !clientChatTicketId) {
+                clientChatTicketId = item.id;
+                const threadId = 'client-support-chat-thread';
+                (item.thread || []).forEach(m => appendMessageToActiveThreadDOM(threadId, m, m.sender === 'client'));
+              }
               CS.unshift(item); changed = true;
             }
           }
@@ -12569,9 +12763,15 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
                 // If currently viewing this bug, append new messages directly
                 const threadId = isAdm ? 'admin-bug-chat-thread' : 'client-bug-chat-thread';
                 const curActiveBugId = isAdm ? activeChatBugId : clientChatBugId;
-                if (curActiveBugId === item.id) {
+                const isViewingBug = isAdm
+                  ? (tab === 'su' && adminSupportSub === 'bugs' && (curActiveBugId === item.id || !curActiveBugId))
+                  : (role === 'c' && clientTab === 'report_bug');
+                if (isViewingBug) {
+                  if (!clientChatBugId) clientChatBugId = item.id;
+                  if (!activeChatBugId && isAdm) activeChatBugId = item.id;
                   const arr = item.thread || [];
                   arr.forEach(m => appendMessageToActiveThreadDOM(threadId, m, isAdm ? (m.sender === 'admin') : (m.sender === 'client')));
+                  scrollChatToBottom(true);
                 }
                 if (_initialServerSyncDone && !isAdm && prev.status !== item.status) {
                   playChime();
@@ -12745,5 +12945,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=111').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=112').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
