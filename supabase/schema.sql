@@ -17,6 +17,11 @@ alter table public.docs drop constraint if exists docs_collection_check;
 alter table public.docs add constraint docs_collection_check check (collection in ('members','villages','txns','rem','notifs','settings','loan_requests','upi_credits','client_support','client_bugs','client_profiles','client_agreements','client_receipts','lockouts'));
 
 create index if not exists docs_collection_created on public.docs (collection, created_at);
+create index if not exists docs_collection_created_desc on public.docs (collection, created_at desc);
+create index if not exists docs_collection_mid on public.docs (collection, (data->>'mid'));
+create index if not exists docs_collection_phone on public.docs (collection, (data->>'phone'));
+create index if not exists docs_collection_status on public.docs (collection, (data->>'status'));
+create index if not exists docs_data_gin on public.docs using gin (data);
 
 alter table public.profiles enable row level security;
 alter table public.docs     enable row level security;

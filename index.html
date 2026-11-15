@@ -1424,7 +1424,7 @@ a.wa { display: inline-flex; align-items: center; gap: 6px; background: #25d366;
 <script src="/vendor/supabase.js"></script>
 <script src="/vendor/qrcode.js"></script>
 <script src="/vendor/jsqr.js"></script>
-<script src="/runtime.js?v=90"></script>
+<script src="/runtime.js?v=91"></script>
 <script>
 let isNetOffline=(typeof navigator!=='undefined'&&!navigator.onLine),isSlowNet=false,slowNetTimer=null;
 window.addEventListener('offline',()=>{isNetOffline=true;draw()});
@@ -7644,7 +7644,7 @@ function renderClientDashboard(){
         <div>
           <h1 class="brand-title">
             ${tr('Gangaya Finance • Client Portal', 'గంగయ్య ఫైనాన్స్ • ఖాతాదారుల పోర్టల్')}
-            <span class="v18-pill">v90</span>
+            <span class="v18-pill">v91</span>
           </h1>
           <div class="brand-sub">
             <span class="pulse-dot" style="background:#10b981"></span>
@@ -9211,7 +9211,7 @@ app.innerHTML=renderBorrowerProfileModal()+`<aside class="v18-dock" aria-label="
       <div>
         <h1 class="brand-title">
           ${adm?'Gangaya Finance':(isTe()?'గంగయ్య ఫైనాన్స్':'Gangaya Finance')}
-          <span class="v18-pill">v90</span>
+          <span class="v18-pill">v91</span>
         </h1>
         <div class="brand-sub">
           <span class="pulse-dot"></span>
@@ -9308,10 +9308,21 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
       sub('client_bugs', a => { CB = mergeSnapList(a, CB, 'gf_client_bugs'); draw(); }, a=>a);
       sub('client_profiles', a => { CP = mergeSnapList(a, CP, 'gf_client_profiles'); draw(); }, a=>a);
 
-      if(db.loadAll){
-        db.loadAll().then(()=>{bootComplete=true;syncServerSubmissions();draw();}).catch(()=>{bootComplete=true;});
-      }else{
-        setTimeout(()=>{bootComplete=true;syncServerSubmissions();},1500);
+      if (db.loadAll) {
+        // Parallel concurrent startup requests
+        Promise.all([
+          db.loadAll(),
+          syncServerSubmissions()
+        ]).then(() => {
+          bootComplete = true;
+          draw();
+        }).catch(() => {
+          bootComplete = true;
+          draw();
+        });
+      } else {
+        bootComplete = true;
+        syncServerSubmissions();
       }
     }
 
@@ -9443,5 +9454,5 @@ for(const k in keep){const e=document.getElementById(k);if(e&&keep[k]!=='')e.val
   draw();
   })();
 </script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=90').then(r=>r.update()).catch(()=>{})</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js?v=91').then(r=>r.update()).catch(()=>{})</script>
 </body></html>
